@@ -13,21 +13,13 @@ update submodules
 git submodule init
 git submodule update
 ```
-clone Luau
+build luau
 ```
-git clone https://github.com/luau-lang/luau.git
+make -C vendor/luau config=release luau
 ```
-build Luau
+build raylib
 ```
-make -C luau config=release luau
-```
-clone Raylib
-```
-git clone https://github.com/raysan5/raylib.git
-```
-build Raylib
-```
-make -C raylib/src
+make -C vendor/raylib/src
 ```
 clone ODE
 ```
