@@ -6,7 +6,7 @@
 clone this repo
 ```
 git clone https://github.com/xMajedz/multiaxis.git
-cd muliaxis
+cd multiaxis
 ```
 update submodules
 ```
