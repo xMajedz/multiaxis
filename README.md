@@ -32,14 +32,5 @@ cd ode
 ./configure
 make
 ```
-build tobas
-```
-cd build
-make -C ..
-```
-run tobas
-```
-./tobas
-```
 # Downloads
-check the [releases](https://github.com/xMajedz/tobas/releases) page for updates 
+check the [releases](https://github.com/xMajedz/multiaxis/releases) page for updates 
