@@ -19,7 +19,7 @@ workspace "tobas"
 
 		"vendor/ode/include",
 
-		"vendor/enet/include",
+		--"vendor/enet/include",
 
 		"sources",
 	}
@@ -63,7 +63,7 @@ workspace "tobas"
 	filter { "not system:Windows" }
 	libdirs { "lib/linux" }
 
-project "tobas_sp"
+project "multiaxis_sp"
 	kind "WindowedApp"
 	files { "sources/tobas_sp.cpp" }
 	defines { "OFFLINE" }
@@ -71,7 +71,7 @@ project "tobas_sp"
 	filter { "system:Windows" }
 	links {"winmm", "gdi32", "opengl32"}
 	defines{"_WIN32"}
-
+--[[
 project "tobas"
 	kind "WindowedApp"
 	files {
@@ -99,3 +99,4 @@ project "tobas_server"
 	links {"winmm", "gdi32", "opengl32"}
         links { "kernel32", "ws2_32" }
 	defines{"_WIN32"}
+]]
