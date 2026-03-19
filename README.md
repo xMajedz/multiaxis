@@ -3,10 +3,15 @@
 * Raylib ([raysan5/raylib](https://github.com/raysan5/raylib))
 * Open Dynamics Engine ([odedevs/ode](https://bitbucket.org/odedevs/ode)) 
 # Building
-clone tobas
+clone this repo
 ```
-git clone https://github.com/xMajedz/tobas.git
-cd tobas
+git clone https://github.com/xMajedz/multiaxis.git
+cd muliaxis
+```
+update submodules
+```
+git submodule init
+git submodule update
 ```
 clone Luau
 ```
