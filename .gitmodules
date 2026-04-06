@@ -1,0 +1,9 @@
+[submodule "vendor/ode"]
+	path = vendor/ode
+	url = https://bitbucket.org/odedevs/ode.git
+[submodule "vendor/ode-premake5"]
+	path = vendor/ode-premake5
+	url = https://github.com/xMajedz/ode-premake5.git
+[submodule "vendor/luau"]
+	path = vendor/luau
+	url = https://github.com/luau-lang/luau.git

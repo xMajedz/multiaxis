@@ -1,5 +1,5 @@
 dist
 build
-vendor
+vendor/*
 lib
 replays
