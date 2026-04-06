@@ -349,7 +349,14 @@ static void DrawBody(PlayerID pID, BodyID bID)
 	rlPopMatrix();
 }
 
-static void UpdateGhostCache()
+static void ResetGhostCache()
+{
+  using namespace Game;
+  
+  ghost_frames = 0;
+}
+
+static void RecordGhostCache()
 {
 	using namespace Game;
 
@@ -478,7 +485,7 @@ void Game::Update(dReal dt)
 				}
 
 				if (ghost_frames < ghost_length) {
-					UpdateGhostCache();
+					RecordGhostCache();
 				}
 	
 				break;
@@ -515,8 +522,8 @@ static void DrawObject(BodyShape shape, vec3 sides, dReal radius, dReal length, 
 
 		break;
 	case SPHERE:
-	  DrawModel(sphere, (Vector3){0.00, 0.00, 0.00}, radius, color);
-	  //DrawSphere((Vector3){ 0.0f, 0.0f, 0.0f }, radius, color);
+	  //DrawModel(sphere, (Vector3){0.00, 0.00, 0.00}, radius, color);
+	  DrawSphere((Vector3){ 0.0f, 0.0f, 0.0f }, radius, color);
 
 		break;
 	case CAPSULE:
@@ -663,31 +670,27 @@ void Game::DrawFloor()
 	rlPopMatrix();
 }
 
-static void DrawGhost()
-{
-	using namespace Game;
-
-	DrawGhostCache(rules.turnframes);
-
-	DrawGhostCache(state.freeze_count);
-}
-
 void Game::Draw()
 {
 	for (auto& o : objects) {
-		o.Draw(state.freeze);
+	  o.Draw(state.freeze);
 	}
 
-	//for (auto& p : players) {
-	//	p.Draw(state.freeze);
-	//}
+	for (PlayerID pID = 0; pID < p_count; pID += 1) {
+	  players[pID].Draw(state.freeze);
+	}
+	
+	if (ghost_frames >= rules.turnframes) {
+	  DrawGhostCache(rules.turnframes);
+	}
 	
 	if (ghost_frames >= ghost_length) {
-		DrawGhost();
+	  DrawGhostCache(state.freeze_count);
 	}
 
-	if (state.freeze && state.selected_player != -1 && state.selected_joint != -1)
-		players[state.selected_player].joint[state.selected_joint].DrawSelect();
+	if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
+	  players[state.selected_player].joint[state.selected_joint].DrawSelect();
+	}
 
 	DrawFloor();
 }
@@ -897,21 +900,29 @@ void Game::ToggleGhosts()
 void Game::TogglePlayerPassiveStatesAlt(PlayerID player_id)
 {
 	players[player_id].TogglePassiveStatesAlt();
+
+	ResetGhostCache();
 }
 
 void Game::TogglePlayerPassiveStates(PlayerID player_id)
 {
 	players[player_id].TogglePassiveStates();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedPlayerPassiveStatesAlt()
 {
 	players[state.selected_player].TogglePassiveStatesAlt();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedPlayerPassiveStates()
 {
 	players[state.selected_player].TogglePassiveStates();
+
+	ResetGhostCache();
 }
 
 void Game::TriggerPlayerJointState(PlayerID player_id, JointID joint_id, JointState state)
@@ -987,16 +998,22 @@ void Game::TriggerPlayerJointAlt(PlayerID player_id, JointID joint_id, JointStat
 void Game::UndoSelectedPlayerMove()
 {
 	Replay::PlayFrame(state.game_frame);
+
+	ResetGhostCache();
 }
 
 void Game::ToggleBodyState(BodyID body_id)
 {
 	players[state.selected_player].body[body_id].ToggleState();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedBodyState()
 {
 	players[state.selected_player].body[state.selected_body].ToggleState();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedPlayerBodyStates()
@@ -1006,87 +1023,120 @@ void Game::ToggleSelectedPlayerBodyStates()
 		if (b.m_interactive)
 			b.ToggleState();
 	}
+
+	ResetGhostCache();
 }
 
 void Game::ToggleJointActiveStateAlt(JointID joint_id)
 {
 	players[state.selected_player].joint[joint_id].ToggleActiveStateAlt();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleJointActiveState(JointID joint_id)
 {
 	players[state.selected_player].joint[joint_id].ToggleActiveState();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleJointPassiveStateAlt(JointID joint_id)
 {
 	players[state.selected_player].joint[joint_id].TogglePassiveStateAlt();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleJointPassiveState(JointID joint_id)
 {
 	players[state.selected_player].joint[joint_id].TogglePassiveState();
+
+	ResetGhostCache();
 }
 
 void Game::CycleJointStateAlt(JointID joint_id)
 {
 	players[state.selected_player].joint[joint_id].CycleStateAlt();
+
+	ResetGhostCache();
 }
 
 void Game::CycleJointState(JointID joint_id)
 {
 	players[state.selected_player].joint[joint_id].CycleState();
+
+	ResetGhostCache();
 }
 
 void Game::TriggerSelectedJointActiveStateAlt(dReal vel)
 {
 	players[state.selected_player].joint[state.selected_joint].TriggerActiveStateAlt(vel);
+
+	ResetGhostCache();
 }
 
 void Game::TriggerSelectedJointActiveState(dReal vel)
 {
 	players[state.selected_player].joint[state.selected_joint].TriggerActiveState(vel);
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedJointActiveStateAlt(dReal vel)
 {
 	players[state.selected_player].joint[state.selected_joint].ToggleActiveStateAlt(vel);
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedJointActiveState(dReal vel)
 {
 	players[state.selected_player].joint[state.selected_joint].ToggleActiveState(vel);
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedJointActiveStateAlt()
 {
 	players[state.selected_player].joint[state.selected_joint].ToggleActiveStateAlt();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedJointActiveState()
 {
 	players[state.selected_player].joint[state.selected_joint].ToggleActiveState();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedJointPassiveStateAlt()
 {
-
 	players[state.selected_player].joint[state.selected_joint].TogglePassiveStateAlt();
+
+	ResetGhostCache();
 }
 
 void Game::ToggleSelectedJointPassiveState()
 {
 	players[state.selected_player].joint[state.selected_joint].TogglePassiveState();
+
+	ResetGhostCache();
 }
 
 void Game::CycleSelectedJointStateAlt()
 {
 	players[state.selected_player].joint[state.selected_joint].CycleStateAlt();
+
+	ResetGhostCache();
 }
 
 void Game::CycleSelectedJointState()
 {
 	players[state.selected_player].joint[state.selected_joint].CycleState();
+
+	ResetGhostCache();
 }
 
 void rl_log(int level, const char* msg, va_list)
