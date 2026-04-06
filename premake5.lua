@@ -26,13 +26,15 @@ workspace "tobas"
 
 	links {
 		"luaucompiler", "luauast", "luauvm",
+		
+		"luaucommon", "luaucodegen",
+
 		"raylib",
 		"ode",
 	}
 
 	files {
 		"sources/luau.h", "sources/luau.cpp",
-
 
 		"sources/api.h", "sources/api.cpp",
 		"sources/api_net.cpp",
@@ -58,14 +60,17 @@ workspace "tobas"
 	optimize "On"
 
 	filter { "system:Windows" }
-	libdirs { "lib/windows" }
+	libdirs { "libs-windows" }
 
 	filter { "not system:Windows" }
-	libdirs { "lib/linux" }
+	libdirs { "libs-linux" }
 
 project "multiaxis_sp"
 	kind "WindowedApp"
 	files { "sources/tobas_sp.cpp" }
+	
+	links { "X11" }
+
 	defines { "OFFLINE" }
 
 	filter { "system:Windows" }
