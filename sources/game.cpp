@@ -10,7 +10,9 @@ using namespace raylib;
 #include "rlgl.h"
 
 static Shader shader;
-static Model sphere;
+
+static Model models[8];
+static Texture2D textures[8];
 
 void Game::Init()
 {
@@ -108,6 +110,8 @@ void Game::NewGame()
 
 	for (int pID = 0; pID < players.size(); pID += 1) {
 		auto& p = players[pID];
+
+		player_ghosts[pID] = 1;
 
 		p.b_count = p.body.size();
 		p.j_count = p.joint.size();
@@ -276,7 +280,7 @@ void Game::Step(int frame_count)
 
 static bool GhostCacheEnabled()
 {
-  return true;
+  return false;
 }
 
 static bool GhostCacheReady()
@@ -286,20 +290,10 @@ static bool GhostCacheReady()
 	return ghost_frames >= ghost_length;
 }
 
-static void DrawBody(PlayerID pID, BodyID bID)
+template<class T>
+static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 {
-	using namespace Game;
-
-	auto& b = players[pID].body[bID];
-
-	Color color = b.m_color;
-
-	Quaternion q = {
-		b.frame_orientation.x,
-		b.frame_orientation.y,
-		b.frame_orientation.z,
-		b.frame_orientation.w,
-	};
+  using namespace Game;
 
 	float angle;
 	Vector3 axis;
@@ -307,25 +301,34 @@ static void DrawBody(PlayerID pID, BodyID bID)
 	QuaternionToAxisAngle(q, &axis, &angle);
 
 	rlPushMatrix();
-	rlTranslatef(b.frame_position.x, b.frame_position.y, b.frame_position.z);
+	rlTranslatef(
+		    p.x,
+		    p.y,
+		    p.z
+	);
+	
 	rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
 
 	/*
 	 */
 
-	switch(b.shape)
+	switch(o.shape)
 	{
 	case BOX:
-		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f }, b.m_sides.x, b.m_sides.y, b.m_sides.z, color);
+		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f },
+			 o.m_sides.x,
+			 o.m_sides.y,
+			 o.m_sides.z,
+			 color);
 		break;
 	case SPHERE:
-		DrawSphere((Vector3){ 0.0f, 0.0f, 0.0f }, b.radius, color);
-		break;
+	  DrawSphere((Vector3){0.00, 0.00, 0.00}, o.radius, color);
+	  break;
 	case CAPSULE:
 		DrawCapsule(
-				(Vector3){ 0.0f, 0.0f, -(b.length/2) },
-				(Vector3){ 0.0f, 0.0f,  (b.length/2) },
-				b.radius,
+				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
+				(Vector3){ 0.0f, 0.0f,  (o.length/2) },
+				o.radius,
 				16,
 				16,
 				color
@@ -333,10 +336,10 @@ static void DrawBody(PlayerID pID, BodyID bID)
 		break;
 	case CYLINDER:
 		DrawCylinderEx(
-				(Vector3){ 0.0f, 0.0f, -(b.length/2) },
-				(Vector3){ 0.0f, 0.0f,  (b.length/2) },
-				b.radius,
-				b.radius,
+				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
+				(Vector3){ 0.0f, 0.0f,  (o.length/2) },
+				o.radius,
+				o.radius,
 				16,
 				color
 		);
@@ -349,10 +352,70 @@ static void DrawBody(PlayerID pID, BodyID bID)
 	rlPopMatrix();
 }
 
-static void ResetGhostCache()
+template<class T>
+static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, Color color)
 {
   using namespace Game;
-  
+
+	float angle;
+	Vector3 axis;
+
+	QuaternionToAxisAngle(q, &axis, &angle);
+
+	rlPushMatrix();
+	rlTranslatef(
+		    p.x,
+		    p.y,
+		    p.z
+	);
+	
+	rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
+
+	/*
+	 */
+
+	switch(o.shape)
+	{
+	case BOX:
+		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f },
+			 o.m_sides.x,
+			 o.m_sides.y,
+			 o.m_sides.z,
+			 color);
+		break;
+	case SPHERE:
+	  DrawModel(model, (Vector3){0.00, 0.00, 0.00}, s * o.radius, color);
+	  break;
+	case CAPSULE:
+		DrawCapsule(
+				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
+				(Vector3){ 0.0f, 0.0f,  (o.length/2) },
+				o.radius,
+				16,
+				16,
+				color
+		);
+		break;
+	case CYLINDER:
+		DrawCylinderEx(
+				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
+				(Vector3){ 0.0f, 0.0f,  (o.length/2) },
+				o.radius,
+				o.radius,
+				16,
+				color
+		);
+		break;
+	}
+
+	/*
+	 */
+
+	rlPopMatrix();
+}
+
+void Game::ResetGhostCache()
+{
   ghost_frames = 0;
 }
 
@@ -484,7 +547,7 @@ void Game::Update(dReal dt)
 					}
 				}
 
-				if (ghost_frames < ghost_length) {
+				if (GhostCacheEnabled() && ghost_frames < ghost_length) {
 					RecordGhostCache();
 				}
 	
@@ -495,7 +558,7 @@ void Game::Update(dReal dt)
 		}
 
 		if (space != nullptr) {
-		  if (GhostCacheEnabled() && !GhostCacheReady()) {
+		  if (!GhostCacheEnabled() && !GhostCacheReady()) {
 		     dSpaceCollide(space, 0, nearCallback);
 		     dWorldStep(world, step);
 		     dJointGroupEmpty(contactgroup);
@@ -504,143 +567,200 @@ void Game::Update(dReal dt)
 	}
 }
 
-static void DrawObject(BodyShape shape, vec3 sides, dReal radius, dReal length, Color color, Quaternion q, Vector3 p)
+void Game::DrawPlayerGhostCache(PlayerID pID, uint32_t frame)
 {
-	float angle;
-	Vector3 axis;
+  auto buffer = (dReal*)data->buffer();
 
-	QuaternionToAxisAngle(q, &axis, &angle);
+  uint32_t j_total = 0;
+  uint32_t b_total = 0;
 
-	rlPushMatrix();
-	rlTranslatef(p.x, p.y, p.z);
-	rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
+  for (int i = 0; i < p_count; i += 1) {
+    j_total += players[i].j_count;
+    b_total += players[i].b_count;
+  }
 
-	switch(shape)
+  uint32_t offset = 7 * frame * (j_total + b_total);
+
+  uint32_t j_offset = 0;
+  uint32_t b_offset = 0;
+
+  auto& p = players[pID];
+
+  offset += 7 * pID * (p.j_count + p.b_count);
+
+  for (int jID = 0; jID < players[pID].j_count; jID += 1) {
+    auto& j = p.joint[jID];
+
+    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
+
+    Quaternion q = {
+      frame_buffer[0],
+      frame_buffer[1],
+      frame_buffer[2],
+      frame_buffer[3],
+    };
+
+    Vector3 p = {
+      frame_buffer[4],
+      frame_buffer[5],
+      frame_buffer[6],
+    };
+
+    DrawObject(j, q, p, j.m_g_color);
+
+    j_offset += 1;
+  }
+
+  offset += 7 * (j_offset + pID * p.b_count);
+
+  for (int bID = 0; bID < players[pID].b_count; bID += 1) {
+    auto& b = p.body[bID];
+			
+    auto frame_buffer = (dReal*)(buffer + offset + 7 * bID);
+
+    Quaternion q = {
+      frame_buffer[0],
+      frame_buffer[1],
+      frame_buffer[2],
+      frame_buffer[3],
+    };
+
+    Vector3 p = {
+      frame_buffer[4],
+      frame_buffer[5],
+      frame_buffer[6],
+    };
+
+    DrawObject(b, q, p, b.m_g_color);
+  }
+}
+
+void Game::DrawPlayerFreeze(PlayerID pID)
+{ 
+  auto& p = players[pID];
+
+  for (int jID = 0; jID < players[pID].j_count; jID += 1) {
+    auto& j = p.joint[jID];
+      
+	Quaternion q = {
+	  j.freeze_orientation.x,
+	  j.freeze_orientation.y,
+	  j.freeze_orientation.z,
+	  j.freeze_orientation.w,
+	};
+
+	Vector3 p = {
+	  j.freeze_position.x,
+	  j.freeze_position.y,
+	  j.freeze_position.z,
+	};
+
+	switch (j.state)
 	{
-	case BOX:
-		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f }, sides.x, sides.y, sides.z, color);
+	case RELAX:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j.m_color, 0.50));
+	  break;
+	case HOLD:
+	  DrawObjectModel(j, q, p, 1.00, models[0], j.m_color);
+	  break;
+	case FORWARD:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j.m_color, 0.50));
+	  DrawObjectModel(j, q, p, 1.00, models[1], j.m_color);
+	  break;
+	case BACKWARD:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j.m_color, 0.50));
+	  DrawObjectModel(j, q, p, 1.00, models[1], j.m_color);
+	  break;
+    }
+  }
 
-		break;
-	case SPHERE:
-	  //DrawModel(sphere, (Vector3){0.00, 0.00, 0.00}, radius, color);
-	  DrawSphere((Vector3){ 0.0f, 0.0f, 0.0f }, radius, color);
+  for (int bID = 0; bID < players[pID].b_count; bID += 1) {
+    auto& b = p.body[bID];
+      
+	Quaternion q = {
+	  b.freeze_orientation.x,
+	  b.freeze_orientation.y,
+	  b.freeze_orientation.z,
+	  b.freeze_orientation.w,
+	};
 
-		break;
-	case CAPSULE:
-		DrawCapsule(
-				(Vector3){ 0.0f, 0.0f, -(length/2) },
-				(Vector3){ 0.0f, 0.0f,  (length/2) },
-				radius,
-				16,
-				16,
-				color
-		);
+	Vector3 p = {
+	  b.freeze_position.x,
+	  b.freeze_position.y,
+	  b.freeze_position.z,
+	};
 
-		break;
-	case CYLINDER:
-		DrawCylinderEx(
-				(Vector3){ 0.0f, 0.0f, -(length/2) },
-				(Vector3){ 0.0f, 0.0f,  (length/2) },
-				radius,
-				radius,
-				16,
-				color
-		);
-
-		break;
+	if (b.active) {
+	  DrawObject(b, q, p, b.m_active_color);
+	} else {
+      DrawObject(b, q, p, b.m_color);
 	}
-
-	rlPopMatrix();
+  }
 }
 
-void Game::DrawGhostCache(int frame)
-{
-	auto buffer = (dReal*)data->buffer();
+void Game::DrawPlayer(PlayerID pID, Color j_color, Color b_color)
+{ 
+  auto& p = players[pID];
 
-	uint32_t j_total = 0;
-	uint32_t b_total = 0;
+  for (int jID = 0; jID < players[pID].j_count; jID += 1) {
+    auto& j = p.joint[jID];
+      
+	Quaternion q = {
+	  j.frame_orientation.x,
+	  j.frame_orientation.y,
+	  j.frame_orientation.z,
+	  j.frame_orientation.w,
+	};
 
-	for (int pID = 0; pID < p_count; pID += 1) {
-		j_total += players[pID].j_count;
-		b_total += players[pID].b_count;
+	Vector3 p = {
+	  j.frame_position.x,
+	  j.frame_position.y,
+	  j.frame_position.z,
+	};
+
+	switch (j.state)
+	{
+	case RELAX:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j_color, 0.50));
+	  break;
+	case HOLD:
+	  DrawObjectModel(j, q, p, 1.00, models[0], j_color);
+	  break;
+	case FORWARD:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j_color, 0.50));
+	  DrawObjectModel(j, q, p, 1.00, models[1], j_color);
+	  break;
+	case BACKWARD:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j_color, 0.50));
+	  DrawObjectModel(j, q, p, 1.00, models[1], j_color);
+	  break;
+    }
+  }
+
+  for (int bID = 0; bID < players[pID].b_count; bID += 1) {
+    auto& b = p.body[bID];
+      
+	Quaternion q = {
+	  b.frame_orientation.x,
+	  b.frame_orientation.y,
+	  b.frame_orientation.z,
+	  b.frame_orientation.w,
+	};
+
+	Vector3 p = {
+	  b.frame_position.x,
+	  b.frame_position.y,
+	  b.frame_position.z,
+	};
+
+	if (b.active) {
+	  DrawObject(b, q, p, b.m_active_color);
+	} else {
+      DrawObject(b, q, p, b_color);
 	}
-
-	uint32_t offset = 7 * frame * (j_total + b_total);
-
-	uint32_t j_offset = 0;
-	uint32_t b_offset = 0;
-
-	for (int pID = 0; pID < p_count; pID += 1) {
-		auto& p = players[pID];
-
-		offset += 7 * pID * (p.j_count + p.b_count);
-
-		for (int jID = 0; jID < players[pID].j_count; jID += 1) {
-			auto& j = p.joint[jID];
-
-			auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
-
-			Quaternion q = {
-				frame_buffer[0],
-				frame_buffer[1],
-				frame_buffer[2],
-				frame_buffer[3],
-			};
-
-			Vector3 p = {
-				frame_buffer[4],
-				frame_buffer[5],
-				frame_buffer[6],
-			};
-
-			DrawObject(
-				j.shape,
-				j.m_sides,
-				j.radius,
-				j.length,
-				j.m_g_color,
-				q,
-				p
-			);
-
-			j_offset += 1;
-		}
-
-		//offset += 7 * (p.j_count + pID * p.b_count);
-		offset += 7 * (j_offset + pID * p.b_count);
-
-		for (int bID = 0; bID < players[pID].b_count; bID += 1) {
-			auto& b = p.body[bID];
-
-			auto frame_buffer = (dReal*)(buffer + offset + 7 * bID);
-
-			Quaternion q = {
-				frame_buffer[0],
-				frame_buffer[1],
-				frame_buffer[2],
-				frame_buffer[3],
-			};
-
-			Vector3 p = {
-				frame_buffer[4],
-				frame_buffer[5],
-				frame_buffer[6],
-			};
-
-			DrawObject(
-				b.shape,
-				b.m_sides,
-				b.radius,
-				b.length,
-				b.m_g_color,
-				q,
-				p
-			);
-		}
-
-	}
+  }
 }
-
+ 
 void Game::DrawContacts(bool freeze)
 {
 	dContact* contacts;
@@ -675,19 +795,27 @@ void Game::Draw()
 	for (auto& o : objects) {
 	  o.Draw(state.freeze);
 	}
+	
+	for (PlayerID pID = 0; pID < players.size(); pID += 1) {
+	  if (state.freeze) {
+		DrawPlayerFreeze(pID);
 
-	for (PlayerID pID = 0; pID < p_count; pID += 1) {
-	  players[pID].Draw(state.freeze);
+		if (GhostCacheEnabled()) {
+	      if (player_ghosts[pID] == 1 && ghost_frames >= rules.turnframes) {
+	        DrawPlayerGhostCache(pID, rules.turnframes);
+	      }
+	
+	      if (player_ghosts[pID] == 1 && ghost_frames >= ghost_length) {
+	        DrawPlayerGhostCache(pID, state.freeze_count);
+		  }
+		} else {
+		  DrawPlayer(pID, players[pID].m_g_color, players[pID].m_g_color);
+		}
+	  } else {
+		DrawPlayer(pID, players[pID].m_j_color, players[pID].m_b_color);
+	  }
 	}
 	
-	if (ghost_frames >= rules.turnframes) {
-	  DrawGhostCache(rules.turnframes);
-	}
-	
-	if (ghost_frames >= ghost_length) {
-	  DrawGhostCache(state.freeze_count);
-	}
-
 	if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
 	  players[state.selected_player].joint[state.selected_joint].DrawSelect();
 	}
@@ -889,11 +1017,17 @@ void Game::TogglePause()
 
 void Game::ToggleGhosts()
 {
-	for (PlayerID pID = 0; pID < p_count; pID += 1) {
-		if (-1 != state.selected_player && pID != state.selected_player) players[pID].ToggleGhost();
-	}
-
-	Refreeze();
+  for (PlayerID pID = 0; pID < p_count; pID += 1) {
+    if (state.selected_player == -1) {
+      player_ghosts[pID] = player_ghosts[pID] != 0;
+      //players[pID].ToggleGhost();
+    } else if (pID != state.selected_player) {
+      player_ghosts[pID] = player_ghosts[pID] != 0;
+      //players[pID].ToggleGhost();
+    }
+  }
+  
+  Refreeze();
 }
 
 
@@ -1149,13 +1283,18 @@ void Window::Init()
 	SetTraceLogLevel(LOG_ERROR);
 	SetTraceLogCallback(rl_log);
 
-	InitWindow(width, height, "TOBAS");
+	InitWindow(width, height, "MultiAxis");
 
 	Gamecam::Init();
 
-	sphere = LoadModel("resources/model/sphere.obj");
+	models[0] = LoadModel("resources/model/sphere.obj");
+	models[1] = LoadModel("resources/model/hemisphere.obj");
 
-	shader = LoadShader(NULL, "resources/shader/tobas.fs");
+	//textures[0] = LoadTexture("resources/texture/flat.png");
+
+	//models[0].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[0];
+
+	shader = LoadShader(NULL, "resources/shader/potato.fs");
 
 	background = LoadRenderTexture(width, height);
 	foreground = LoadRenderTexture(width, height);
@@ -1549,7 +1688,8 @@ void Window::Draw()
 
 void Window::Close()
 {
-	UnloadModel(sphere);
+	UnloadModel(models[0]);
+	UnloadTexture(textures[0]);
 	UnloadShader(shader);
 	UnloadRenderTexture(background);
 	UnloadRenderTexture(foreground);

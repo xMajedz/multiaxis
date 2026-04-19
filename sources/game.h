@@ -80,9 +80,7 @@ namespace Game
 	static std::vector<Joint> joint_objects;
 
 	static std::vector<Player> players;
-	//static std::vector<Player> ghosts;
-	//static uint8_t ghosts;
-	static std::vector<PlayerID> player_ghosts;
+	static int player_ghosts[16];
 
 	static Arena* data = nullptr;
 
@@ -218,7 +216,13 @@ namespace Game
 	void DrawContacts(bool freeze);
 	void DrawFloor();
 
-	void DrawGhostCache(int frame);
+	void DrawPlayer(PlayerID pID, raylib::Color j_color, raylib::Color b_color);
+
+	void DrawPlayerFreeze(PlayerID pID);
+	
+	void DrawPlayerGhostCache(PlayerID pID, uint32_t frame);
+
+	void ResetGhostCache();
 
 	void Draw();
 
