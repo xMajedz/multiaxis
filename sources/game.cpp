@@ -16,150 +16,145 @@ static Texture2D textures[8];
 
 void Game::Init()
 {
-	dInitODE();
-	world = dWorldCreate();
-	dWorldSetERP(world, 0.45);
-	dWorldSetCFM(world, 10E-2);
+    dInitODE();
+    world = dWorldCreate();
+    dWorldSetERP(world, 0.45);
+    dWorldSetCFM(world, 10E-2);
 
-	step = 1.0E-2;
+    step = 1.0E-2;
 
-	data = new Arena(4*1024*1024);
+    data = new Arena(4*1024*1024);
 
-	API::Init();
-	API::loadscript("init");
+    API::Init();
+    API::loadscript("init");
 
-	Replay::Init();
+    Replay::Init();
 
-	state.time = GetTime();
-	state.running = true;
+    state.time = GetTime();
+    state.running = true;
 
-	SetExitKey(KEY_NULL);
+    SetExitKey(KEY_NULL);
 }
 
 void Game::Reset()
 {
-	if (space != nullptr) {
-		dSpaceDestroy(space);
-		space = nullptr;
-	}
-	if (contactgroup != nullptr) {
-		dJointGroupDestroy(contactgroup);
-		contactgroup = nullptr;
-	}
-	if (objects.size() > 0) {
-		objects.clear();
-		o_count = 0;
-	}
-	if (joint_objects.size() > 0) {
-		joint_objects.clear();
-		jo_count = 0;
-	}
-	if (players.size() > 0) {
-		players.clear();
-		p_count = 0;
-	}
+    if (space != nullptr) {
+        dSpaceDestroy(space);
+        space = nullptr;
+    }
+    if (contactgroup != nullptr) {
+        dJointGroupDestroy(contactgroup);
+        contactgroup = nullptr;
+    }
+    if (objects.size() > 0) {
+        objects.clear();
+        o_count = 0;
+    }
+    if (joint_objects.size() > 0) {
+        joint_objects.clear();
+        jo_count = 0;
+    }
+    if (players.size() > 0) {
+        players.clear();
+        p_count = 0;
+    }
 }
 
 void Game::ImportMod()
 {
-	rules = API::GetRules();
+    rules = API::GetRules();
 
-	o_count = API::GetObjectsCount();
-	jo_count = API::GetJointObjectsCount();
+    o_count = API::GetObjectsCount();
+    jo_count = API::GetJointObjectsCount();
 
-	p_count = API::GetPlayersCount();
+    p_count = API::GetPlayersCount();
 
-	objects.reserve(o_count);
-	objects = API::GetObjects();
+    objects.reserve(o_count);
+    objects = API::GetObjects();
 
-	joint_objects.reserve(jo_count);
-	joint_objects = API::GetJointObjects();
+    joint_objects.reserve(jo_count);
+    joint_objects = API::GetJointObjects();
 
-	players.reserve(p_count);
-	players = API::GetPlayers();
+    players.reserve(p_count);
+    players = API::GetPlayers();
 }
 
 void Game::NewGame()
 {
-	state.game_frame = 0;
+    state.game_frame = 0;
 
-	state.freeze = true;
-	state.freeze_time = GetTime();
-	state.freeze_frames = 50;
-	state.freeze_frame = 0;
-	state.freeze_count = 0;
+    state.freeze = true;
+    state.freeze_time = GetTime();
+    state.freeze_frames = 50;
+    state.freeze_frame = 0;
+    state.freeze_count = 0;
 
-	ghost_frames = 0;
+    ghost_frames = 0;
 
-	space = dHashSpaceCreate(0);
-  	contactgroup = dJointGroupCreate(0);
-	floor = dCreatePlane(space, 0.00, 0.00, 1.00, 0.10);
+    space = dHashSpaceCreate(0);
+    contactgroup = dJointGroupCreate(0);
+    floor = dCreatePlane(space, 0.00, 0.00, 1.00, 0.10);
 
-	dGeomSetCategoryBits(floor, 0b0001);
-	dGeomSetCollideBits(floor, 0b0000);
+    dGeomSetCategoryBits(floor, 0b0001);
+    dGeomSetCollideBits(floor, 0b0000);
 
-  	dWorldSetGravity(world, rules.gravity.x, rules.gravity.y, rules.gravity.z);
+      dWorldSetGravity(world, rules.gravity.x, rules.gravity.y, rules.gravity.z);
 
-	for (auto& o : objects) {
-		o.Create(world, space);
-	}
+    for (auto& o : objects) {
+        o.Create(world, space);
+    }
 
-	for (auto& jo : joint_objects) {
-		jo.Create(world, space, objects[jo.connections[0]], objects[jo.connections[1]]);
-	}
+    for (auto& jo : joint_objects) {
+        jo.Create(world, space, objects[jo.connections[0]], objects[jo.connections[1]]);
+    }
 
-	for (int pID = 0; pID < players.size(); pID += 1) {
-		auto& p = players[pID];
+    for (int pID = 0; pID < players.size(); pID += 1) {
+        auto& p = players[pID];
 
-		player_ghosts[pID] = 1;
+        player_ghosts[pID] = 1;
 
-		p.b_count = p.body.size();
-		p.j_count = p.joint.size();
+        p.b_count = p.body.size();
+        p.j_count = p.joint.size();
 
-		//p.SetCatBits(2<<(pID + 1), 2<<pID + 1);
-		//p.SetColBits(255-(2<<(pID + 1)), 255-(2<<pID + 1));
+        //p.SetCatBits(2<<(pID + 1), 2<<pID + 1);
+        //p.SetColBits(255-(2<<(pID + 1)), 255-(2<<pID + 1));
 
-		p.Create(world, space);
+        p.Create(world, space);
 
-		//p.SetEngagedistance(rules.engagedistance, pID * (360/rules.numplayers));
-		//p.SetEngageheight(rules.engageheight);
+        //p.SetEngagedistance(rules.engagedistance, pID * (360/rules.numplayers));
+        //p.SetEngageheight(rules.engageheight);
 
-		p.SetOffset();
-	}
+        p.SetOffset();
+    }
 
-	state.running = true;
-	
-	Replay::WriteMetaData();
+    state.running = true;
+    
+    Replay::WriteMetaData();
 
-	API::NewGameCallback();
+    API::NewGameCallback();
+}
+
+bool Game::Running ()
+{
+	return state.running;
 }
 
 void Game::Stop()
 {
-	state.running = !state.running;
+    state.running = !state.running;
 }
 
 void Game::Quit()
 {
-	if (state.running) {
-		Reset();
-		dWorldDestroy(world);
-		dCloseODE();
-	}
+    if (state.running) {
+        Reset();
+        dWorldDestroy(world);
+        dCloseODE();
+    }
 
-	API::Close();
+    API::Close();
 
-	Replay::Close();
-}
-
-void Game::SetBackgroundColor(uint16_t r, uint16_t g, uint16_t b, uint16_t a)
-{
-	background_color = {r, g, b, a};
-}
-
-size_t Game::GetContactCount()
-{
-	return numcollisions;
+    Replay::Close();
 }
 
 static void attachContact(BodyUserData* data, dBodyID b1, dBodyID b2)
@@ -278,22 +273,30 @@ void Game::Step(int frame_count)
 	}
 }
 
-static bool GhostCacheEnabled()
+bool Game::GhostCacheEnabled()
 {
-  return false;
+    return ghost_cache_enabled;
 }
 
-static bool GhostCacheReady()
+bool Game:: GhostCacheIsReady()
 {
-  using namespace Game;
-  
-	return ghost_frames >= ghost_length;
+    return ghost_frames >= ghost_length;
 }
 
-template<class T>
+void Game::ToggleGhostCache()
+{
+    ghost_cache_enabled = ghost_cache_enabled != 0;
+}
+
+void Game::ResetGhostCache()
+{
+    ghost_frames = 0;
+}
+
+template <class T>
 static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 {
-  using namespace Game;
+    using namespace Game;
 
 	float angle;
 	Vector3 axis;
@@ -412,11 +415,6 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 	 */
 
 	rlPopMatrix();
-}
-
-void Game::ResetGhostCache()
-{
-  ghost_frames = 0;
 }
 
 static void RecordGhostCache()
@@ -546,8 +544,8 @@ void Game::Update(dReal dt)
 						Step(rules.turnframes);
 					}
 				}
-
-				if (GhostCacheEnabled() && ghost_frames < ghost_length) {
+				
+                if (GhostCacheEnabled() && !GhostCacheIsReady()) {
 					RecordGhostCache();
 				}
 	
@@ -557,14 +555,149 @@ void Game::Update(dReal dt)
 			state.freeze_count += 1;
 		}
 
-		if (space != nullptr) {
-		  if (!GhostCacheEnabled() && !GhostCacheReady()) {
-		     dSpaceCollide(space, 0, nearCallback);
-		     dWorldStep(world, step);
-		     dJointGroupEmpty(contactgroup);
-		  }
-		}
+        if (space != nullptr) {
+		    if (!(GhostCacheEnabled() && GhostCacheIsReady())) {
+                dSpaceCollide(space, 0, nearCallback);
+                dWorldStep(world, step);
+                dJointGroupEmpty(contactgroup);
+            }
+        }
 	}
+}
+
+static vec4 GetPlayerGhostCacheJointQuaternion(uint32_t frame, PlayerID pID, JointID jID)
+{
+   using namespace Game;
+	
+    auto buffer = (dReal*)data->buffer();
+
+    uint32_t j_total = 0;
+    uint32_t b_total = 0;
+
+    for (int i = 0; i < p_count; i += 1) {
+        j_total += players[i].j_count;
+        b_total += players[i].b_count;
+    }
+
+    uint32_t offset = 7 * frame * (j_total + b_total);
+
+    uint32_t j_offset = 0;
+    uint32_t b_offset = 0;
+
+    auto& p = players[pID];
+
+    offset += 7 * pID * (p.j_count + p.b_count);
+	
+    auto& j = p.joint[jID];
+
+    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
+
+	return (vec4) {
+	    frame_buffer[0],
+	    frame_buffer[1],
+	    frame_buffer[2],
+	    frame_buffer[3],
+	};
+}
+
+static vec3 GetPlayerGhostCacheJointPosition(uint32_t frame, PlayerID pID, JointID jID)
+{
+    using namespace Game;
+	
+    auto buffer = (dReal*)data->buffer();
+
+    uint32_t j_total = 0;
+    uint32_t b_total = 0;
+
+    for (int i = 0; i < p_count; i += 1) {
+        j_total += players[i].j_count;
+        b_total += players[i].b_count;
+    }
+
+    uint32_t offset = 7 * frame * (j_total + b_total);
+
+    uint32_t j_offset = 0;
+    uint32_t b_offset = 0;
+
+    auto& p = players[pID];
+
+    offset += 7 * pID * (p.j_count + p.b_count);
+	
+    auto& j = p.joint[jID];
+
+    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
+
+	return (vec3) {
+	    frame_buffer[4],
+	    frame_buffer[5],
+	    frame_buffer[6],
+	};
+}
+
+static void GetPlayerGhostCacheJoint(uint32_t frame, PlayerID pID, JointID jID)
+{
+    using namespace Game;
+	
+    auto buffer = (dReal*)data->buffer();
+
+    uint32_t j_total = 0;
+    uint32_t b_total = 0;
+
+    for (int i = 0; i < p_count; i += 1) {
+        j_total += players[i].j_count;
+        b_total += players[i].b_count;
+    }
+
+    uint32_t offset = 7 * frame * (j_total + b_total);
+
+    uint32_t j_offset = 0;
+    uint32_t b_offset = 0;
+
+    auto& p = players[pID];
+
+    offset += 7 * pID * (p.j_count + p.b_count);
+	
+    auto& j = p.joint[jID];
+
+    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
+
+	//j_cache.frame_orientation = *(vec4*)(frame_buffer);
+	//frame_buffer += 4*4 ;
+    //j_cache.frame_position = *(vec3*)(frame_buffer);
+	
+	//j_cache.frame_orientation.x = frame_buffer[0];
+	//j_cache.frame_orientation.y = frame_buffer[1];
+	//j_cache.frame_orientation.z = frame_buffer[2];
+	//j_cache.frame_orientation.w = frame_buffer[3];
+
+	//j_cache.frame_orientation.x = frame_buffer[4];
+    //j_cache.frame_orientation.y = frame_buffer[5];
+	//j_cache.frame_orientation.z = frame_buffer[6];
+}
+
+static void GetPlayerGhostCacheBody(uint32_t frame, PlayerID pID, BodyID bID)
+{
+    using namespace Game;
+	
+    auto buffer = (dReal*)data->buffer();
+
+    uint32_t j_total = 0;
+    uint32_t b_total = 0;
+
+    for (int i = 0; i < p_count; i += 1) {
+        j_total += players[i].j_count;
+        b_total += players[i].b_count;
+    }
+
+    uint32_t offset = 7 * frame * (j_total + b_total);
+
+    uint32_t j_offset = 0;
+    uint32_t b_offset = 0;
+
+    auto& p = players[pID];
+
+    offset += 7 * pID * (p.j_count + p.b_count);
+
 }
 
 void Game::DrawPlayerGhostCache(PlayerID pID, uint32_t frame)
@@ -658,17 +791,17 @@ void Game::DrawPlayerFreeze(PlayerID pID)
 	switch (j.state)
 	{
 	case RELAX:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j.m_color, 0.50));
+	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(j.m_color, 0.50));
 	  break;
 	case HOLD:
 	  DrawObjectModel(j, q, p, 1.00, models[0], j.m_color);
 	  break;
 	case FORWARD:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j.m_color, 0.50));
+	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(j.m_color, 0.50));
 	  DrawObjectModel(j, q, p, 1.00, models[1], j.m_color);
 	  break;
 	case BACKWARD:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j.m_color, 0.50));
+	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(j.m_color, 0.50));
 	  DrawObjectModel(j, q, p, 1.00, models[1], j.m_color);
 	  break;
     }
@@ -760,6 +893,40 @@ void Game::DrawPlayer(PlayerID pID, Color j_color, Color b_color)
 	}
   }
 }
+
+void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
+{
+    Quaternion q = { j_q.x, j_q.y, j_q.z, j_q.w };
+
+	Vector3 p = { j_p.x, j_p.y, j_p.z };
+
+	switch (j.state)
+	{
+	case RELAX:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(color, 0.50));
+	  break;
+	case HOLD:
+	  DrawObjectModel(j, q, p, 1.00, models[0], color);
+	  break;
+	case FORWARD:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(color, 0.50));
+	  DrawObjectModel(j, q, p, 1.00, models[1], color);
+	  break;
+	case BACKWARD:
+	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(color, 0.50));
+	  DrawObjectModel(j, q, p, 1.00, models[1], color);
+	  break;
+    }
+}
+
+void Game::DrawPlayerBody(Body b, vec4 b_q, vec3 b_p, Color color)
+{
+    Quaternion q = { b_q.x, b_q.y, b_q.z, b_q.w };
+
+	Vector3 p = { b_p.x, b_p.y, b_p.z };
+
+    DrawObject(b, q, p, color);
+}
  
 void Game::DrawContacts(bool freeze)
 {
@@ -780,52 +947,149 @@ void Game::DrawContacts(bool freeze)
 
 void Game::DrawFloor()
 {
-	float angle;
-	Vector3 axis;
-	QuaternionToAxisAngle(QuaternionFromMatrix(MatrixRotateX(DEG2RAD*90)), &axis, &angle);
+    float angle;
+    Vector3 axis;
+    QuaternionToAxisAngle(QuaternionFromMatrix(MatrixRotateX(DEG2RAD*90)), &axis, &angle);
 
-	rlPushMatrix();
-	rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
-	DrawGrid(2, 20);
-	rlPopMatrix();
+    rlPushMatrix();
+    rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
+    DrawGrid(2, 20);
+    rlPopMatrix();
 }
 
 void Game::Draw()
+{	
+	for (int oID = 0; oID < objects.size(); oID += 1) {
+	    auto& o = objects[oID];
+		
+		Quaternion q = { 0 };
+		Vector3 p = { 0 };
+		
+	    if (state.freeze) {
+		    q.x = o.freeze_orientation.x;
+			q.y = o.freeze_orientation.y;
+			q.z = o.freeze_orientation.z;
+		    q.w = o.freeze_orientation.w;
+
+            p.x = o.freeze_position.x;
+            p.y = o.freeze_position.y;
+            p.z = o.freeze_position.z;
+
+		    DrawObject(o, q, p, o.m_color);
+			
+		    q.x = o.frame_orientation.x;
+			q.y = o.frame_orientation.y;
+			q.z = o.frame_orientation.z;
+		    q.w = o.frame_orientation.w;
+
+            p.x = o.frame_position.x;
+            p.y = o.frame_position.y;
+            p.z = o.frame_position.z;
+			
+			DrawObject(o, q, p, o.m_g_color);
+	    } else {
+		    Quaternion q = {
+                o.frame_orientation.x,
+                o.frame_orientation.y,
+                o.frame_orientation.z,
+                o.frame_orientation.w,
+            };
+
+            Vector3 p = {
+                o.frame_position.x,
+                o.frame_position.y,
+                o.frame_position.z,
+            };
+
+		    DrawObject(o, q, p, o.m_color);
+	    }
+    }
+
+    for (PlayerID pID = 0; pID < players.size(); pID += 1) {
+	    auto& p = players[pID];
+	  
+	    for (JointID jID = 0; jID < p.j_count; jID += 1) {
+		    auto& j = p.joint[jID];
+			
+		    if (state.freeze) {
+			    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, p.m_j_color);
+
+		        if (GhostCacheEnabled() && GhostCacheIsReady()) {
+				    vec4 cache_orientation = { 0 };
+					vec3 cache_position = { 0 };
+					
+				    if (ghost_frames > ghost_length) {
+					    cache_orientation = GetPlayerGhostCacheJointQuaternion(state.freeze_frame, pID, jID);
+						cache_position = GetPlayerGhostCacheJointPosition(state.freeze_frame, pID, jID);
+						
+				        DrawPlayerJoint(j, cache_orientation, cache_position, p.m_g_color);
+				    }
+					
+					if (ghost_frames > rules.turnframes) {
+					    cache_orientation = GetPlayerGhostCacheJointQuaternion(rules.turnframes, pID, jID);
+						cache_position = GetPlayerGhostCacheJointPosition(rules.turnframes, pID, jID);
+						
+					    DrawPlayerJoint(j, cache_orientation, cache_position, p.m_g_color);
+					}
+		       
+				} else {
+				    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_g_color);
+				}
+		    } else {
+			    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_j_color);
+		    }
+	    }
+	  
+	    for (BodyID bID = 0; bID < p.b_count; bID += 1) {
+		    auto& b = p.body[bID];
+			
+		    if (state.freeze) {
+			    if (b.active) { 
+			        DrawPlayerBody(b, b.freeze_orientation, b.freeze_position, p.m_j_color);
+		        } else {
+				    DrawPlayerBody(b, b.freeze_orientation, b.freeze_position, p.m_b_color);
+				}
+				
+		        if (GhostCacheEnabled() && GhostCacheIsReady()) {
+				    vec4 cache_orientation = { 0 };
+					vec3 cache_position = { 0 };
+					
+				    if (ghost_frames > ghost_length) {
+				        DrawPlayerBody(b, cache_orientation, cache_position, p.m_g_color);
+				    }
+					
+					if (ghost_frames > rules.turnframes) {
+					    DrawPlayerBody(b, cache_orientation, cache_position, p.m_g_color);
+                    }
+		        } else {
+				    DrawPlayerBody(b, b.frame_orientation, b.frame_position, p.m_g_color);
+				}
+		    } else {
+			    DrawPlayerBody(b, b.frame_orientation, b.frame_position, p.m_b_color);
+		    }
+	    }
+	}
+    
+    if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
+        players[state.selected_player].joint[state.selected_joint].DrawSelect();
+    }
+
+    DrawFloor();
+}
+
+void Game::SetBackgroundColor(uint16_t r, uint16_t g, uint16_t b, uint16_t a)
 {
-	for (auto& o : objects) {
-	  o.Draw(state.freeze);
-	}
-	
-	for (PlayerID pID = 0; pID < players.size(); pID += 1) {
-	  if (state.freeze) {
-		DrawPlayerFreeze(pID);
+	background_color = {r, g, b, a};
+}
 
-		if (GhostCacheEnabled()) {
-	      if (player_ghosts[pID] == 1 && ghost_frames >= rules.turnframes) {
-	        DrawPlayerGhostCache(pID, rules.turnframes);
-	      }
-	
-	      if (player_ghosts[pID] == 1 && ghost_frames >= ghost_length) {
-	        DrawPlayerGhostCache(pID, state.freeze_count);
-		  }
-		} else {
-		  DrawPlayer(pID, players[pID].m_g_color, players[pID].m_g_color);
-		}
-	  } else {
-		DrawPlayer(pID, players[pID].m_j_color, players[pID].m_b_color);
-	  }
-	}
-	
-	if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
-	  players[state.selected_player].joint[state.selected_joint].DrawSelect();
-	}
-
-	DrawFloor();
+size_t Game::GetContactCount()
+{
+	return numcollisions;
 }
 
 void Game::SetGravity(dReal x, dReal y, dReal z)
 {
-	rules.gravity = {x, y , z};
+    rules.gravity = {x, y , z};
   	dWorldSetGravity(world, x, y, z);
 }
 
@@ -1099,6 +1363,8 @@ void Game::TriggerPlayerJointStateAlt(PlayerID player_id, JointID joint_id, Join
 
 void Game::TriggerPlayerJoint(PlayerID player_id, JointID joint_id, JointState state, dReal vel)
 {
+    players[player_id].joint[joint_id].state = state;
+  
 	switch(state)
 	{
 	case RELAX:
@@ -1115,6 +1381,8 @@ void Game::TriggerPlayerJoint(PlayerID player_id, JointID joint_id, JointState s
 
 void Game::TriggerPlayerJointAlt(PlayerID player_id, JointID joint_id, JointState state, dReal vel)
 {
+    players[player_id].joint[joint_id].state_alt = state;
+
 	switch(state)
 	{
 	case RELAX:
@@ -1288,9 +1556,9 @@ void Window::Init()
 	Gamecam::Init();
 
 	models[0] = LoadModel("resources/model/sphere.obj");
-	models[1] = LoadModel("resources/model/hemisphere.obj");
+	models[1] = LoadModel("resources/model/sphere-slice.obj");
 
-	//textures[0] = LoadTexture("resources/texture/flat.png");
+	//textures[0] = LoadTexture("resources/texture/floor.png");
 
 	//models[0].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[0];
 
@@ -1306,11 +1574,15 @@ void Window::Init()
 
 static bool MouseInput = true;
 
-static RayCollision CollideObject(Ray ray, BodyID oID)
+static int selected_object = -1;
+static int selected_player = -1;
+static int selected_joint = -1;
+static int selected_body = -1;
+
+template <class T>
+static RayCollision CollideObject(Ray ray, T o)
 {
 	using namespace Game;
-
-	auto& o = objects[oID];
 
 	RayCollision collision = { 0 };
 
@@ -1383,224 +1655,65 @@ static RayCollision CollideObject(Ray ray, BodyID oID)
 	return collision;
 }
 
-static RayCollision CollideJoint(Ray ray, PlayerID pID, JointID jID)
-{
-	using namespace Game;
-
-	auto& j = players[pID].joint[jID];
-
-	RayCollision collision = { 0 };
-
-	switch(j.shape)
-	{
-	case BOX:
-		collision = GetRayCollisionBox(ray,
-			(BoundingBox) {
-				(Vector3){
-					j.freeze_position.x - 0.5f * j.m_sides.x,
-					j.freeze_position.y - 0.5f * j.m_sides.y,
-					j.freeze_position.z - 0.5f * j.m_sides.z,
-				},
-				(Vector3){
-					j.freeze_position.x + 0.5f * j.m_sides.x,
-					j.freeze_position.y + 0.5f * j.m_sides.y,
-					j.freeze_position.z + 0.5f * j.m_sides.z,
-				},
-			}
-		);
-
-		break;
-	case SPHERE:
-		collision = GetRayCollisionSphere(ray,
-			(Vector3){
-				j.freeze_position.x,
-				j.freeze_position.y,
-				j.freeze_position.z,
-			},
-			j.radius
-		);
-
-		break;
-	case CAPSULE:
-		collision = GetRayCollisionBox(ray,
-			(BoundingBox) {
-				(Vector3){
-					j.freeze_position.x - 0.5f * j.m_sides.x,
-					j.freeze_position.y - 0.5f * j.m_sides.y,
-					j.freeze_position.z - 0.5f * j.m_sides.z,
-				},
-				(Vector3){
-					j.freeze_position.x + 0.5f * j.m_sides.x,
-					j.freeze_position.y + 0.5f * j.m_sides.y,
-					j.freeze_position.z + 0.5f * j.m_sides.z,
-				},
-			}
-		);
-
-		break;
-	case CYLINDER:
-		collision = GetRayCollisionBox(ray,
-			(BoundingBox) {
-				(Vector3){
-					j.freeze_position.x - 0.5f * j.m_sides.x,
-					j.freeze_position.y - 0.5f * j.m_sides.y,
-					j.freeze_position.z - 0.5f * j.m_sides.z,
-				},
-				(Vector3){
-					j.freeze_position.x + 0.5f * j.m_sides.x,
-					j.freeze_position.y + 0.5f * j.m_sides.y,
-					j.freeze_position.z + 0.5f * j.m_sides.z,
-				},
-			}
-		);
-
-		break;
-	}
-
-	return collision;
-}
-
-static RayCollision CollideBody(Ray ray, PlayerID pID, BodyID bID)
-{
-	using namespace Game;
-
-	auto& b = players[pID].body[bID];
-
-	RayCollision collision = { 0 };
-
-	switch(b.shape)
-	{
-	case BOX:
-		collision = GetRayCollisionBox(ray,
-			(BoundingBox) {
-				(Vector3){
-					b.freeze_position.x - 0.5f * b.m_sides.x,
-					b.freeze_position.y - 0.5f * b.m_sides.y,
-					b.freeze_position.z - 0.5f * b.m_sides.z,
-				},
-				(Vector3){
-					b.freeze_position.x + 0.5f * b.m_sides.x,
-					b.freeze_position.y + 0.5f * b.m_sides.y,
-					b.freeze_position.z + 0.5f * b.m_sides.z,
-				},
-			}
-		);
-
-		break;
-	case SPHERE:
-		collision = GetRayCollisionSphere(ray,
-			(Vector3){
-				b.freeze_position.x,
-				b.freeze_position.y,
-				b.freeze_position.z,
-			},
-			b.radius
-		);
-
-		break;
-	case CAPSULE:
-		collision = GetRayCollisionBox(ray,
-			(BoundingBox) {
-				(Vector3){
-					b.freeze_position.x - 0.5f * b.m_sides.x,
-					b.freeze_position.y - 0.5f * b.m_sides.y,
-					b.freeze_position.z - 0.5f * b.m_sides.z,
-				},
-				(Vector3){
-					b.freeze_position.x + 0.5f * b.m_sides.x,
-					b.freeze_position.y + 0.5f * b.m_sides.y,
-					b.freeze_position.z + 0.5f * b.m_sides.z,
-				},
-			}
-		);
-
-		break;
-	case CYLINDER:
-		collision = GetRayCollisionBox(ray,
-			(BoundingBox) {
-				(Vector3){
-					b.freeze_position.x - 0.5f * b.m_sides.x,
-					b.freeze_position.y - 0.5f * b.m_sides.y,
-					b.freeze_position.z - 0.5f * b.m_sides.z,
-				},
-				(Vector3){
-					b.freeze_position.x + 0.5f * b.m_sides.x,
-					b.freeze_position.y + 0.5f * b.m_sides.y,
-					b.freeze_position.z + 0.5f * b.m_sides.z,
-				},
-			}
-		);
-
-		break;
-	}
-
-	return collision;
-}
-
-static int selected_object = -1;
-static int selected_player = -1;
-static int selected_joint = -1;
-static int selected_body = -1;
-
 static void gSelector(Camera3D camera)
 {
-	using namespace Game;
+    using namespace Game;
 
-	Ray ray = GetMouseRay(GetMousePosition(), camera);
+    Ray ray = GetMouseRay(GetMousePosition(), camera);
 
-	RayCollision col1 = { 0 };
-	RayCollision col2 = { 0 };
-	
-	for (BodyID oID = 0; oID < o_count; oID += 1) {
-		col1 = CollideObject(ray, oID);
+    RayCollision col1 = { 0 };
+    RayCollision col2 = { 0 };
+    
+    for (BodyID oID = 0; oID < o_count; oID += 1) {
+        col1 = CollideObject(ray, objects[oID]);
 
-		if (col1.hit && (col2.distance == 0 || col2.distance > col1.distance)) {
-			selected_object = oID;
-		}
-	}
+        if (col1.hit && (col2.distance == 0 || col2.distance > col1.distance)) {
+            selected_object = oID;
+        }
+    }
 
-	bool hit = false;
+    bool hit = false;
 
-	for (PlayerID pID = 0; pID < p_count; pID += 1) {
-		for (JointID jID = 0; jID < players[pID].j_count; jID += 1) {
-			col1 = CollideJoint(ray, pID, jID);
+    for (PlayerID pID = 0; pID < p_count; pID += 1) {
+        for (JointID jID = 0; jID < players[pID].j_count; jID += 1) {
+            col1 = CollideObject(ray, players[pID].joint[jID]);
 
-			if (col1.hit && (col2.distance == 0 || col2.distance > col1.distance)) {
-				col2 = col1;
+            if (col1.hit && (col2.distance == 0 || col2.distance > col1.distance)) {
+                col2 = col1;
 
-				selected_player = pID;
-				selected_joint = jID;
+                selected_player = pID;
+                selected_joint = jID;
 
-				hit = true;
-			}
-		}
+                hit = true;
+            }
+        }
 
-		if (state.selected_player != selected_player)
-			selected_joint = -1;
+        if (state.selected_player != selected_player)
+            selected_joint = -1;
 
-		if (hit) break;
+        if (hit) break;
 
-		selected_player = -1;
-		selected_joint = -1;
+        selected_player = -1;
+        selected_joint = -1;
 
-		for (BodyID bID = 0; bID < players[pID].b_count; bID += 1) {
-			col1 = CollideBody(ray, pID, bID);
+        for (BodyID bID = 0; bID < players[pID].b_count; bID += 1) {
+            col1 = CollideObject(ray, players[pID].body[bID]);
 
-			if (col1.hit && (col2.distance == 0 || col2.distance > col1.distance)) {
-				col2 = col1;
+            if (col1.hit && (col2.distance == 0 || col2.distance > col1.distance)) {
+                col2 = col1;
 
-				selected_player = pID;
-				selected_body = bID;
+                selected_player = pID;
+                selected_body = bID;
 
-				hit = true;
-			}
-		}
+                hit = true;
+            }
+        }
 
-		if (hit) break;
+        if (hit) break;
 
-		selected_player = -1;
-		selected_body = -1;
-	}
+        selected_player = -1;
+        selected_body = -1;
+    }
 }
 
 void Window::Update()
@@ -1617,7 +1730,7 @@ void Window::Update()
 		foreground = LoadRenderTexture(width, height);
 	}
 
-	SetWindowTitle(TextFormat("TOBAS %dFPS", GetFPS()));
+	SetWindowTitle(TextFormat("MultiAxis %dFPS", GetFPS()));
 
 	const auto& camera = Gamecam::Get();
 
@@ -1751,11 +1864,6 @@ void Game::EnterMode(Gamemode mode)
 
 		break;
 	}
-}
-
-bool Game::Running ()
-{
-	return state.running;
 }
 
 void Replay::Init()
@@ -2011,7 +2119,8 @@ void Replay::PlayFrame(int game_frame)
 
 		for (uint32_t b_id = 0; b_id < b_count; b_id += 1) {
 			uint8_t* state_buffer = (uint8_t*)(buffer + (chunk_start + 5 * p_count * j_total + p_id * b_count));
-			Game::SetBodyState(p_id, b_id, (bool)state_buffer[b_id]);
+            bool state = (bool)state_buffer[b_id];
+			Game::SetBodyState(p_id, b_id, state);
 			//LOG(b_id << " " << (int)state_buffer[b_id])
 
 			//auto& Qw = *((double*)p.Q + b_id * 4 + 0);

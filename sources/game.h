@@ -84,9 +84,10 @@ namespace Game
 
 	static Arena* data = nullptr;
 
-	static uintptr_t ghost_cahce;
+	static bool ghost_cache_enabled = true;
+	static uintptr_t ghost_cache = 0;
 	static uint32_t ghost_length = 50;
-	static uint32_t ghost_frames;
+	static uint32_t ghost_frames = 0;
 
 	static size_t o_count;
 	static size_t jo_count;
@@ -216,12 +217,19 @@ namespace Game
 	void DrawContacts(bool freeze);
 	void DrawFloor();
 
+	void DrawPlayerJoint(Joint j, vec4 q, vec3 p, raylib::Color color);
+	void DrawPlayerBody(Body b, vec4 q, vec3 p, raylib::Color color);
+
 	void DrawPlayer(PlayerID pID, raylib::Color j_color, raylib::Color b_color);
 
 	void DrawPlayerFreeze(PlayerID pID);
 	
 	void DrawPlayerGhostCache(PlayerID pID, uint32_t frame);
+	
+	bool GhostCacheEnabled();
+    bool GhostCacheIsReady();
 
+	void ToggleGhostCache();
 	void ResetGhostCache();
 
 	void Draw();
