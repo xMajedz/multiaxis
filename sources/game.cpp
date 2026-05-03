@@ -283,11 +283,6 @@ bool Game:: GhostCacheIsReady()
     return ghost_frames >= ghost_length;
 }
 
-void Game::ToggleGhostCache()
-{
-    ghost_cache_enabled = ghost_cache_enabled != 0;
-}
-
 void Game::ResetGhostCache()
 {
     ghost_frames = 0;
@@ -1249,6 +1244,11 @@ double Game::GetTime()
 	return raylib::GetTime() - state.time;
 }
 
+void Game::SetMode(Gamemode mode)
+{
+    state.mode = mode;
+}
+
 void Game::SetSelectedJoint()
 {
 	state.selected_joint = -1;
@@ -1277,6 +1277,11 @@ void Game::SetBodyState(PlayerID player_id, BodyID body_id, bool state)
 void Game::TogglePause()
 {
 	state.pause = state.pause == false;
+}
+
+void Game::ToggleGhostCache()
+{
+    ghost_cache_enabled = ghost_cache_enabled == false;
 }
 
 void Game::ToggleGhosts()

@@ -115,6 +115,7 @@ namespace Game
 	double GetTime();
 	double GetFrameTime();
 
+	void SetMode(Gamemode mode);
 	void SetBackgroundColor(uint16_t r, uint16_t g, uint16_t b, uint16_t a);
 
 	void SetSelectedPlayer();
@@ -173,6 +174,7 @@ namespace Game
 	void ImportMod();
 	void NewGame();
 
+	void ToggleGhostCache();
 	void ToggleGhosts();
 
 	void TriggerPlayerJointState(PlayerID player_id, JointID joint_id, JointState state);

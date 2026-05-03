@@ -310,7 +310,7 @@ function ms.loadModifiedTBM(fn)
 end
 
 function ms.loadTable()
-	API["parse_t"] {
+	API["loadmod_t"] {
 		["mod"] = "string",
 		["turnframes"] = 10,
 		["reactiontime"] = 20,

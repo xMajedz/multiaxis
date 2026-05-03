@@ -1103,7 +1103,7 @@ static int API_Reset(lua_State* L)
 	return 1;
 }
 
-static int API_parse_t(lua_State* L)
+static int API_loadmod_t(lua_State* L)
 {
 	if (lua_istable(L, -1)) {
 		lua_getfield(L, -1, "mod");
@@ -1178,16 +1178,16 @@ static const luaL_Reg api_main[] {
 	{"NumberFromData", API_NumberFromData},
 	{"ByteFromData", API_ByteFromData},
 
-	{"Reset", API_Reset},
 	{"log", API_log},
-	{"parse_t", API_parse_t},
+	{"Reset", API_Reset},
 
 	{"dofile", API_dofile},
 	{"require", API_require},
 
 	{"loadscript", API_loadscript},
 	{"loadmod", API_loadmod},
-
+	{"loadmod_t", API_loadmod_t},
+	
 	{"reactiontime", API_reactiontime},
 	{"turnframes", API_turnframes},
 	{"numplayers", API_numplayers},
