@@ -84,7 +84,7 @@ namespace Game
 
 	static Arena* data = nullptr;
 
-	static bool ghost_cache_enabled = true;
+	static bool ghost_cache_enabled = false;
 	static uintptr_t ghost_cache = 0;
 	static uint32_t ghost_length = 50;
 	static uint32_t ghost_frames = 0;
@@ -234,7 +234,7 @@ namespace Game
 	void ToggleGhostCache();
 	void ResetGhostCache();
 
-	void Draw();
+	void Draw(raylib::Camera3D camera);
 
 	void EnterMode(Gamemode mode);
 

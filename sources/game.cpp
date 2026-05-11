@@ -293,11 +293,20 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 {
     using namespace Game;
 
+    const auto& camera = Gamecam::Get();
+
 	float angle;
 	Vector3 axis;
 
 	QuaternionToAxisAngle(q, &axis, &angle);
 
+    Vector4 normalizedColor = ColorNormalize(color);
+	//Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
+    SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &normalizedColor, SHADER_UNIFORM_VEC4);
+
+	BeginShaderMode(shader);
+	BeginMode3D(camera);
+	
 	rlPushMatrix();
 	rlTranslatef(
 		    p.x,
@@ -320,8 +329,8 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 			 color);
 		break;
 	case SPHERE:
-	  DrawSphere((Vector3){0.00, 0.00, 0.00}, o.radius, color);
-	  break;
+	    DrawSphere((Vector3){0.00, 0.00, 0.00}, o.radius, color);
+	    break;
 	case CAPSULE:
 		DrawCapsule(
 				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
@@ -343,11 +352,14 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 		);
 		break;
 	}
-
+	
 	/*
 	 */
 
 	rlPopMatrix();
+
+	EndMode3D();
+    EndShaderMode();
 }
 
 template<class T>
@@ -372,6 +384,14 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 	/*
 	 */
 
+	Vector4 normalizedColor = ColorNormalize(color);
+	//Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
+
+    SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &normalizedColor, SHADER_UNIFORM_VEC4);
+
+    models[0].materials[0].shader = shader;
+	models[1].materials[0].shader = shader;
+	
 	switch(o.shape)
 	{
 	case BOX:
@@ -379,7 +399,8 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 			 o.m_sides.x,
 			 o.m_sides.y,
 			 o.m_sides.z,
-			 color);
+			 color
+		);
 		break;
 	case SPHERE:
 	  DrawModel(model, (Vector3){0.00, 0.00, 0.00}, s * o.radius, color);
@@ -734,7 +755,7 @@ void Game::DrawPlayerGhostCache(PlayerID pID, uint32_t frame)
       frame_buffer[6],
     };
 
-    DrawObject(j, q, p, j.m_g_color);
+    //DrawObject(j, q, p, j.m_g_color);
 
     j_offset += 1;
   }
@@ -759,7 +780,7 @@ void Game::DrawPlayerGhostCache(PlayerID pID, uint32_t frame)
       frame_buffer[6],
     };
 
-    DrawObject(b, q, p, b.m_g_color);
+    //DrawObject(b, q, p, b.m_g_color, camera);
   }
 }
 
@@ -819,9 +840,9 @@ void Game::DrawPlayerFreeze(PlayerID pID)
 	};
 
 	if (b.active) {
-	  DrawObject(b, q, p, b.m_active_color);
+	  //DrawObject(b, q, p, b.m_active_color);
 	} else {
-      DrawObject(b, q, p, b.m_color);
+      //DrawObject(b, q, p, b.m_color);
 	}
   }
 }
@@ -882,9 +903,9 @@ void Game::DrawPlayer(PlayerID pID, Color j_color, Color b_color)
 	};
 
 	if (b.active) {
-	  DrawObject(b, q, p, b.m_active_color);
+	  //DrawObject(b, q, p, b.m_active_color);
 	} else {
-      DrawObject(b, q, p, b_color);
+      //DrawObject(b, q, p, b_color);
 	}
   }
 }
@@ -898,17 +919,17 @@ void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
 	switch (j.state)
 	{
 	case RELAX:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(color, 0.50));
+	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(color, 0.50));
 	  break;
 	case HOLD:
 	  DrawObjectModel(j, q, p, 1.00, models[0], color);
 	  break;
 	case FORWARD:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(color, 0.50));
+	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(color, 0.50));
 	  DrawObjectModel(j, q, p, 1.00, models[1], color);
 	  break;
 	case BACKWARD:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(color, 0.50));
+	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(color, 0.50));
 	  DrawObjectModel(j, q, p, 1.00, models[1], color);
 	  break;
     }
@@ -952,15 +973,15 @@ void Game::DrawFloor()
     rlPopMatrix();
 }
 
-void Game::Draw()
-{	
+void Game::Draw(Camera3D camera)
+{
 	for (int oID = 0; oID < objects.size(); oID += 1) {
 	    auto& o = objects[oID];
 		
 		Quaternion q = { 0 };
 		Vector3 p = { 0 };
-		
-	    if (state.freeze) {
+
+		if (state.freeze) {
 		    q.x = o.freeze_orientation.x;
 			q.y = o.freeze_orientation.y;
 			q.z = o.freeze_orientation.z;
@@ -969,7 +990,7 @@ void Game::Draw()
             p.x = o.freeze_position.x;
             p.y = o.freeze_position.y;
             p.z = o.freeze_position.z;
-
+            
 		    DrawObject(o, q, p, o.m_color);
 			
 		    q.x = o.frame_orientation.x;
@@ -1005,8 +1026,8 @@ void Game::Draw()
 	  
 	    for (JointID jID = 0; jID < p.j_count; jID += 1) {
 		    auto& j = p.joint[jID];
-			
-		    if (state.freeze) {
+            BeginMode3D(camera);
+			if (state.freeze) {
 			    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, p.m_j_color);
 
 		        if (GhostCacheEnabled() && GhostCacheIsReady()) {
@@ -1032,7 +1053,8 @@ void Game::Draw()
 				}
 		    } else {
 			    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_j_color);
-		    }
+		    }			
+			EndMode3D();
 	    }
 	  
 	    for (BodyID bID = 0; bID < p.b_count; bID += 1) {
@@ -1064,7 +1086,7 @@ void Game::Draw()
 		    }
 	    }
 	}
-    
+
     if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
         players[state.selected_player].joint[state.selected_joint].DrawSelect();
     }
@@ -1546,15 +1568,15 @@ void Game::CycleSelectedJointState()
 	ResetGhostCache();
 }
 
-void rl_log(int level, const char* msg, va_list)
+static void rlLog(int level, const char* msg, va_list)
 {
 	Console::log(TextFormat("%d: %s", level, msg));
 }
 
 void Window::Init()
 {
-	SetTraceLogLevel(LOG_ERROR);
-	SetTraceLogCallback(rl_log);
+  //SetTraceLogLevel(LOG_ERROR);
+	//SetTraceLogCallback(rlLog);
 
 	InitWindow(width, height, "MultiAxis");
 
@@ -1564,10 +1586,9 @@ void Window::Init()
 	models[1] = LoadModel("resources/model/sphere-slice.obj");
 
 	//textures[0] = LoadTexture("resources/texture/floor.png");
-
 	//models[0].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[0];
 
-	shader = LoadShader(NULL, "resources/shader/potato.fs");
+	shader = LoadShader("resources/shader/base.vs", "resources/shader/base.fs");
 
 	background = LoadRenderTexture(width, height);
 	foreground = LoadRenderTexture(width, height);
@@ -1766,19 +1787,23 @@ void Window::RenderBackground(Camera3D camera)
 	using namespace Game;
 
 	BeginTextureMode(background);
-	ClearBackground(background_color);
-	BeginMode3D(camera);
-	Game::Draw();
-	EndMode3D();
+	    ClearBackground(background_color);
+        //BeginShaderMode(shader);
+		//BeginMode3D(camera);
+		
+		Game::Draw(camera);
+		
+		//EndMode3D();
+		//EndShaderMode();
 	EndTextureMode();
 }
 
 void Window::RenderForeground(Camera3D camera)
 {
 	BeginTextureMode(foreground);
-	BeginMode3D(camera);
-	ClearBackground(Fade(WHITE, 0.00));
-	EndMode3D();
+	    BeginMode3D(camera);
+	    ClearBackground(Fade(WHITE, 0.00));
+	    EndMode3D();
 	EndTextureMode();
 }
 
@@ -1790,7 +1815,7 @@ void Window::Draw()
 
 	ClearBackground(RAYWHITE);
 
-	BeginShaderMode(shader);
+	//BeginShaderMode(shader);
 
 	DrawTextureRec(background.texture, {0, 0, width, -height}, {0, 0}, WHITE);
 	DrawTextureRec(foreground.texture, {0, 0, width, -height}, {0, 0}, WHITE);	
@@ -1798,7 +1823,8 @@ void Window::Draw()
 	RenderBackground(camera);
 	RenderForeground(camera);
 
-	EndShaderMode();
+	//EndShaderMode();
+
 	API::DrawCallback();
 
 	EndDrawing();
