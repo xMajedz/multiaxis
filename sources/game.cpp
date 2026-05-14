@@ -293,16 +293,17 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 {
     using namespace Game;
 
-    const auto& camera = Gamecam::Get();
-
 	float angle;
 	Vector3 axis;
 
 	QuaternionToAxisAngle(q, &axis, &angle);
 
-    Vector4 normalizedColor = ColorNormalize(color);
-	//Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
-    SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &normalizedColor, SHADER_UNIFORM_VEC4);
+	const auto& camera = Gamecam::Get();
+
+	Vector4 normalizedColor = ColorNormalize(color);
+	Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
+    SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &objectColor, SHADER_UNIFORM_VEC3);
+	SetShaderValue(shader, GetShaderLocation(shader, "objectAlpha"), &normalizedColor.w, SHADER_UNIFORM_FLOAT);
 
 	BeginShaderMode(shader);
 	BeginMode3D(camera);
@@ -365,7 +366,7 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 template<class T>
 static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, Color color)
 {
-  using namespace Game;
+    using namespace Game;
 
 	float angle;
 	Vector3 axis;
@@ -385,9 +386,9 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 	 */
 
 	Vector4 normalizedColor = ColorNormalize(color);
-	//Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
-
-    SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &normalizedColor, SHADER_UNIFORM_VEC4);
+	Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
+    SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &objectColor, SHADER_UNIFORM_VEC3);
+	SetShaderValue(shader, GetShaderLocation(shader, "objectAlpha"), &normalizedColor.w, SHADER_UNIFORM_FLOAT);
 
     models[0].materials[0].shader = shader;
 	models[1].materials[0].shader = shader;
@@ -916,6 +917,18 @@ void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
 
 	Vector3 p = { j_p.x, j_p.y, j_p.z };
 
+	Vector3 dir =    { 0.00,  1.00, 0.00 };
+	Vector3 invdir = { 0.00, -1.00, 0.00 };
+	
+	Vector3 axis = { j.axis.x, j.axis.y, j.axis.z };
+    float dot = Vector3DotProduct(dir, axis);
+	
+	Vector3 cross = Vector3CrossProduct(dir, axis);
+
+	Quaternion q1 = { dot + 1, cross.x, cross.y, cross.z };
+
+	q = QuaternionMultiply(q, q1);
+
 	switch (j.state)
 	{
 	case RELAX:
@@ -929,6 +942,14 @@ void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
 	  DrawObjectModel(j, q, p, 1.00, models[1], color);
 	  break;
 	case BACKWARD:
+      float dot = Vector3DotProduct(dir, invdir);
+	  Vector3 cross = Vector3CrossProduct(dir, invdir);
+
+	  Quaternion q2 = { dot + 1, cross.x, cross.y, cross.z };
+
+	  q = QuaternionMultiply(q, q2);
+	  q = QuaternionMultiply(q, q1);
+  
 	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(color, 0.50));
 	  DrawObjectModel(j, q, p, 1.00, models[1], color);
 	  break;
@@ -1788,13 +1809,7 @@ void Window::RenderBackground(Camera3D camera)
 
 	BeginTextureMode(background);
 	    ClearBackground(background_color);
-        //BeginShaderMode(shader);
-		//BeginMode3D(camera);
-		
 		Game::Draw(camera);
-		
-		//EndMode3D();
-		//EndShaderMode();
 	EndTextureMode();
 }
 
@@ -1802,28 +1817,26 @@ void Window::RenderForeground(Camera3D camera)
 {
 	BeginTextureMode(foreground);
 	    BeginMode3D(camera);
-	    ClearBackground(Fade(WHITE, 0.00));
+	        ClearBackground(Fade(WHITE, 0.00));
 	    EndMode3D();
 	EndTextureMode();
 }
 
 void Window::Draw()
 {
-	const auto& camera = Gamecam::Get();
+    const auto& camera = Gamecam::Get();
+	
+	SetShaderValue(shader, GetShaderLocation(shader, "cameraPosition"), &camera.position, SHADER_UNIFORM_VEC3);
 
 	BeginDrawing();
 
 	ClearBackground(RAYWHITE);
-
-	//BeginShaderMode(shader);
 
 	DrawTextureRec(background.texture, {0, 0, width, -height}, {0, 0}, WHITE);
 	DrawTextureRec(foreground.texture, {0, 0, width, -height}, {0, 0}, WHITE);	
 	
 	RenderBackground(camera);
 	RenderForeground(camera);
-
-	//EndShaderMode();
 
 	API::DrawCallback();
 

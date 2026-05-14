@@ -1,12 +1,8 @@
 #version 330
 
-//in vec2 fragTexCoord;
-//in vec4 fragColor;
-
-//uniform sampler2D texture0;
-//uniform vec4 colDiffuse;
-
-uniform vec4 objectColor;
+uniform vec3 cameraPosition;
+uniform vec3 objectColor;
+uniform float objectAlpha;
 
 in vec3 fragPosition;
 in vec3 fragNormal;
@@ -15,32 +11,29 @@ out vec4 finalColor;
 
 void main()
 {
-    //vec4 texelColor = texture(texture0, fragTexCoord);
-    //finalColor = texelColor * colDiffuse * fragColor;
-
-    vec3 lightPosition = vec3(0.0, 0.0, 1.0);
+    vec3 lightPosition = vec3(0.0, 0.0, 10.0);
     vec3 lightAmbient  = vec3(1.0, 1.0, 1.0);
-	vec3 lightDiffuse  = vec3(1.0, 1.0, 1.0);
-	vec3 lightSpecular = vec3(1.0, 1.0, 1.0);
-	
-	vec3 objectAmbient  = vec3(0.4, 0.4, 0.4);
-	vec3 objectDiffuse  = vec3(0.3, 0.3, 0.3);
-	vec3 objectSpecular = vec3(1.0, 1.0, 1.0);
-	
-	vec3 ambient = lightAmbient * objectAmbient;
+	vec3 lightDiffuse  = vec3(0.1, 0.1, 0.1);
+	vec3 lightSpecular = vec3(0.1, 0.1, 0.1);
 
     vec3 lightDirection = normalize(fragPosition - lightPosition);
+
+	vec3 objectAmbient  = vec3(0.9, 0.9, 0.9);
+	vec3 objectDiffuse  = vec3(0.8, 0.8, 0.8);
+	vec3 objectSpecular = vec3(0.1, 0.1, 0.1);
+	
+	vec3 ambient = lightAmbient * objectAmbient;
 
     float diff = max(dot(fragNormal, -lightDirection), 0);
 	vec3 diffuse = diff * lightDiffuse * objectDiffuse;
 
-    //vec3 viewDirection = normalize(cameraPosition - fragPosition);
-	//vec3 reflectDirection = reflect(lightDirection, fragNormal);
-    //float specularf = pow(max(dot(viewDirection, reflectDirection), 0), 32);
-	//vec3 specular = specularf * lightSpecular * objectSpecular;
+    vec3 viewDirection = normalize(cameraPosition - fragPosition);
+	vec3 reflectDirection = reflect(lightDirection, fragNormal);
 
-    vec3 color = vec3(objectColor.x, objectColor.y, objectColor.z);
-	//finalColor = vec4(ambientv * color, objectColor.w);
-    finalColor = vec4((ambient + diffuse) * color, objectColor.w);
+    float spec = pow(max(dot(viewDirection, reflectDirection), 0), 32);
+	vec3 specular = spec * lightSpecular * objectSpecular;
+
+    finalColor = vec4((ambient + diffuse) * objectColor, objectAlpha);
+    //finalColor = vec4((ambient + diffuse + specular) * objectColor, objectAlpha);
 }
 
