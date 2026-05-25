@@ -66,7 +66,7 @@ function API.Draw.UIConsole()
 	
 	if showMessages then
 		for i in messages do
-			RAYLIB.DrawText(messages[i], 10, offset-20*(#messages - i + 1), 20, RAYLIB["BLACK"])
+			RAYLIB.DrawText(messages[i], 10, offset-20*(#messages - i + 1), 20, RAYLIB["WHITE"])
 		end
 	end
 end
