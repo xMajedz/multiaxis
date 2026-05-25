@@ -12,7 +12,7 @@ out vec4 finalColor;
 void main()
 {
     vec3 lightPosition = vec3(0.0, 0.0, 10.0);
-    vec3 lightAmbient  = vec3(1.0, 1.0, 1.0);
+    vec3 lightAmbient  = vec3(0.5, 0.5, 0.5);
 	vec3 lightDiffuse  = vec3(0.1, 0.1, 0.1);
 	vec3 lightSpecular = vec3(0.1, 0.1, 0.1);
 
