@@ -68,10 +68,11 @@ workspace "tobas"
 project "multiaxis_sp"
 	kind "WindowedApp"
 	files { "sources/tobas_sp.cpp" }
-	
-	links { "X11" }
 
 	defines { "OFFLINE" }
+
+	filter { "system:linux" }
+	links { "X11" }
 
 	filter { "system:Windows" }
 	links {"winmm", "gdi32", "opengl32"}
