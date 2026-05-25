@@ -38,7 +38,7 @@ void Player::Create(dWorldID world, dSpaceID space)
 
 	m_b_color = WHITE;
 	m_j_color = m_color;
-	m_g_color = Fade(m_color, 0.10);
+	m_g_color = Fade(m_color, 0.800);
 
 	for (auto& b : body) {
 		b.m_position.x += m_offset.x;

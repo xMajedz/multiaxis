@@ -57,6 +57,17 @@ struct Gamestate
 	bool pause = false;
 };
 
+struct PlayerFrameJoint
+{
+    vec3 position;
+    vec4 orientation;
+};
+
+struct PlayerFrameBody
+{
+    vec3 position;
+    vec4 orientation;
+};
 
 namespace Game
 {
@@ -71,7 +82,7 @@ namespace Game
 	static dReal floor_friction = 10E3;
 	static dReal floor_bounce = 0;
 
-	static raylib::Color background_color = { 255, 255, 255, 255 };
+	static raylib::Color background_color = { 0 };
 			
 	static std::vector<Body> objects;
 

@@ -177,7 +177,7 @@ static void nearCallback(void*, dGeomID o1, dGeomID o2)
 {
 	using namespace Game;
 
-	//if (o1 == nullptr || o2 == nullptr) return;
+	if (o1 == nullptr || o2 == nullptr) return;
 
 	dBodyID b1 = dGeomGetBody(o1);
 	dBodyID b2 = dGeomGetBody(o2);
@@ -186,19 +186,20 @@ static void nearCallback(void*, dGeomID o1, dGeomID o2)
 
 	if (b1 == b2) return;
 	
-	//uint32_t cat1 = dGeomGetCategoryBits(o1);
-	//uint32_t col1 = dGeomGetCollideBits(o1);
-	//uint32_t cat2 = dGeomGetCategoryBits(o2);
-	//uint32_t col2 = dGeomGetCollideBits(o2);
+	uint32_t cat1 = dGeomGetCategoryBits(o1);
+	uint32_t col1 = dGeomGetCollideBits(o1);
+	uint32_t cat2 = dGeomGetCategoryBits(o2);
+    uint32_t col2 = dGeomGetCollideBits(o2);
 
-	//if (!(cat1 & col2 || cat2 & col1)) return;
+	if (!(cat1 & col2 || cat2 & col1)) return;
 
 	dContact contacts[rules.max_contacts];
 
 	for (int i = 0; i < rules.max_contacts; i += 1) {
 		contacts[i].surface = (dSurfaceParameters) {
-			.mode = dContactApprox1|dContactBounce,
+			.mode = dContactApprox1|dContactBounce|dContactRolling,
 			.mu = rules.friction,
+			.rho = 0,
 			.bounce = rules.bounce,
 		};
 
@@ -438,63 +439,59 @@ static void RecordGhostCache()
 {
 	using namespace Game;
 
-	auto buffer = (dReal*)data->buffer();
+	auto cache = data->buffer();
 
 	uint32_t j_total = 0;
 	uint32_t b_total = 0;
 
+	uint32_t player_offset[p_count] = { 0 };
+
 	for (int pID = 0; pID < p_count; pID += 1) {
+	    player_offset[pID] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
+	  
 		j_total += players[pID].j_count;
 		b_total += players[pID].b_count;
 	}
-
-	uint32_t offset = 7 * ghost_frames * (j_total + b_total);
-
-	uint32_t j_offset = 0;
-	uint32_t b_offset = 0;
-
-	for (int pID = 0; pID < p_count; pID += 1) {
+	
+	uint32_t frame_offset = ghost_frames * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
+   	
+    for (int pID = 0; pID < p_count; pID += 1) {
 		auto& p = players[pID];
-		
-		offset += 7 * pID * (p.j_count + p.b_count);
+
+		uint32_t j_offset = frame_offset + player_offset[pID];
 
 		for (int jID = 0; jID < p.j_count; jID += 1) {
 			auto& j = p.joint[jID];
 
-			auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
+			auto* j_cache = (PlayerFrameJoint*)(cache + j_offset + sizeof(PlayerFrameJoint) * jID);
+
+			j_cache->position.x = j.frame_position.x;
+			j_cache->position.y = j.frame_position.y;
+			j_cache->position.z = j.frame_position.z;
 			
-			frame_buffer[0] = j.frame_orientation.x;
-			frame_buffer[1] = j.frame_orientation.y;
-			frame_buffer[2] = j.frame_orientation.z;
-			frame_buffer[3] = j.frame_orientation.w;
-
-			frame_buffer[4] = j.frame_position.x;
-			frame_buffer[5] = j.frame_position.y;
-			frame_buffer[6] = j.frame_position.z;
-
-			j_offset += 1;
+			j_cache->orientation.x = j.frame_orientation.x;
+			j_cache->orientation.y = j.frame_orientation.y;
+			j_cache->orientation.z = j.frame_orientation.z;
+			j_cache->orientation.w = j.frame_orientation.w;
 		}
-
-		//offset += 7 * (p.j_count + pID * p.b_count);
-		offset += 7 * (j_offset + pID * p.b_count);
-
+		
+		uint32_t b_offset = frame_offset + player_offset[pID] + sizeof(PlayerFrameJoint) * p.j_count;
+		
 		for (int bID = 0; bID < p.b_count; bID += 1) {
 			auto& b = p.body[bID];
+			
+            auto* b_cache = (PlayerFrameBody*)(cache + b_offset + sizeof(PlayerFrameBody) * bID);
 
-			auto frame_buffer = (dReal*)(buffer + offset + 7 * bID);
-
-			frame_buffer[0] = b.frame_orientation.x;
-			frame_buffer[1] = b.frame_orientation.y;
-			frame_buffer[2] = b.frame_orientation.z;
-			frame_buffer[3] = b.frame_orientation.w;
-
-			frame_buffer[4] = b.frame_position.x;
-			frame_buffer[5] = b.frame_position.y;
-			frame_buffer[6] = b.frame_position.z;
+			b_cache->position.x = b.frame_position.x;
+			b_cache->position.y = b.frame_position.y;
+			b_cache->position.z = b.frame_position.z;
+			
+			b_cache->orientation.x = b.frame_orientation.x;
+			b_cache->orientation.y = b.frame_orientation.y;
+			b_cache->orientation.z = b.frame_orientation.z;
+			b_cache->orientation.w = b.frame_orientation.w;
 		}
 	}
-
-	ghost_frames += 1;
 }
 
 void Game::Update(dReal dt)
@@ -564,6 +561,8 @@ void Game::Update(dReal dt)
 				
                 if (GhostCacheEnabled() && !GhostCacheIsReady()) {
 					RecordGhostCache();
+						
+	                ghost_frames += 1;
 				}
 	
 				break;
@@ -582,333 +581,77 @@ void Game::Update(dReal dt)
 	}
 }
 
-static vec4 GetPlayerGhostCacheJointQuaternion(uint32_t frame, PlayerID pID, JointID jID)
-{
-   using namespace Game;
-	
-    auto buffer = (dReal*)data->buffer();
-
-    uint32_t j_total = 0;
-    uint32_t b_total = 0;
-
-    for (int i = 0; i < p_count; i += 1) {
-        j_total += players[i].j_count;
-        b_total += players[i].b_count;
-    }
-
-    uint32_t offset = 7 * frame * (j_total + b_total);
-
-    uint32_t j_offset = 0;
-    uint32_t b_offset = 0;
-
-    auto& p = players[pID];
-
-    offset += 7 * pID * (p.j_count + p.b_count);
-	
-    auto& j = p.joint[jID];
-
-    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
-
-	return (vec4) {
-	    frame_buffer[0],
-	    frame_buffer[1],
-	    frame_buffer[2],
-	    frame_buffer[3],
-	};
-}
-
-static vec3 GetPlayerGhostCacheJointPosition(uint32_t frame, PlayerID pID, JointID jID)
+static PlayerFrameJoint* GetPlayerGhostCacheJoint(uint32_t frame, PlayerID pID, JointID jID)
 {
     using namespace Game;
 	
-    auto buffer = (dReal*)data->buffer();
+    auto cache = data->buffer();
 
     uint32_t j_total = 0;
     uint32_t b_total = 0;
 
+	uint32_t player_offset[p_count] = { 0 };
+
     for (int i = 0; i < p_count; i += 1) {
-        j_total += players[i].j_count;
+	    player_offset[i] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;    
+
+		j_total += players[i].j_count;
         b_total += players[i].b_count;
     }
 
-    uint32_t offset = 7 * frame * (j_total + b_total);
+	uint32_t frame_offset = frame * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
+   	
+	uint32_t j_offset = frame_offset + player_offset[pID];
 
-    uint32_t j_offset = 0;
-    uint32_t b_offset = 0;
+	auto& p = players[pID];
 
-    auto& p = players[pID];
+	auto* j_cache = (PlayerFrameJoint*)(cache + j_offset + sizeof(PlayerFrameJoint) * jID);
 
-    offset += 7 * pID * (p.j_count + p.b_count);
+	//auto j_out = new PlayerFrameJoint;
+
+	//vec3* j_position = (vec3*)(cache + j_offset);
+
+	//j_cache->position.x = j[jID]->position.x;
+	//j_cache->position.y = j[jID]->position.y;
+	//j_cache->position.z = j[jID]->position.z;
 	
-    auto& j = p.joint[jID];
+	//vec4* j_orientation = (vec4*)(cache + j_offset);
 
-    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
+	//j_cache->orientation.x = j[jID]->orientation.x;
+	//j_cache->orientation.y = j[jID]->orientation.y;
+    //j_cache->orientation.z = j[jID]->orientation.z;
+	//j_cache->orientation.w = j[jID]->orientation.w;
 
-	return (vec3) {
-	    frame_buffer[4],
-	    frame_buffer[5],
-	    frame_buffer[6],
-	};
+	return j_cache;
 }
 
-static void GetPlayerGhostCacheJoint(uint32_t frame, PlayerID pID, JointID jID)
+static PlayerFrameBody* GetPlayerGhostCacheBody(uint32_t frame, PlayerID pID, BodyID bID)
 {
     using namespace Game;
 	
-    auto buffer = (dReal*)data->buffer();
+    auto cache = data->buffer();
 
     uint32_t j_total = 0;
     uint32_t b_total = 0;
 
+    uint32_t player_offset[p_count] = { 0 };
+
     for (int i = 0; i < p_count; i += 1) {
+	    player_offset[i] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;    
+
         j_total += players[i].j_count;
         b_total += players[i].b_count;
     }
 
-    uint32_t offset = 7 * frame * (j_total + b_total);
+    uint32_t frame_offset = frame * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
 
-    uint32_t j_offset = 0;
-    uint32_t b_offset = 0;
-
-    auto& p = players[pID];
-
-    offset += 7 * pID * (p.j_count + p.b_count);
-	
-    auto& j = p.joint[jID];
-
-    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
-
-	//j_cache.frame_orientation = *(vec4*)(frame_buffer);
-	//frame_buffer += 4*4 ;
-    //j_cache.frame_position = *(vec3*)(frame_buffer);
-	
-	//j_cache.frame_orientation.x = frame_buffer[0];
-	//j_cache.frame_orientation.y = frame_buffer[1];
-	//j_cache.frame_orientation.z = frame_buffer[2];
-	//j_cache.frame_orientation.w = frame_buffer[3];
-
-	//j_cache.frame_orientation.x = frame_buffer[4];
-    //j_cache.frame_orientation.y = frame_buffer[5];
-	//j_cache.frame_orientation.z = frame_buffer[6];
-}
-
-static void GetPlayerGhostCacheBody(uint32_t frame, PlayerID pID, BodyID bID)
-{
-    using namespace Game;
-	
-    auto buffer = (dReal*)data->buffer();
-
-    uint32_t j_total = 0;
-    uint32_t b_total = 0;
-
-    for (int i = 0; i < p_count; i += 1) {
-        j_total += players[i].j_count;
-        b_total += players[i].b_count;
-    }
-
-    uint32_t offset = 7 * frame * (j_total + b_total);
-
-    uint32_t j_offset = 0;
-    uint32_t b_offset = 0;
+    uint32_t b_offset = frame_offset + player_offset[pID] + sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * bID;
 
     auto& p = players[pID];
 
-    offset += 7 * pID * (p.j_count + p.b_count);
+    auto* b_cache = (PlayerFrameBody*)(cache + b_offset + sizeof(PlayerFrameBody) * bID);
 
-}
-
-void Game::DrawPlayerGhostCache(PlayerID pID, uint32_t frame)
-{
-  auto buffer = (dReal*)data->buffer();
-
-  uint32_t j_total = 0;
-  uint32_t b_total = 0;
-
-  for (int i = 0; i < p_count; i += 1) {
-    j_total += players[i].j_count;
-    b_total += players[i].b_count;
-  }
-
-  uint32_t offset = 7 * frame * (j_total + b_total);
-
-  uint32_t j_offset = 0;
-  uint32_t b_offset = 0;
-
-  auto& p = players[pID];
-
-  offset += 7 * pID * (p.j_count + p.b_count);
-
-  for (int jID = 0; jID < players[pID].j_count; jID += 1) {
-    auto& j = p.joint[jID];
-
-    auto frame_buffer = (dReal*)(buffer + offset + 7 * jID);
-
-    Quaternion q = {
-      frame_buffer[0],
-      frame_buffer[1],
-      frame_buffer[2],
-      frame_buffer[3],
-    };
-
-    Vector3 p = {
-      frame_buffer[4],
-      frame_buffer[5],
-      frame_buffer[6],
-    };
-
-    //DrawObject(j, q, p, j.m_g_color);
-
-    j_offset += 1;
-  }
-
-  offset += 7 * (j_offset + pID * p.b_count);
-
-  for (int bID = 0; bID < players[pID].b_count; bID += 1) {
-    auto& b = p.body[bID];
-			
-    auto frame_buffer = (dReal*)(buffer + offset + 7 * bID);
-
-    Quaternion q = {
-      frame_buffer[0],
-      frame_buffer[1],
-      frame_buffer[2],
-      frame_buffer[3],
-    };
-
-    Vector3 p = {
-      frame_buffer[4],
-      frame_buffer[5],
-      frame_buffer[6],
-    };
-
-    //DrawObject(b, q, p, b.m_g_color, camera);
-  }
-}
-
-void Game::DrawPlayerFreeze(PlayerID pID)
-{ 
-  auto& p = players[pID];
-
-  for (int jID = 0; jID < players[pID].j_count; jID += 1) {
-    auto& j = p.joint[jID];
-      
-	Quaternion q = {
-	  j.freeze_orientation.x,
-	  j.freeze_orientation.y,
-	  j.freeze_orientation.z,
-	  j.freeze_orientation.w,
-	};
-
-	Vector3 p = {
-	  j.freeze_position.x,
-	  j.freeze_position.y,
-	  j.freeze_position.z,
-	};
-
-	switch (j.state)
-	{
-	case RELAX:
-	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(j.m_color, 0.50));
-	  break;
-	case HOLD:
-	  DrawObjectModel(j, q, p, 1.00, models[0], j.m_color);
-	  break;
-	case FORWARD:
-	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(j.m_color, 0.50));
-	  DrawObjectModel(j, q, p, 1.00, models[1], j.m_color);
-	  break;
-	case BACKWARD:
-	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(j.m_color, 0.50));
-	  DrawObjectModel(j, q, p, 1.00, models[1], j.m_color);
-	  break;
-    }
-  }
-
-  for (int bID = 0; bID < players[pID].b_count; bID += 1) {
-    auto& b = p.body[bID];
-      
-	Quaternion q = {
-	  b.freeze_orientation.x,
-	  b.freeze_orientation.y,
-	  b.freeze_orientation.z,
-	  b.freeze_orientation.w,
-	};
-
-	Vector3 p = {
-	  b.freeze_position.x,
-	  b.freeze_position.y,
-	  b.freeze_position.z,
-	};
-
-	if (b.active) {
-	  //DrawObject(b, q, p, b.m_active_color);
-	} else {
-      //DrawObject(b, q, p, b.m_color);
-	}
-  }
-}
-
-void Game::DrawPlayer(PlayerID pID, Color j_color, Color b_color)
-{ 
-  auto& p = players[pID];
-
-  for (int jID = 0; jID < players[pID].j_count; jID += 1) {
-    auto& j = p.joint[jID];
-      
-	Quaternion q = {
-	  j.frame_orientation.x,
-	  j.frame_orientation.y,
-	  j.frame_orientation.z,
-	  j.frame_orientation.w,
-	};
-
-	Vector3 p = {
-	  j.frame_position.x,
-	  j.frame_position.y,
-	  j.frame_position.z,
-	};
-
-	switch (j.state)
-	{
-	case RELAX:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j_color, 0.50));
-	  break;
-	case HOLD:
-	  DrawObjectModel(j, q, p, 1.00, models[0], j_color);
-	  break;
-	case FORWARD:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j_color, 0.50));
-	  DrawObjectModel(j, q, p, 1.00, models[1], j_color);
-	  break;
-	case BACKWARD:
-	  DrawObjectModel(j, q, p, 0.70, models[0], ColorBrightness(j_color, 0.50));
-	  DrawObjectModel(j, q, p, 1.00, models[1], j_color);
-	  break;
-    }
-  }
-
-  for (int bID = 0; bID < players[pID].b_count; bID += 1) {
-    auto& b = p.body[bID];
-      
-	Quaternion q = {
-	  b.frame_orientation.x,
-	  b.frame_orientation.y,
-	  b.frame_orientation.z,
-	  b.frame_orientation.w,
-	};
-
-	Vector3 p = {
-	  b.frame_position.x,
-	  b.frame_position.y,
-	  b.frame_position.z,
-	};
-
-	if (b.active) {
-	  //DrawObject(b, q, p, b.m_active_color);
-	} else {
-      //DrawObject(b, q, p, b_color);
-	}
-  }
+	return b_cache;
 }
 
 void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
@@ -917,42 +660,25 @@ void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
 
 	Vector3 p = { j_p.x, j_p.y, j_p.z };
 
-	Vector3 dir =    { 0.00,  1.00, 0.00 };
-	Vector3 invdir = { 0.00, -1.00, 0.00 };
+	Vector3 dir = { 1.00, 0.00, 0.00 };
 	
 	Vector3 axis = { j.axis.x, j.axis.y, j.axis.z };
-    float dot = Vector3DotProduct(dir, axis);
+    axis = Vector3Normalize(axis);
 	
-	Vector3 cross = Vector3CrossProduct(dir, axis);
-
-	Quaternion q1 = { dot + 1, cross.x, cross.y, cross.z };
-
-	q = QuaternionMultiply(q, q1);
-
+    Quaternion q1 = QuaternionFromVector3ToVector3(dir, axis);
+	q1 = QuaternionMultiply(q, q1);
+	
 	switch (j.state)
 	{
-	case RELAX:
-	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(color, 0.50));
-	  break;
 	case HOLD:
-	  DrawObjectModel(j, q, p, 1.00, models[0], color);
-	  break;
-	case FORWARD:
-	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(color, 0.50));
-	  DrawObjectModel(j, q, p, 1.00, models[1], color);
+	  DrawObjectModel(j, q1, p, 1.00, models[0], color);
 	  break;
 	case BACKWARD:
-      float dot = Vector3DotProduct(dir, invdir);
-	  Vector3 cross = Vector3CrossProduct(dir, invdir);
-
-	  Quaternion q2 = { dot + 1, cross.x, cross.y, cross.z };
-
-	  q = QuaternionMultiply(q, q2);
-	  q = QuaternionMultiply(q, q1);
-  
-	  DrawObjectModel(j, q, p, 0.90, models[0], ColorBrightness(color, 0.50));
-	  DrawObjectModel(j, q, p, 1.00, models[1], color);
-	  break;
+	  //q1 = QuaternionMultiply(q, QuaternionInvert(q1));
+    case FORWARD:
+	  DrawObjectModel(j, q1, p, 1.00, models[1], color);
+	default:
+	  DrawObjectModel(j, q1, p, 0.90, models[0], ColorBrightness(color, 0.50));
     }
 }
 
@@ -1052,21 +778,16 @@ void Game::Draw(Camera3D camera)
 			    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, p.m_j_color);
 
 		        if (GhostCacheEnabled() && GhostCacheIsReady()) {
-				    vec4 cache_orientation = { 0 };
-					vec3 cache_position = { 0 };
-					
-				    if (ghost_frames > ghost_length) {
-					    cache_orientation = GetPlayerGhostCacheJointQuaternion(state.freeze_frame, pID, jID);
-						cache_position = GetPlayerGhostCacheJointPosition(state.freeze_frame, pID, jID);
+				    if (ghost_frames >= ghost_length) {
+					    auto* cache_joint = GetPlayerGhostCacheJoint(state.freeze_count, pID, jID);	
 						
-				        DrawPlayerJoint(j, cache_orientation, cache_position, p.m_g_color);
+						DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_g_color);
+
+						//delete cache_joint;
 				    }
 					
-					if (ghost_frames > rules.turnframes) {
-					    cache_orientation = GetPlayerGhostCacheJointQuaternion(rules.turnframes, pID, jID);
-						cache_position = GetPlayerGhostCacheJointPosition(rules.turnframes, pID, jID);
-						
-					    DrawPlayerJoint(j, cache_orientation, cache_position, p.m_g_color);
+					if (ghost_frames >= rules.turnframes) {
+					  //DrawPlayerJoint(j, cache_orientation, cache_position, p.m_g_color);
 					}
 		       
 				} else {
@@ -1088,16 +809,17 @@ void Game::Draw(Camera3D camera)
 				    DrawPlayerBody(b, b.freeze_orientation, b.freeze_position, p.m_b_color);
 				}
 				
-		        if (GhostCacheEnabled() && GhostCacheIsReady()) {
-				    vec4 cache_orientation = { 0 };
-					vec3 cache_position = { 0 };
-					
-				    if (ghost_frames > ghost_length) {
-				        DrawPlayerBody(b, cache_orientation, cache_position, p.m_g_color);
+		        if (GhostCacheEnabled() && GhostCacheIsReady()) {	
+				    if (ghost_frames >= ghost_length) {
+					  auto* cache_body = GetPlayerGhostCacheBody(state.freeze_count, pID, bID);	
+						
+					  DrawPlayerBody(b, cache_body->orientation, cache_body->position, p.m_g_color);
+
+					  //delete cache_body;
 				    }
 					
-					if (ghost_frames > rules.turnframes) {
-					    DrawPlayerBody(b, cache_orientation, cache_position, p.m_g_color);
+					if (ghost_frames >= rules.turnframes) {
+					  //DrawPlayerBody(b, cache_orientation, cache_position, p.m_g_color);
                     }
 		        } else {
 				    DrawPlayerBody(b, b.frame_orientation, b.frame_position, p.m_g_color);
@@ -1596,7 +1318,7 @@ static void rlLog(int level, const char* msg, va_list)
 
 void Window::Init()
 {
-  //SetTraceLogLevel(LOG_ERROR);
+    //SetTraceLogLevel(LOG_ERROR);
 	//SetTraceLogCallback(rlLog);
 
 	InitWindow(width, height, "MultiAxis");
@@ -1611,6 +1333,7 @@ void Window::Init()
 
 	shader = LoadShader("resources/shader/base.vs", "resources/shader/base.fs");
 
+	Game::background_color = BLACK;
 	background = LoadRenderTexture(width, height);
 	foreground = LoadRenderTexture(width, height);
 
