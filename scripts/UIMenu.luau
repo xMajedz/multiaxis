@@ -64,6 +64,11 @@ local replay_list, mod_list, script_list
 local mod, o_count, p_count, p_details, frame, contact_count, reaction_count, rules, gravity, console_message
 
 local loaded_scripts = {}
+loaded_scripts["UIMenu"] = 1
+loaded_scripts["UIConsole"] = 1
+loaded_scripts["intro"] = 1
+loaded_scripts["init"] = 1
+loaded_scripts["API"] = 1
 
 RAYGUI.GuiSetStyle(0, 16, 20)
 
@@ -450,7 +455,7 @@ if showGui then
 			local script = script_list[i]:gsub("scripts[/\\]", "")
 			RAYGUI.GuiLabel(20, 10 + 30 * (i + 1), 400, 20, script)
 
-			if script:match(".+%.luau") then
+			if script:match(".+%.luau") and not loaded_scripts[script:gsub("%.luau", "")] then
 				if (RAYGUI.GuiButton(350, 10 + 30 * (i + 1), 25, 25, `#{RAYGUI["ICON_PLAYER_PLAY"]}#`)) then
 					script = script:gsub("%..+", "")
 

@@ -23,7 +23,7 @@ function API.Update.JVJ(dt)
 			Game.Refreeze()
 
 			if RAYLIB.IsKeyDown(RAYLIB["KEY_LEFT_SHIFT"]) then
-				if current_gear_alt > 1  then
+				if current_gear_alt > 1 then
 					current_gear_alt = current_gear_alt - 1
 				end
 
@@ -70,6 +70,60 @@ function API.Update.JVJ(dt)
 
 				Expermental.TriggerSelectedJointActiveState(Game.GetSelectedJointVelocity() * ratio)
 			end
+		end
+	end
+    
+    if Game.IsFreeze() and Game.IsMode(Game["MODE_FREEPLAY"]) and Game.IsSelectedPlayerValid() then
+        local WheelMove = RAYLIB.GetMouseWheelMove()
+        
+        if WheelMove > 0 then
+		    Game.Refreeze()
+
+            if RAYLIB.IsKeyDown(RAYLIB["KEY_LEFT_SHIFT"]) then
+                if current_gear_alt < gear_count then
+				    current_gear_alt = current_gear_alt + 1
+			    end
+
+			    local ratio = current_gear_alt/gear_count
+
+			    API.NumberToData(ratio, value)
+				
+                --Expermental.TriggerSelectedJointActiveStateAlt(Game.GetSelectedJointVelocityAlt() * ratio)
+            else
+                if current_gear < gear_count then
+		            current_gear = current_gear + 1
+			    end
+
+			    local ratio = current_gear/gear_count
+
+			    API.NumberToData(ratio, value)
+
+                --Expermental.TriggerSelectedJointActiveState(Game.GetSelectedJointVelocity() * ratio)
+            end
+		elseif WheelMove < 0 then
+		    Game.Refreeze()
+			
+			if RAYLIB.IsKeyDown(RAYLIB["KEY_LEFT_SHIFT"]) then
+			    if current_gear_alt > 1 then
+				    current_gear_alt = current_gear_alt - 1
+		        end
+
+		        local ratio = current_gear_alt/gear_count
+
+		        API.NumberToData(ratio, value)
+				
+			    --Expermental.TriggerSelectedJointActiveStateAlt(Game.GetSelectedJointVelocityAlt() * ratio)
+			else
+			    if current_gear > 1 then
+				    current_gear = current_gear - 1
+		        end
+
+			    local ratio = current_gear/gear_count
+
+		        API.NumberToData(ratio, value)
+				
+				--Expermental.TriggerSelectedJointActiveState(Game.GetSelectedJointVelocity() * ratio)
+		    end
 		end
 	end
 end
