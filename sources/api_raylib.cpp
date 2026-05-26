@@ -120,6 +120,12 @@ static int RAYLIB_GetMousePosition(lua_State* L)
 	return 1;
 }
 
+static int RAYLIB_GetMouseWheelMove(lua_State* L)
+{
+	lua_pushnumber(L, GetMouseWheelMove());
+    return 1;
+}
+
 static int RAYLIB_GetTime(lua_State* L)
 {
 	lua_pushnumber(L, GetTime());
@@ -204,6 +210,7 @@ static const luaL_Reg api_raylib[] {
 	{"LoadDirectoryFilesEx", RAYLIB_LoadDirectoryFilesEx},
 	{"LoadDirectoryFiles", RAYLIB_LoadDirectoryFiles},
 	{"GetMousePosition", RAYLIB_GetMousePosition},
+    {"GetMouseWheelMove", RAYLIB_GetMouseWheelMove},
 	{"GetTime", RAYLIB_GetTime},
 	{"GetFrameTime", RAYLIB_GetFrameTime},
 	{"GetFPS", RAYLIB_GetFPS},

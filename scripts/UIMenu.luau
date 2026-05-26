@@ -174,8 +174,27 @@ else
 			else
 				Game.CycleSelectedJointState()
 			end
-		end	
+		end
+		
+		local WheelMove = RAYLIB.GetMouseWheelMove()
 
+        if WheelMove > 0 then
+		    Game.Refreeze()
+
+            if RAYLIB.IsKeyDown(RAYLIB["KEY_LEFT_SHIFT"]) then
+				Game.CycleSelectedJointStateAlt()
+			else
+				Game.CycleSelectedJointState()
+			end
+		elseif WheelMove < 0 then
+		    Game.Refreeze()
+			
+		    if RAYLIB.IsKeyDown(RAYLIB["KEY_LEFT_SHIFT"]) then
+				Game.ReverseCycleSelectedJointStateAlt()
+			else
+				Game.ReverseCycleSelectedJointState()
+			end
+		end
 	end
 
 	if Game.IsFreeze() and Game.IsMode(Game["MODE_FREEPLAY"]) and Game.IsSelectedPlayerValid() then

@@ -206,6 +206,8 @@ namespace Game
 	void ToggleJointPassiveState(JointID selected_joint_id);
 	void CycleJointStateAlt(JointID selected_joint_id);
 	void CycleJointState(JointID selected_joint_id);
+	void ReverseCycleJointStateAlt(JointID joint_id);
+    void ReverseCycleJointState(JointID joint_id);
 
 	void TriggerSelectedJointActiveStateAlt(dReal vel);
 	void TriggerSelectedJointActiveState(dReal vel);
@@ -223,6 +225,8 @@ namespace Game
 
 	void CycleSelectedJointStateAlt();
 	void CycleSelectedJointState();
+	void ReverseCycleSelectedJointStateAlt();
+	void ReverseCycleSelectedJointState();
 
 	void UndoSelectedPlayerMove();
 

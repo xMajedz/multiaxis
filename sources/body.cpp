@@ -1082,3 +1082,47 @@ void Joint::CycleStateAlt()
 		TriggerActiveStateAlt(1.00 * velocity_alt);
 	}
 }
+
+void Joint::ReverseCycleState()
+{
+	switch(state)
+	{
+	case FORWARD:
+		state = RELAX;
+		TriggerPassiveState(0.00);
+		break;
+	case BACKWARD:
+		state = FORWARD;
+		TriggerActiveState(1.00 * velocity);
+		break;
+	case HOLD:
+		state = BACKWARD;
+		TriggerActiveState(-1.00 * velocity);
+		break;
+	default:
+		state = HOLD;
+		TriggerPassiveState(strength);
+	}
+}
+
+void Joint::ReverseCycleStateAlt()
+{
+	switch(state_alt)
+	{
+	case FORWARD:
+		state_alt = RELAX;
+		TriggerPassiveStateAlt(0.00);
+		break;
+	case BACKWARD:
+	  	state_alt = FORWARD;
+		TriggerActiveStateAlt(1.00 * velocity_alt);
+		break;
+	case HOLD:
+	  	state_alt = BACKWARD;
+		TriggerActiveStateAlt(-1.00 * velocity_alt);
+		break;
+	default:
+	    state_alt = HOLD;
+		TriggerPassiveStateAlt(strength_alt);
+	}
+}

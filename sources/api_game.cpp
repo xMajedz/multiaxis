@@ -291,6 +291,17 @@ static int Game_CycleJointState(lua_State* L)
     return 1;
 }
 
+static int Game_ReverseCycleJointStateAlt(lua_State* L)
+{
+    Game::ReverseCycleJointStateAlt(lua_tointeger(L, -1));
+    return 1;
+}
+static int Game_ReverseCycleJointState(lua_State* L)
+{
+    Game::ReverseCycleJointState(lua_tointeger(L, -1));
+    return 1;
+}
+
 static int Game_ToggleSelectedPlayerPassiveStatesAlt(lua_State* L)
 {
     Game::ToggleSelectedPlayerPassiveStatesAlt();
@@ -334,6 +345,18 @@ static int Game_CycleSelectedJointStateAlt(lua_State* L)
 }
 
 static int Game_CycleSelectedJointState(lua_State* L)
+{
+    Game::CycleSelectedJointState();
+    return 1;
+}
+
+static int Game_ReverseCycleSelectedJointStateAlt(lua_State* L)
+{
+    Game::ReverseCycleSelectedJointStateAlt();
+    return 1;
+}
+
+static int Game_ReverseCycleSelectedJointState(lua_State* L)
 {
     Game::CycleSelectedJointState();
     return 1;
@@ -412,6 +435,8 @@ static const luaL_Reg api_game[]
 
     {"CycleJointStateAlt", Game_CycleJointStateAlt},
     {"CycleJointState", Game_CycleJointState},
+    {"ReverseCycleJointStateAlt", Game_ReverseCycleJointStateAlt},
+    {"ReverseCycleJointState", Game_ReverseCycleJointState},
 
     {"ToggleSelectedJointActiveStateAlt", Game_ToggleSelectedJointActiveStateAlt},
     {"ToggleSelectedJointActiveState", Game_ToggleSelectedJointActiveState},
@@ -420,6 +445,8 @@ static const luaL_Reg api_game[]
 
     {"CycleSelectedJointStateAlt", Game_CycleSelectedJointStateAlt},
     {"CycleSelectedJointState", Game_CycleSelectedJointState},
+    {"ReverseCycleSelectedJointStateAlt", Game_ReverseCycleSelectedJointStateAlt},
+    {"ReverseCycleSelectedJointState", Game_ReverseCycleSelectedJointState},
 
     {"ToggleBodyState", Game_ToggleBodyState},
     {"ToggleSelectedBodyState", Game_ToggleSelectedBodyState},

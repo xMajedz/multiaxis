@@ -1245,6 +1245,20 @@ void Game::CycleJointState(JointID joint_id)
 	ResetGhostCache();
 }
 
+void Game::ReverseCycleJointStateAlt(JointID joint_id)
+{
+	players[state.selected_player].joint[joint_id].ReverseCycleStateAlt();
+
+	ResetGhostCache();
+}
+
+void Game::ReverseCycleJointState(JointID joint_id)
+{
+	players[state.selected_player].joint[joint_id].ReverseCycleState();
+
+	ResetGhostCache();
+}
+
 void Game::TriggerSelectedJointActiveStateAlt(dReal vel)
 {
 	players[state.selected_player].joint[state.selected_joint].TriggerActiveStateAlt(vel);
@@ -1311,6 +1325,20 @@ void Game::CycleSelectedJointStateAlt()
 void Game::CycleSelectedJointState()
 {
 	players[state.selected_player].joint[state.selected_joint].CycleState();
+
+	ResetGhostCache();
+}
+
+void Game::ReverseCycleSelectedJointStateAlt()
+{
+	players[state.selected_player].joint[state.selected_joint].ReverseCycleStateAlt();
+
+	ResetGhostCache();
+}
+
+void Game::ReverseCycleSelectedJointState()
+{
+	players[state.selected_player].joint[state.selected_joint].ReverseCycleState();
 
 	ResetGhostCache();
 }

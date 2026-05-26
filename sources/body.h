@@ -199,5 +199,7 @@ struct Joint : public Body
 	void ToggleActiveStateAlt();	
 	void CycleState();	
 	void CycleStateAlt();
+  	void ReverseCycleState();	
+	void ReverseCycleStateAlt();
 	void Step();
 };
