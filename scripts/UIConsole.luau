@@ -1,7 +1,9 @@
-local UIConsole = {}
+local UIConsole = { TextColor = RAYLIB["RAYWHITE"] }
 
 local showConsole = false
 local showMessages = false
+
+local maxMessages = 32
 
 local messages = {}
 local commands = {}
@@ -65,8 +67,17 @@ function API.Draw.UIConsole()
 	end
 	
 	if showMessages then
-		for i in messages do
-			RAYLIB.DrawText(messages[i], 10, offset-20*(#messages - i + 1), 20, RAYLIB["WHITE"])
+	    local i = 1
+        local max = #messages
+		local diff = #messages - maxMessages
+		if 0 < diff then
+		    max = maxMessages
+		else
+			diff = 0
+		end
+        while i <= #messages - diff do
+			RAYLIB.DrawText(messages[i + diff], 10, offset - 20 * (max - i + 1), 20, UIConsole["TextColor"])
+			i = i + 1
 		end
 	end
 end
