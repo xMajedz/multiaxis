@@ -13,3 +13,6 @@
 [submodule "vendor/raygui"]
 	path = vendor/raygui
 	url = https://github.com/raysan5/raygui.git
+[submodule "vendor/yojimbo"]
+	path = vendor/yojimbo
+	url = https://github.com/mas-bandwidth/yojimbo.git

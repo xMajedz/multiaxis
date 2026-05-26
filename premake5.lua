@@ -1,14 +1,20 @@
 newoption {
 	trigger = "location",
 	description = "sets build directory.",
-	default = "build",
 }
 
-workspace "tobas"
+local loc = "build-" .. _TARGET_OS
+if _OPTIONS["os"] then
+   loc = ("build-" .. _OPTIONS["os"]) or loc
+end
+loc = _OPTIONS["location"] or loc
+
+workspace "mulitaxis"
 	language "C++"
 	cppdialect "C++20"
-	configurations { "Debug", "Release" }
-	location (_OPTIONS["location"]) 
+	configurations { "release", "debug" }
+	location (loc)
+	targetdir (loc)
 
 	includedirs {
 		"vendor/luau/Compiler/include",
@@ -19,8 +25,6 @@ workspace "tobas"
 
 		"vendor/ode/include",
 
-		--"vendor/enet/include",
-
 		"sources",
 	}
 
@@ -30,6 +34,7 @@ workspace "tobas"
 		"luaucommon", "luaucodegen",
 
 		"raylib",
+		
 		"ode",
 	}
 
@@ -51,23 +56,23 @@ workspace "tobas"
 		"sources/mem.h", "sources/mem.cpp",
 	}
 
-	filter { "configurations:Debug" }
+	filter { "configurations:debug" }
 	defines { "DEBUG" }
 	symbols "On"
 	
-	filter { "configurations:Release" }
+	filter { "configurations:release" }
 	defines { "NDEBUG" }
 	optimize "On"
 
 	filter { "system:Windows" }
-	libdirs { "libs-windows" }
+	libdirs { "lib-windows" }
 
 	filter { "not system:Windows" }
-	libdirs { "libs-linux" }
+	libdirs { "lib-linux" }
 
-project "multiaxis_sp"
+project "multiaxis"
 	kind "WindowedApp"
-	files { "sources/tobas_sp.cpp" }
+	files { "sources/multiaxis.cpp" }
 
 	defines { "OFFLINE" }
 
@@ -75,8 +80,9 @@ project "multiaxis_sp"
 	links { "X11" }
 
 	filter { "system:Windows" }
-	links {"winmm", "gdi32", "opengl32"}
-	defines{"_WIN32"}
+	links { "winmm", "gdi32", "opengl32" }
+	defines { "_WIN32" }
+	
 --[[
 project "tobas"
 	kind "WindowedApp"

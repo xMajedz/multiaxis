@@ -134,7 +134,7 @@ void Game::NewGame()
     API::NewGameCallback();
 }
 
-bool Game::Running ()
+bool Game::Running()
 {
 	return state.running;
 }
@@ -393,20 +393,28 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 
     models[0].materials[0].shader = shader;
 	models[1].materials[0].shader = shader;
+	models[2].materials[0].shader = shader;
 	
 	switch(o.shape)
 	{
 	case BOX:
-		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f },
+	  DrawModelEx(
+				  model,
+				  (Vector3){ 0.0f, 0.0f, 0.0f },
+                  (Vector3){ 0.0f, 0.0f, 0.0f },
+				  0.0f,
+				  (Vector3){ s * o.m_sides.x, s * o.m_sides.y, s * o.m_sides.z },
+				  color);
+	  /*DrawDrCube((Vector3){ 0.0f, 0.0f, 0.0f },
 			 o.m_sides.x,
 			 o.m_sides.y,
 			 o.m_sides.z,
 			 color
-		);
+			 );*/
 		break;
 	case SPHERE:
-	  DrawModel(model, (Vector3){0.00, 0.00, 0.00}, s * o.radius, color);
-	  break;
+	    DrawModel(model, (Vector3){0.0f, 0.0f, 0.0f}, s * o.radius, color);
+	    break;
 	case CAPSULE:
 		DrawCapsule(
 				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
@@ -763,8 +771,10 @@ void Game::Draw(Camera3D camera)
                 o.frame_position.y,
                 o.frame_position.z,
             };
-
-		    DrawObject(o, q, p, o.m_color);
+			BeginMode3D(camera);
+            DrawObjectModel(o, q, p, 0.50, models[2], o.m_color);
+			EndMode3D();
+		    //DrawObject(o, q, p, o.m_color);
 	    }
     }
 
@@ -1316,24 +1326,36 @@ static void rlLog(int level, const char* msg, va_list)
 	Console::log(TextFormat("%d: %s", level, msg));
 }
 
+static bool MouseInput = true;
+
+static int selected_object = -1;
+static int selected_player = -1;
+static int selected_joint = -1;
+static int selected_body = -1;
+
 void Window::Init()
 {
-    //SetTraceLogLevel(LOG_ERROR);
-	//SetTraceLogCallback(rlLog);
+    GetSettings();
+	
+    SetTraceLogLevel(LOG_ERROR);
+	SetTraceLogCallback(rlLog);
 
 	InitWindow(width, height, "MultiAxis");
-
+   
+    if (fullscreen_mode) ToggleFullscreen();
+	
 	Gamecam::Init();
 
 	models[0] = LoadModel("resources/model/sphere.obj");
 	models[1] = LoadModel("resources/model/sphere-slice.obj");
-
+    models[2] = LoadModel("resources/model/cube.obj");
 	//textures[0] = LoadTexture("resources/texture/floor.png");
 	//models[0].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[0];
 
 	shader = LoadShader("resources/shader/base.vs", "resources/shader/base.fs");
 
 	Game::background_color = BLACK;
+
 	background = LoadRenderTexture(width, height);
 	foreground = LoadRenderTexture(width, height);
 
@@ -1342,12 +1364,29 @@ void Window::Init()
 	SetTargetFPS(60);
 }
 
-static bool MouseInput = true;
+void Window::GetSettings()
+{
+    std::ifstream file("settings.txt");
+	
+	if (file.is_open()) {
+	    std::string line;
 
-static int selected_object = -1;
-static int selected_player = -1;
-static int selected_joint = -1;
-static int selected_body = -1;
+		while (std::getline(file, line)) {
+		    size_t s = line.find('=');
+			std::string setting = line.substr(0, s);
+			std::string value   = line.substr(s + 1);
+			if (setting == "resolution") {
+			    s = value.find(',');
+				width  = std::stoi(value.substr(0, s));
+				height = std::stoi(value.substr(s + 1));
+			} else if (setting == "fullscreen") {
+			    fullscreen_mode = (bool)std::stoi(value);
+			}
+		}
+
+		file.close();
+	}
+}
 
 template <class T>
 static RayCollision CollideObject(Ray ray, T o)

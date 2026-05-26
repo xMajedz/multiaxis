@@ -261,7 +261,8 @@ namespace Game
 
 namespace Window
 {
-	static bool initialized = false; 
+	static bool initialized = false;
+	static bool fullscreen_mode = false;
 
 	static float  width = 800; 
 	static float height = 450;
@@ -271,7 +272,7 @@ namespace Window
 
 	void Init();
 	void Close();
-
+    void GetSettings();
 	void Update();
 
 	void RenderBackground(raylib::Camera3D camera);

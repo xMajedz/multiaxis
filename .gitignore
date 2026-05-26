@@ -1,5 +1,7 @@
-dist
-build
 vendor/*
-lib
+build-*
+lib-*
+*.desktop
+dist
 replays
+settings.txt
