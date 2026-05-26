@@ -99,6 +99,7 @@ namespace Game
 	static uintptr_t ghost_cache = 0;
 	static uint32_t ghost_length = 50;
 	static uint32_t ghost_frames = 0;
+	static uint8_t  ghost_transparency = 255;
 
 	static size_t o_count;
 	static size_t jo_count;
@@ -261,7 +262,6 @@ namespace Game
 
 namespace Window
 {
-	static bool initialized = false;
 	static bool fullscreen_mode = false;
 
 	static float  width = 800; 

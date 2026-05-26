@@ -32,8 +32,6 @@ void Game::Init()
 
     state.time = GetTime();
     state.running = true;
-
-    SetExitKey(KEY_NULL);
 }
 
 void Game::Reset()
@@ -398,19 +396,13 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 	switch(o.shape)
 	{
 	case BOX:
-	  DrawModelEx(
+	    DrawModelEx(
 				  model,
 				  (Vector3){ 0.0f, 0.0f, 0.0f },
                   (Vector3){ 0.0f, 0.0f, 0.0f },
 				  0.0f,
 				  (Vector3){ s * o.m_sides.x, s * o.m_sides.y, s * o.m_sides.z },
 				  color);
-	  /*DrawDrCube((Vector3){ 0.0f, 0.0f, 0.0f },
-			 o.m_sides.x,
-			 o.m_sides.y,
-			 o.m_sides.z,
-			 color
-			 );*/
 		break;
 	case SPHERE:
 	    DrawModel(model, (Vector3){0.0f, 0.0f, 0.0f}, s * o.radius, color);
@@ -735,7 +727,7 @@ void Game::Draw(Camera3D camera)
 		
 		Quaternion q = { 0 };
 		Vector3 p = { 0 };
-
+        BeginMode3D(camera);
 		if (state.freeze) {
 		    q.x = o.freeze_orientation.x;
 			q.y = o.freeze_orientation.y;
@@ -745,8 +737,9 @@ void Game::Draw(Camera3D camera)
             p.x = o.freeze_position.x;
             p.y = o.freeze_position.y;
             p.z = o.freeze_position.z;
-            
-		    DrawObject(o, q, p, o.m_color);
+			
+            DrawObjectModel(o, q, p, 1.00, models[2], o.m_color);
+		    //DrawObject(o, q, p, o.m_color);
 			
 		    q.x = o.frame_orientation.x;
 			q.y = o.frame_orientation.y;
@@ -757,7 +750,8 @@ void Game::Draw(Camera3D camera)
             p.y = o.frame_position.y;
             p.z = o.frame_position.z;
 			
-			DrawObject(o, q, p, o.m_g_color);
+			DrawObjectModel(o, q, p, 1.00, models[2], o.m_g_color);
+			//DrawObject(o, q, p, o.m_g_color);
 	    } else {
 		    Quaternion q = {
                 o.frame_orientation.x,
@@ -771,11 +765,11 @@ void Game::Draw(Camera3D camera)
                 o.frame_position.y,
                 o.frame_position.z,
             };
-			BeginMode3D(camera);
-            DrawObjectModel(o, q, p, 0.50, models[2], o.m_color);
-			EndMode3D();
+			
+            DrawObjectModel(o, q, p, 1.00, models[2], o.m_color);
 		    //DrawObject(o, q, p, o.m_color);
 	    }
+		EndMode3D();
     }
 
     for (PlayerID pID = 0; pID < players.size(); pID += 1) {
@@ -1326,7 +1320,8 @@ static void rlLog(int level, const char* msg, va_list)
 	Console::log(TextFormat("%d: %s", level, msg));
 }
 
-static bool MouseInput = true;
+static bool mouse_input = true;
+static bool keyboard_input = true;
 
 static int selected_object = -1;
 static int selected_player = -1;
@@ -1339,16 +1334,20 @@ void Window::Init()
 	
     SetTraceLogLevel(LOG_ERROR);
 	SetTraceLogCallback(rlLog);
-
+    
 	InitWindow(width, height, "MultiAxis");
-   
-    if (fullscreen_mode) ToggleFullscreen();
+
+	SetExitKey(KEY_NULL);
+
+	SetTargetFPS(60);
+
+	if (fullscreen_mode) ToggleFullscreen();
 	
 	Gamecam::Init();
 
 	models[0] = LoadModel("resources/model/sphere.obj");
 	models[1] = LoadModel("resources/model/sphere-slice.obj");
-    models[2] = LoadModel("resources/model/cube.obj");
+    models[2] = LoadModel("resources/model/box.obj");
 	//textures[0] = LoadTexture("resources/texture/floor.png");
 	//models[0].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[0];
 
@@ -1358,10 +1357,6 @@ void Window::Init()
 
 	background = LoadRenderTexture(width, height);
 	foreground = LoadRenderTexture(width, height);
-
-	initialized = true;
-
-	SetTargetFPS(60);
 }
 
 void Window::GetSettings()
@@ -1527,8 +1522,7 @@ static void gSelector(Camera3D camera)
 
 void Window::Update()
 {
-	if (IsWindowResized()) {
-		
+	if (IsWindowResized()) {		
 		width = GetScreenWidth();
 		height = GetScreenHeight();
 
