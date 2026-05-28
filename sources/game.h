@@ -338,6 +338,7 @@ namespace ResourceManager
 	void SetModelTexture(uint32_t model_id, uint32_t texture_id);
 	void SetModelShader(uint32_t model_id, uint32_t shader_id);
 
+	void DrawTexture(uint32_t texture_id, int posX, int posY, raylib::Color tint);
 	void DrawModel(uint32_t model_id);
 
 	void DestroyAll();

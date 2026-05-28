@@ -246,8 +246,22 @@ function ms.loadmodTBM2(modname)
 	TBM["player"][1]["engagepos"] = nil
 	TBM["player"][1]["body"]["l_hand"]["flag"] = { interactive = true }
 	TBM["player"][1]["body"]["r_hand"]["flag"] = { interactive = true }
+
+	if type(TBM["player"][1]["body"]["l_biceps"]["pos"]) == "string" then
+        TBM["player"][1]["body"]["l_biceps"]["pos"] = TBM["player"][1]["body"]["l_biceps"]["pos"]:split(" ")
+	end
+    if type(TBM["player"][1]["joint"]["l_shoulder"]["pos"]) == "string" then
+        TBM["player"][1]["joint"]["l_shoulder"]["pos"] = TBM["player"][1]["joint"]["l_shoulder"]["pos"]:split(" ")
+    end
+
+    if type(TBM["player"][1]["body"]["r_biceps"]["pos"]) == "string" then
+        TBM["player"][1]["body"]["r_biceps"]["pos"] = TBM["player"][1]["body"]["r_biceps"]["pos"]:split(" ")
+	end
+    if type(TBM["player"][1]["joint"]["r_shoulder"]["pos"]) == "string" then
+        TBM["player"][1]["joint"]["r_shoulder"]["pos"] = TBM["player"][1]["joint"]["r_shoulder"]["pos"]:split(" ")
+    end
 	
-	ms.rotateY_body_around_joint(TBM["player"][1], "l_biceps", "l_shoulder", -90)
+    ms.rotateY_body_around_joint(TBM["player"][1], "l_biceps", "l_shoulder", -90)
 	ms.rotateY_body_around_joint(TBM["player"][1], "r_biceps", "r_shoulder", 90)
 	
 	ms.rotateY_joint_axis(TBM["player"][1], "neck", 180)

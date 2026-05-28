@@ -654,6 +654,27 @@ static int Expermental_SetModelTexture(lua_State* L)
     return 1;
 }
 
+static int Expermental_DrawTexture(lua_State* L)
+{
+    raylib::Color color;
+	lua_rawgeti(L, -1, 1);
+	color.r = lua_tonumber(L, -1);
+	lua_rawgeti(L, -2, 2);
+	color.g = lua_tonumber(L, -1);
+	lua_rawgeti(L, -3, 3);
+	color.b = lua_tonumber(L, -1);
+	lua_rawgeti(L, -4, 4);
+	color.a = lua_tonumber(L, -1);
+
+	int posY = lua_tointeger(L, -6);
+	int posX = lua_tointeger(L, -7);
+
+    int texture_id = lua_tointeger(L, -8);
+	
+	ResourceManager::DrawTexture(texture_id, posX, posY, color);
+    return 1;
+}
+
 static int Expermental_DrawModel(lua_State* L)
 {
     int model_id = lua_tointeger(L, -1);
@@ -675,6 +696,8 @@ static const luaL_Reg api_expermental[]
     {"LoadTexture", Expermental_LoadTexture},
 
 	{"SetModelTexture", Expermental_SetModelTexture},
+
+	{"DrawTexture", Expermental_DrawTexture},
 	{"DrawModel", Expermental_DrawModel},
 	
     {NULL, NULL},

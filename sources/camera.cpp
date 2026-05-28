@@ -8,12 +8,17 @@ void Gamecam::Init()
 	camera.up = { 0.00, 0.00, 1.00 };
 	camera.fovy = 45.00;
 	camera.projection = CAMERA_PERSPECTIVE;
-	camera_offset = { 0.00, 5.00, 0.00 };
+	camera_offset = { 0.00, 6.00, 2.00 };
 }
 
 const Camera& Gamecam::Get()
 {
 	return camera;
+}
+
+const Vector3& Gamecam::GetOffset()
+{
+    return camera_offset;
 }
 
 void Gamecam::CameraRotateZ(float degrees)

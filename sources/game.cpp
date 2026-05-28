@@ -395,6 +395,9 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 
 	auto shader = ResourceManager::GetShader(0);
 
+	auto viewPosition = Gamecam::GetOffset();
+	SetShaderValue(shader, GetShaderLocation(shader, "viewPosition"), &viewPosition, SHADER_UNIFORM_VEC3);
+
 	Vector4 normalizedColor = ColorNormalize(color);
 	Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
     SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &objectColor, SHADER_UNIFORM_VEC3);
@@ -1551,10 +1554,10 @@ int ResourceManager::LoadModelFromMesh(int mesh_id)
 
 int ResourceManager::LoadShader(const char* vs, const char* fs)
 {
-  int id = shader_count;
-  shaders[id] = raylib::LoadShader(vs, fs);
-  shader_count += 1;
-  return id;
+    int id = shader_count;
+    shaders[id] = raylib::LoadShader(vs, fs);
+    shader_count += 1;
+    return id;
 }
 
 int ResourceManager::LoadModel(const char* model_path)
@@ -1601,6 +1604,11 @@ void ResourceManager::SetModelShader(uint32_t model_id, uint32_t shader_id)
 void ResourceManager::SetModelTexture(uint32_t model_id, uint32_t texture_id)
 {
     models[model_id].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[texture_id];
+}
+
+void ResourceManager::DrawTexture(uint32_t texture_id, int posX, int posY, Color tint)
+{
+  DrawTexture(GetTexture(texture_id), posX, posY, tint);
 }
 
 void ResourceManager::DrawModel(uint32_t model_id)
@@ -1830,10 +1838,6 @@ void Window::RenderForeground(Camera3D camera)
 void Window::Draw()
 {
     const auto& camera = Gamecam::Get();
-
-	auto shader = ResourceManager::GetShader(0);
-	
-	SetShaderValue(shader, GetShaderLocation(shader, "cameraPosition"), &camera.position, SHADER_UNIFORM_VEC3);
 
 	BeginDrawing();
 

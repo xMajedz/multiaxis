@@ -12,10 +12,13 @@ namespace Gamecam
 {
 	static raylib::Camera camera;
 	static raylib::Vector3 camera_offset;
+
 	static Gamecammode mode;
 	
 	void Init();
+
 	const raylib::Camera& Get();
+	const raylib::Vector3& GetOffset();
 
 	void CameraRotateZ(float degrees);
 	void CameraRotateX(float degrees);
