@@ -94,12 +94,18 @@ namespace Game
 	static int player_ghosts[16];
 
 	static Arena* data = nullptr;
+	static size_t cache_size = 4*1024*1024;
 
-	static bool ghost_cache_enabled = false;
-	static uintptr_t ghost_cache = 0;
+	static size_t frame_size = 0;
+	  
+	static bool turnframe_ghost = false;
+	static bool ghost_cache_enabled = true;
+	static uint32_t ghost_cache_offset = 0;
 	static uint32_t ghost_length = 50;
 	static uint32_t ghost_frames = 0;
 	static uint8_t  ghost_transparency = 255;
+
+	static bool replay_cache_enabled = true;
 
 	static size_t o_count;
 	static size_t jo_count;
@@ -246,6 +252,8 @@ namespace Game
 	
 	bool GhostCacheEnabled();
     bool GhostCacheIsReady();
+
+	bool ReplayCacheEnabled();
 
 	void ToggleGhostCache();
 	void ResetGhostCache();
