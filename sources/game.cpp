@@ -9,11 +9,6 @@ using namespace raylib;
 #include "raymath.h"
 #include "rlgl.h"
 
-static Shader shader;
-
-static Model models[8];
-static Texture2D textures[8];
-
 void Game::Init()
 {
     dInitODE();
@@ -284,6 +279,11 @@ bool Game::GhostCacheIsReady()
     return ghost_frames >= ghost_length;
 }
 
+bool Game::TurnFrameGhostEnabled()
+{
+    return turnframe_ghost;
+}
+
 bool Game::ReplayCacheEnabled()
 {
     return replay_cache_enabled;
@@ -291,6 +291,7 @@ bool Game::ReplayCacheEnabled()
 
 void Game::ResetGhostCache()
 {
+    ghost_cache_offset = 0;
     ghost_frames = 0;
 }
 
@@ -305,7 +306,8 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 	QuaternionToAxisAngle(q, &axis, &angle);
 
 	const auto& camera = Gamecam::Get();
-
+    auto shader = ResourceManager::GetShader(0);
+	
 	Vector4 normalizedColor = ColorNormalize(color);
 	Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
     SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &objectColor, SHADER_UNIFORM_VEC3);
@@ -391,30 +393,32 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 	/*
 	 */
 
+	auto shader = ResourceManager::GetShader(0);
+
 	Vector4 normalizedColor = ColorNormalize(color);
 	Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
     SetShaderValue(shader, GetShaderLocation(shader, "objectColor"), &objectColor, SHADER_UNIFORM_VEC3);
 	SetShaderValue(shader, GetShaderLocation(shader, "objectAlpha"), &normalizedColor.w, SHADER_UNIFORM_FLOAT);
 
-	for (int i = 0; i < 4; i += 1) {
-        models[i].materials[0].shader = shader;
+	for (int i = 0; i < ResourceManager::model_count; i += 1) {
+	  ResourceManager::SetModelShader(i, 0);
 	}
 
 	switch(o.shape)
 	{
 	case BOX:
-	    DrawModelEx(
+	      DrawModelEx(
 				  model,
 				  (Vector3){ 0.0f, 0.0f, 0.0f },
                   (Vector3){ 0.0f, 0.0f, 0.0f },
 				  0.0f,
 				  (Vector3){ s * o.m_sides.x, s * o.m_sides.y, s * o.m_sides.z },
 				  color
-		);
-		break;
+		  );
+		  break;
 	case SPHERE:
-	    DrawModel(model, (Vector3){0.0f, 0.0f, 0.0f}, s * o.radius, color);
-	    break;
+	      DrawModel(model, (Vector3){0.0f, 0.0f, 0.0f}, s * o.radius, color);
+	      break;
 	case CAPSULE:
 	      DrawModelEx(
 				  model,
@@ -424,15 +428,7 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 				  (Vector3){ 2 * s * o.radius, 2 * s * o.radius, s * (o.length + o.radius/2) },
 				  color
 	      );
-	  /*DrawCapsule(
-				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
-				(Vector3){ 0.0f, 0.0f,  (o.length/2) },
-				o.radius,
-				16,
-				16,
-				color
-				);*/
-		break;
+		  break;
 	case CYLINDER:
 	      DrawModelEx(
 				  model,
@@ -442,15 +438,7 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 				  (Vector3){ 1.0, 1.0, 1.0 },
 				  color
 	      );
-	  /*DrawCylinderEx(
-				(Vector3){ 0.0f, 0.0f, -(o.length/2) },
-				(Vector3){ 0.0f, 0.0f,  (o.length/2) },
-				o.radius,
-				o.radius,
-				16,
-				color
-				);*/
-		break;
+		  break;
 	}
 
 	/*
@@ -462,8 +450,6 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 {
   	using namespace Game;
-
-	auto cache = data->buffer();
 
 	uint32_t j_total = 0;
 	uint32_t b_total = 0;
@@ -479,7 +465,7 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 
     frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
 	
-	uint32_t frame_offset = ghost_frames * frame_size;
+	uint32_t frame_offset = offset + ghost_frames * frame_size;
 
     //for (int oID = 0; oID < o_count;  oID +=1 )
 	
@@ -491,7 +477,7 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 		for (int jID = 0; jID < p.j_count; jID += 1) {
 			auto& j = p.joint[jID];
 
-			auto* j_cache = (PlayerFrameJoint*)(cache + j_offset + sizeof(PlayerFrameJoint) * jID);
+			auto* j_cache = (PlayerFrameJoint*)(buffer + j_offset + sizeof(PlayerFrameJoint) * jID);
 
 			j_cache->position.x = j.frame_position.x;
 			j_cache->position.y = j.frame_position.y;
@@ -508,7 +494,7 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 		for (int bID = 0; bID < p.b_count; bID += 1) {
 			auto& b = p.body[bID];
 			
-            auto* b_cache = (PlayerFrameBody*)(cache + b_offset + sizeof(PlayerFrameBody) * bID);
+            auto* b_cache = (PlayerFrameBody*)(buffer + b_offset + sizeof(PlayerFrameBody) * bID);
 
 			b_cache->position.x = b.frame_position.x;
 			b_cache->position.y = b.frame_position.y;
@@ -532,66 +518,7 @@ static void RecordReplayCache()
 {
     using namespace Game;
 	RecordFrameToBuffer(data->buffer(), 0);
-	ghost_cache_offset = state.game_frame * frame_size;
-}
-
-static void RecordGhostCacheT()
-{
-	using namespace Game;
-
-	auto cache = data->buffer();
-
-	uint32_t j_total = 0;
-	uint32_t b_total = 0;
-
-	uint32_t player_offset[p_count] = { 0 };
-
-	for (int pID = 0; pID < p_count; pID += 1) {
-	    player_offset[pID] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
-	  
-		j_total += players[pID].j_count;
-		b_total += players[pID].b_count;
-	}
-	
-	uint32_t frame_offset = ghost_frames * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
-	
-    for (int pID = 0; pID < p_count; pID += 1) {
-		auto& p = players[pID];
-
-		uint32_t j_offset = frame_offset + player_offset[pID];
-
-		for (int jID = 0; jID < p.j_count; jID += 1) {
-			auto& j = p.joint[jID];
-
-			auto* j_cache = (PlayerFrameJoint*)(cache + j_offset + sizeof(PlayerFrameJoint) * jID);
-
-			j_cache->position.x = j.frame_position.x;
-			j_cache->position.y = j.frame_position.y;
-			j_cache->position.z = j.frame_position.z;
-			
-			j_cache->orientation.x = j.frame_orientation.x;
-			j_cache->orientation.y = j.frame_orientation.y;
-			j_cache->orientation.z = j.frame_orientation.z;
-			j_cache->orientation.w = j.frame_orientation.w;
-		}
-		
-		uint32_t b_offset = frame_offset + player_offset[pID] + sizeof(PlayerFrameJoint) * p.j_count;
-		
-		for (int bID = 0; bID < p.b_count; bID += 1) {
-			auto& b = p.body[bID];
-			
-            auto* b_cache = (PlayerFrameBody*)(cache + b_offset + sizeof(PlayerFrameBody) * bID);
-
-			b_cache->position.x = b.frame_position.x;
-			b_cache->position.y = b.frame_position.y;
-			b_cache->position.z = b.frame_position.z;
-			
-			b_cache->orientation.x = b.frame_orientation.x;
-			b_cache->orientation.y = b.frame_orientation.y;
-			b_cache->orientation.z = b.frame_orientation.z;
-			b_cache->orientation.w = b.frame_orientation.w;
-		}
-	}
+	ghost_cache_offset = frame_size * state.game_frame;
 }
 
 void Game::Update(dReal dt)
@@ -611,8 +538,7 @@ void Game::Update(dReal dt)
 			    if (ReplayCacheEnabled()) {
 			        RecordReplayCache();
 				}
-				//Replay::RecordFrame(state.game_frame);
-				
+						
 				if (state.game_frame >= state.freeze_frame) {
 					Freeze();
 				} else {
@@ -625,13 +551,11 @@ void Game::Update(dReal dt)
 				
 				if (state.game_frame >= max_frame + 100) {
 					EnterMode(REPLAY_PLAY);
+					//} else if (ReplayCacheEnabled() && (state.game_frame <= max_frame + 100)) {
+				    //RecordReplayCache();
 				}
 
-				if (ReplayCacheEnabled()) {
-					/*
-					 * 	TODO: Play Replay From Cache
-					 */
-				} else {	
+				if (!ReplayCacheEnabled()) {
 					if (state.game_frame < max_frame) {
 						Replay::PlayFrame(state.game_frame);
 					}
@@ -671,8 +595,8 @@ void Game::Update(dReal dt)
 		}
 
         if (space != nullptr) {
-		    if (!(GhostCacheEnabled() && GhostCacheIsReady())) {
-                dSpaceCollide(space, 0, nearCallback);
+		    if(!(ReplayCacheEnabled() && state.mode == REPLAY_PLAY) && !(GhostCacheEnabled() && GhostCacheIsReady() && state.mode != REPLAY_PLAY)) {
+			    dSpaceCollide(space, 0, nearCallback);
                 dWorldStep(world, step);
                 dJointGroupEmpty(contactgroup);
             }
@@ -680,13 +604,11 @@ void Game::Update(dReal dt)
 	}
 }
 
-static PlayerFrameJoint* GetPlayerGhostCacheJoint(uint32_t frame, PlayerID pID, JointID jID)
+static PlayerFrameJoint* GetPlayerJointFromBuffer(uintptr_t buffer, size_t offset, size_t frame, PlayerID pID, JointID jID)
 {
     using namespace Game;
-	
-    auto cache = data->buffer();
 
-    uint32_t j_total = 0;
+	uint32_t j_total = 0;
     uint32_t b_total = 0;
 
 	uint32_t player_offset[p_count] = { 0 };
@@ -698,45 +620,72 @@ static PlayerFrameJoint* GetPlayerGhostCacheJoint(uint32_t frame, PlayerID pID, 
         b_total += players[i].b_count;
     }
 
-	uint32_t frame_offset = ghost_cache_offset + frame * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
+	uint32_t frame_offset = offset + frame * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
    	
 	uint32_t j_offset = frame_offset + player_offset[pID];
 
-    auto j_cache = (PlayerFrameJoint*)(cache + j_offset + sizeof(PlayerFrameJoint) * jID);
+    auto j_cache = (PlayerFrameJoint*)(buffer + j_offset + sizeof(PlayerFrameJoint) * jID);
 
 	return j_cache;
+
 }
 
-static PlayerFrameBody* GetPlayerGhostCacheBody(uint32_t frame, PlayerID pID, BodyID bID)
+static PlayerFrameBody* GetPlayerBodyFromBuffer(uintptr_t buffer, size_t offset, size_t frame, PlayerID pID, BodyID bID)
 {
     using namespace Game;
 	
-    auto cache = data->buffer();
-
-    uint32_t j_total = 0;
+	uint32_t j_total = 0;
     uint32_t b_total = 0;
 
-    uint32_t player_offset[p_count] = { 0 };
+	uint32_t player_offset[p_count] = { 0 };
 
     for (int i = 0; i < p_count; i += 1) {
 	    player_offset[i] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;    
 
-        j_total += players[i].j_count;
+		j_total += players[i].j_count;
         b_total += players[i].b_count;
     }
 
-    uint32_t frame_offset = ghost_cache_offset + frame * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
+	uint32_t frame_offset = offset + frame * (sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total);
 
 	auto& p = players[pID];
 
 	uint32_t b_offset = frame_offset + player_offset[pID] + sizeof(PlayerFrameJoint) * p.j_count;
 
-    auto* b_cache = (PlayerFrameBody*)(cache + b_offset + sizeof(PlayerFrameBody) * bID);
+    auto* b_cache = (PlayerFrameBody*)(buffer + b_offset + sizeof(PlayerFrameBody) * bID);
 
 	return b_cache;
 }
 
-void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
+static PlayerFrameJoint* GetPlayerJointFromGhostCache(uint32_t frame, PlayerID pID, JointID jID)
+{
+    using namespace Game;
+    return GetPlayerJointFromBuffer(data->buffer(), ghost_cache_offset, frame, pID, jID);
+}
+
+static PlayerFrameBody* GetPlayerBodyFromGhostCache(uint32_t frame, PlayerID pID, BodyID bID)
+{
+    using namespace Game;
+    return GetPlayerBodyFromBuffer(data->buffer(), ghost_cache_offset, frame, pID, bID);
+}
+
+static PlayerFrameJoint* GetPlayerJointFromReplayCache(uint32_t frame, PlayerID pID, JointID jID)
+{
+    using namespace Game;
+    return GetPlayerJointFromBuffer(data->buffer(), 0, frame, pID, jID);
+}
+
+static PlayerFrameBody* GetPlayerBodyFromReplayCache(uint32_t frame, PlayerID pID, BodyID bID)
+{
+    using namespace Game;
+    return GetPlayerBodyFromBuffer(data->buffer(), 0, frame, pID, bID);
+}
+
+/*
+ * Draw
+ */
+
+void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color, bool draw_state)
 {
     Quaternion q = { j_q.x, j_q.y, j_q.z, j_q.w };
 
@@ -749,18 +698,26 @@ void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color)
 	
     Quaternion q1 = QuaternionFromVector3ToVector3(dir, axis);
 	q1 = QuaternionMultiply(q, q1);
+
+	Model sphere = ResourceManager::GetModel(ResourceManager::SPHERE);
+    Model sphere_slice = ResourceManager::GetModel(ResourceManager::SPHERE_SLICE);
+
+	if (!draw_state) {
+      DrawObjectModel(j, q1, p, 1.00, sphere, color);
+	  return;
+	}
 	
 	switch (j.state)
 	{
 	case HOLD:
-	  DrawObjectModel(j, q1, p, 1.00, models[0], color);
+	  DrawObjectModel(j, q1, p, 1.00, sphere, color);
 	  break;
 	case BACKWARD:
 	  //q1 = QuaternionMultiply(q, QuaternionInvert(q1));
     case FORWARD:
-	  DrawObjectModel(j, q1, p, 1.00, models[1], color);
+	  DrawObjectModel(j, q1, p, 1.00, sphere_slice, color);
 	default:
-	  DrawObjectModel(j, q1, p, 0.90, models[0], ColorBrightness(color, 0.50));
+	  DrawObjectModel(j, q1, p, 0.90, sphere, ColorBrightness(color, 0.50));
     }
 }
 
@@ -773,19 +730,18 @@ void Game::DrawPlayerBody(Body b, vec4 b_q, vec3 b_p, Color color)
 	switch (b.shape)
 	{
 	case BOX:
-	  DrawObjectModel(b, q, p, 1.00, models[2], color);
+	  DrawObjectModel(b, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), color);
 	  break;
 	case SPHERE:
-	  DrawObjectModel(b, q, p, 1.00, models[0], color);
+	  DrawObjectModel(b, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), color);
 	  break;
 	case CYLINDER:
-	  DrawObjectModel(b, q, p, 1.00, models[3], color);
+	  DrawObjectModel(b, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), color);
 	  break;
 	case CAPSULE:
-	  DrawObjectModel(b, q, p, 1.00, models[3], color);
+	  DrawObjectModel(b, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), color);
 	  break;
 	}
-    //DrawObject(b, q, p, color);
 }
  
 void Game::DrawContacts(bool freeze)
@@ -833,10 +789,24 @@ void Game::Draw(Camera3D camera)
 
             p.x = o.freeze_position.x;
             p.y = o.freeze_position.y;
-            p.z = o.freeze_position.z;
-			
-            DrawObjectModel(o, q, p, 1.00, models[2], o.m_color);
-		    //DrawObject(o, q, p, o.m_color);
+
+			p.z = o.freeze_position.z;
+
+			switch (o.shape)
+	{
+	case BOX:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
+	  break;
+	case SPHERE:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
+	  break;
+	case CYLINDER:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	  break;
+	case CAPSULE:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	  break;
+	}
 			
 		    q.x = o.frame_orientation.x;
 			q.y = o.frame_orientation.y;
@@ -846,9 +816,22 @@ void Game::Draw(Camera3D camera)
             p.x = o.frame_position.x;
             p.y = o.frame_position.y;
             p.z = o.frame_position.z;
-			
-			DrawObjectModel(o, q, p, 1.00, models[2], o.m_g_color);
-			//DrawObject(o, q, p, o.m_g_color);
+
+			switch (o.shape)
+	{
+	case BOX:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_g_color);
+	  break;
+	case SPHERE:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_g_color);
+	  break;
+	case CYLINDER:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
+	  break;
+	case CAPSULE:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
+	  break;
+	}
 	    } else {
 		    Quaternion q = {
                 o.frame_orientation.x,
@@ -862,18 +845,21 @@ void Game::Draw(Camera3D camera)
                 o.frame_position.y,
                 o.frame_position.z,
             };
-
-			switch (o.shape)
-			{
-			case BOX:
-			    DrawObjectModel(o, q, p, 1.00, models[2], o.m_color);
-			    break;
-			case CAPSULE:
-				DrawObjectModel(o, q, p, 0.50, models[3], o.m_color);
-				break;
-			}
-            
-		    //DrawObject(o, q, p, o.m_color);
+switch (o.shape)
+	{
+	case BOX:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
+	  break;
+	case SPHERE:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
+	  break;
+	case CYLINDER:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	  break;
+	case CAPSULE:
+	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	  break;
+	}
 	    }
 		EndMode3D();
     }
@@ -885,27 +871,30 @@ void Game::Draw(Camera3D camera)
 		    auto& j = p.joint[jID];
             //BeginMode3D(camera);
 			if (state.freeze) {
-			    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, p.m_j_color);
+			    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, p.m_j_color, true);
 
 		        if (GhostCacheEnabled() && GhostCacheIsReady()) {
 				    if (ghost_frames >= ghost_length) {
-					    auto* cache_joint = GetPlayerGhostCacheJoint(state.freeze_count, pID, jID);
-						
-						DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_g_color);
+					    auto* cache_joint = GetPlayerJointFromGhostCache(state.freeze_count, pID, jID);
+						DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_g_color, false);
 				    }
 					
 					if (turnframe_ghost && ghost_frames >= rules.turnframes) {
-					    auto* cache_joint = GetPlayerGhostCacheJoint(rules.turnframes, pID, jID);
-						
-						DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_g_color);
+					    auto* cache_joint = GetPlayerJointFromGhostCache(rules.turnframes, pID, jID);	
+						DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_g_color, false);
 					}
 		       
 				} else {
-				    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_g_color);
+				    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_g_color, false);
 				}
 		    } else {
-			    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_j_color);
-		    }			
+			    if (ReplayCacheEnabled()) {
+				    auto* cache_joint = GetPlayerJointFromReplayCache(state.game_frame, pID, jID);
+			        DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_j_color, true);
+			    } else {
+				    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_j_color, true);
+			    }
+			}
 			//EndMode3D();
 	    }
 	  
@@ -921,32 +910,42 @@ void Game::Draw(Camera3D camera)
 				
 		        if (GhostCacheEnabled() && GhostCacheIsReady()) {	
 				    if (ghost_frames >= ghost_length) {
-					  auto* cache_body = GetPlayerGhostCacheBody(state.freeze_count, pID, bID);
-						
+					  auto* cache_body = GetPlayerBodyFromGhostCache(state.freeze_count, pID, bID);
 					  DrawPlayerBody(b, cache_body->orientation, cache_body->position, p.m_g_color);
 				    }
 					
 					if (turnframe_ghost && ghost_frames >= rules.turnframes) {
-					  auto* cache_body = GetPlayerGhostCacheBody(rules.turnframes, pID, bID);
-						
+					  auto* cache_body = GetPlayerBodyFromGhostCache(rules.turnframes, pID, bID);
 					  DrawPlayerBody(b, cache_body->orientation, cache_body->position, p.m_g_color);
                     }
 		        } else {
 				    DrawPlayerBody(b, b.frame_orientation, b.frame_position, p.m_g_color);
 				}
 		    } else {
-			    DrawPlayerBody(b, b.frame_orientation, b.frame_position, p.m_b_color);
-		    }
+			    if (ReplayCacheEnabled()) {
+				    auto* cache_body = GetPlayerBodyFromReplayCache(state.game_frame, pID, bID);
+				    DrawPlayerBody(b, cache_body->orientation, cache_body->position, p.m_b_color);
+			    } else {
+			        DrawPlayerBody(b, b.frame_orientation, b.frame_position, p.m_b_color);
+				}
+			}
 			//EndMode3D();
 	    }
 		EndMode3D();
 	}
-
+	
+    BeginMode3D(camera);
+	
     if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
-        players[state.selected_player].joint[state.selected_joint].DrawSelect();
+	    auto& j = players[state.selected_player].joint[state.selected_joint];
+	    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, RAYWHITE, false);
     }
 
     DrawFloor();
+    
+	API::Draw3DCallback();
+	
+	EndMode3D();
 }
 
 void Game::SetBackgroundColor(uint16_t r, uint16_t g, uint16_t b, uint16_t a)
@@ -1159,6 +1158,16 @@ void Game::TogglePause()
 void Game::ToggleGhostCache()
 {
     ghost_cache_enabled = ghost_cache_enabled == false;
+}
+
+void Game::ToggleTurnFrameGhost()
+{
+    turnframe_ghost = turnframe_ghost == false;
+}
+
+void Game::ToggleReplayCache()
+{
+    replay_cache_enabled = replay_cache_enabled == false;
 }
 
 void Game::ToggleGhosts()
@@ -1480,24 +1489,123 @@ void Window::Init()
 	if (fullscreen_mode) ToggleFullscreen();
 	
 	Gamecam::Init();
-
-	models[0] = LoadModel("resources/model/sphere.obj");
-	//models[0] = LoadModelFromMesh(GenMeshSphere(1, 32, 32));
-	models[1] = LoadModel("resources/model/sphere-slice.obj");
-	//models[1] = LoadModelFromMesh(GenMeshHemiSphere(1, 16, 16));
-    models[2] = LoadModel("resources/model/box.obj");
-	//models[2] = LoadModelFromMesh(GenMeshCube(1, 1, 1));
-	//models[3] = LoadModelFromMesh(GenMeshCylinder(0.125, 2, 16));
-	models[3] = LoadModel("resources/model/capsule.obj");
-	//textures[0] = LoadTexture("resources/texture/floor.png");
-	//models[0].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[0];
-
-	shader = LoadShader("resources/shader/base.vs", "resources/shader/base.fs");
+	
+	ResourceManager::Init();
 
 	Game::background_color = BLACK;
 
 	background = LoadRenderTexture(width, height);
 	foreground = LoadRenderTexture(width, height);
+}
+
+void ResourceManager::Init()
+{
+    const char* DefaultModelList[] = {
+        "resources/model/sphere.obj",
+	    "resources/model/sphere-slice.obj",
+	    "resources/model/box.obj",
+	    "resources/model/capsule.obj",
+    };
+
+    for (int i = 0; i < ResourceManager::COUNT; i += 1) {
+        ResourceManager::LoadModel(DefaultModelList[i]);
+    }
+
+	LoadShader("resources/shader/base.vs", "resources/shader/base.fs");
+}
+
+void ResourceManager::DestroyAll()
+{
+  for (int i = 0; i < shader_count; i += 1) {
+	  UnloadShader(shaders[i]);
+  }
+
+  for (int i = 0; i < mesh_count; i += 1) {
+	  UnloadMesh(meshes[i]);
+  }
+
+  for (int i = 0; i < model_count; i += 1) {
+	  UnloadModel(models[i]);
+  }
+  
+  for (int i = 0; i < texture_count; i += 1) {
+      UnloadTexture(textures[i]);
+  }
+}
+
+int ResourceManager::GenMeshPlane(float width, float length, int resX, int resZ)
+{
+    int id = mesh_count;
+    meshes[id] = raylib::GenMeshPlane(width, length, resX, resZ);
+	mesh_count += 1;
+	return id;
+}
+
+int ResourceManager::LoadModelFromMesh(int mesh_id)
+{
+    int id = model_count;
+    models[id] = raylib::LoadModelFromMesh(GetMesh(mesh_id));
+	model_count += 1;
+	return id;  
+}
+
+int ResourceManager::LoadShader(const char* vs, const char* fs)
+{
+  int id = shader_count;
+  shaders[id] = raylib::LoadShader(vs, fs);
+  shader_count += 1;
+  return id;
+}
+
+int ResourceManager::LoadModel(const char* model_path)
+{
+    int id = model_count;
+    models[id] = raylib::LoadModel(model_path);
+	model_count += 1;
+	return id;
+}
+
+int ResourceManager::LoadTexture(const char* texture_path)
+{
+    int id = texture_count;
+    textures[id] = raylib::LoadTexture(texture_path);
+	texture_count += 1;
+	return id;
+}
+
+Shader ResourceManager::GetShader(uint32_t id)
+{
+     return shaders[id];
+}
+
+Mesh ResourceManager::GetMesh(uint32_t id)
+{
+     return meshes[id];
+}
+
+Model ResourceManager::GetModel(uint32_t id)
+{
+     return models[id];
+}
+
+Texture ResourceManager::GetTexture(uint32_t id)
+{
+     return textures[id];
+}
+
+void ResourceManager::SetModelShader(uint32_t model_id, uint32_t shader_id)
+{
+    models[model_id].materials[0].shader = shaders[shader_id];
+}
+
+void ResourceManager::SetModelTexture(uint32_t model_id, uint32_t texture_id)
+{
+    models[model_id].materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = textures[texture_id];
+}
+
+void ResourceManager::DrawModel(uint32_t model_id)
+{
+  DrawModelEx(GetModel(model_id), (Vector3){ 0 }, (Vector3){ 0.0, 1.0, 0.0 }, 180.0f, (Vector3){ 1.0f, 1.0f, 1.0f }, WHITE);
 }
 
 void Window::GetSettings()
@@ -1722,6 +1830,8 @@ void Window::RenderForeground(Camera3D camera)
 void Window::Draw()
 {
     const auto& camera = Gamecam::Get();
+
+	auto shader = ResourceManager::GetShader(0);
 	
 	SetShaderValue(shader, GetShaderLocation(shader, "cameraPosition"), &camera.position, SHADER_UNIFORM_VEC3);
 
@@ -1742,11 +1852,11 @@ void Window::Draw()
 
 void Window::Close()
 {
-	UnloadModel(models[0]);
-	UnloadTexture(textures[0]);
-	UnloadShader(shader);
+    ResourceManager::DestroyAll();
+	
 	UnloadRenderTexture(background);
 	UnloadRenderTexture(foreground);
+	
 	CloseWindow();
 }
 
@@ -1790,7 +1900,10 @@ void Game::EnterMode(Gamemode mode)
 		state.freeze = false;
 		
 		ResetGhostCache();
-		Replay::Begin();
+
+		//if (state.game_frame >= Replay::GetMaxFrame() + 100) {
+		   Replay::Begin();
+		//}
 
 		break;
 	case REPLAY_EDIT: case SELF_PLAY: case FREE_PLAY:

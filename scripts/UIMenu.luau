@@ -523,13 +523,25 @@ if showGui then
         if (RAYGUI.GuiButton(310, 170, 90, 20, (Game.GhostCacheEnabled() and "Disable") or "Enable")) then
 		    Game.ToggleGhostCache()
 		end
+		
+		RAYGUI.GuiLabel(20, 195, 200, 20, "Show Next Turn Ghost")
+
+        if (RAYGUI.GuiButton(310, 195, 90, 20, (Game.TurnFrameGhostEnabled() and "Disable") or "Enable")) then
+		    Game.ToggleTurnFrameGhost()
+		end
+		
+		RAYGUI.GuiLabel(20, 220, 200, 20, "Replay Cache")
+
+        if (RAYGUI.GuiButton(310, 220, 90, 20, (Game.ReplayCacheEnabled() and "Disable") or "Enable")) then
+		    Game.ToggleReplayCache()
+		end
 	end
 
 	local offset = screenHeight-30
 
 	if Game.IsMode(Game["MODE_REPLAY"])then
 		API.NumberToData(frame/Replay.GetMaxFrame(), replay_slider_value)
-		RAYGUI.GuiSliderBar(10, offset, screenWidth-20, 20, "", "", replay_slider_value, 0.00, 1.00)
+		RAYGUI.GuiSliderBar(10, screenHeight - 15, screenWidth - 20, 10, "", "", replay_slider_value, 0.00, 1.00)
 		offset = offset - 30
 	end
 

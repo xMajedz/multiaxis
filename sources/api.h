@@ -57,6 +57,7 @@ namespace API
 	
 	int UpdateCallback(dReal dt);
 	int DrawCallback();
+	int Draw3DCallback();
 	int NewGameCallback();
 	int FreezeCallback();
 	int StepCallback();

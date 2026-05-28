@@ -131,6 +131,11 @@ int API::DrawCallback()
 	return Luau::dostring(L, TextFormat("for _, fn in _G[\"API\"][\"%s\"] do fn() end", "Draw"));
 }
 
+int API::Draw3DCallback()
+{
+	return Luau::dostring(L, TextFormat("for _, fn in _G[\"API\"][\"%s\"] do fn() end", "Draw3D"));
+}
+
 int API::NewGameCallback()
 {
 	return Luau::dostring(L, TextFormat("for _, fn in _G[\"API\"][\"%s\"] do fn() end", "NewGame"));
@@ -1238,6 +1243,7 @@ static const char* events[] = {
 	"Step",
 	"Update",
 	"Draw",
+	"Draw3D",
 	"NearCallback",
 	"FileDropped",
 	"Console",

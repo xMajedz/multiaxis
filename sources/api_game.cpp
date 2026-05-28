@@ -55,6 +55,30 @@ static int Game_ToggleGhostCache(lua_State* L)
     return 1;
 }
 
+static int Game_TurnFrameGhostEnabled(lua_State* L)
+{
+    lua_pushboolean(L, Game::TurnFrameGhostEnabled());
+    return 1;
+}
+
+static int Game_ToggleTurnFrameGhost(lua_State* L)
+{
+    Game::ToggleTurnFrameGhost();
+    return 1;
+}
+
+static int Game_ReplayCacheEnabled(lua_State* L)
+{
+    lua_pushboolean(L, Game::ReplayCacheEnabled());
+    return 1;
+}
+
+static int Game_ToggleReplayCache(lua_State* L)
+{
+    Game::ToggleReplayCache();
+    return 1;
+}
+
 static int Game_ToggleGhosts(lua_State* L)
 {
     Game::ToggleGhosts();
@@ -420,7 +444,9 @@ static const luaL_Reg api_game[]
 
     {"TogglePause", Game_TogglePause},
 	{"ToggleGhostCache", Game_ToggleGhostCache},
-    {"ToggleGhosts", Game_ToggleGhosts},
+	{"ToggleReplayCache", Game_ToggleReplayCache},
+    {"ToggleTurnFrameGhost", Game_ToggleTurnFrameGhost},
+	{"ToggleGhosts", Game_ToggleGhosts},
 
     {"TogglePlayerPassiveStates", Game_TogglePlayerPassiveStates},
     {"TogglePlayerPassiveStatesAlt", Game_TogglePlayerPassiveStatesAlt},
@@ -464,6 +490,8 @@ static const luaL_Reg api_game[]
     {"IsSelectedJointValid", Game_IsSelectedJointValid},
 
 	{"GhostCacheEnabled", Game_GhostCacheEnabled},
+	{"ReplayCacheEnabled", Game_ReplayCacheEnabled},
+	{"TurnFrameGhostEnabled", Game_TurnFrameGhostEnabled},
 	{"GhostCacheIsReady", Game_GhostCacheIsReady},
 
     {"SetMode", Game_SetMode},
@@ -582,6 +610,57 @@ static int Expermental_ToggleSelectedJointActiveState(lua_State* L)
     return 1;
 }
 
+static int Expermental_GenMeshPlane(lua_State* L)
+{
+    int resZ = lua_tointeger(L, -1);
+    int resX = lua_tointeger(L, -2);
+    float length = lua_tonumber(L, -3);
+    float width = lua_tonumber(L, -4);
+
+	int mesh_id = ResourceManager::GenMeshPlane(width, length, resX, resZ);
+	lua_pushinteger(L, mesh_id);
+    return 1;
+}
+
+static int Expermental_LoadModelFromMesh(lua_State* L)
+{
+    int mesh_id = lua_tointeger(L, -1);
+    int model_id = ResourceManager::LoadModelFromMesh(mesh_id);
+	lua_pushinteger(L, model_id);
+    return 1;
+}
+
+static int Expermental_LoadModel(lua_State* L)
+{
+    auto model_path = lua_tostring(L, -1);
+    int model_id = ResourceManager::LoadModel(model_path);
+	lua_pushinteger(L, model_id);
+    return 1;
+}
+
+static int Expermental_LoadTexture(lua_State* L)
+{
+    auto texture_path = lua_tostring(L, -1);
+    int texture_id = ResourceManager::LoadTexture(texture_path);
+	lua_pushinteger(L, texture_id);
+    return 1;
+}
+
+static int Expermental_SetModelTexture(lua_State* L)
+{
+    int texture_id = lua_tointeger(L, -1);
+	int model_id = lua_tointeger(L, -2);
+	ResourceManager::SetModelTexture(model_id, texture_id);
+    return 1;
+}
+
+static int Expermental_DrawModel(lua_State* L)
+{
+    int model_id = lua_tointeger(L, -1);
+	ResourceManager::DrawModel(model_id);
+    return 1;
+}
+
 static const luaL_Reg api_expermental[]
 {
     {"TriggerSelectedJointActiveStateAlt", Expermental_TriggerSelectedJointActiveStateAlt},
@@ -590,6 +669,14 @@ static const luaL_Reg api_expermental[]
     {"ToggleSelectedJointActiveStateAlt", Expermental_ToggleSelectedJointActiveStateAlt},
     {"ToggleSelectedJointActiveState", Expermental_ToggleSelectedJointActiveState},
 
+    {"GenMeshPlane", Expermental_GenMeshPlane},
+    {"LoadModelFromMesh", Expermental_LoadModelFromMesh},
+	{"LoadModel", Expermental_LoadModel},
+    {"LoadTexture", Expermental_LoadTexture},
+
+	{"SetModelTexture", Expermental_SetModelTexture},
+	{"DrawModel", Expermental_DrawModel},
+	
     {NULL, NULL},
 };
 

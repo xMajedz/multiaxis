@@ -32,11 +32,17 @@ function ms.clone_player(p)
 	clone["joint"] = table.clone(p["joint"])
 
 	for b_name, b in p["body"] do
-		clone["body"][b_name] = table.clone(p["body"][b_name])
-		clone["body"][b_name]["pos"] = table.clone(p["body"][b_name]["pos"])
+	    clone["body"][b_name] = table.clone(p["body"][b_name])
+	    if type(p["body"][b_name]["pos"]) == "string" then
+		   p["body"][b_name]["pos"] = p["body"][b_name]["pos"]:split(" ")
+		end
+	    clone["body"][b_name]["pos"] = table.clone(p["body"][b_name]["pos"])
 	end
 	for j_name, j in p["joint"] do
 		clone["joint"][j_name] = table.clone(p["joint"][j_name])
+        if type(p["joint"][j_name]["pos"]) == "string" then
+			p["joint"][j_name]["pos"] = p["joint"][j_name]["pos"]:split(" ")
+		end
 		clone["joint"][j_name]["pos"] = table.clone(p["joint"][j_name]["pos"])
 		if type(p["joint"][j_name]["axis"]) == "string" then
 			p["joint"][j_name]["axis"] = p["joint"][j_name]["axis"]:split(" ")

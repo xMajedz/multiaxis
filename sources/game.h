@@ -9,8 +9,6 @@ enum Gamemode
 	SELF_PLAY,
 	REPLAY_PLAY,
 	REPLAY_EDIT,
-
-	FREE_PLAY_TOGETEHR,
 };
 
 struct Gamerules
@@ -105,7 +103,7 @@ namespace Game
 	static uint32_t ghost_frames = 0;
 	static uint8_t  ghost_transparency = 255;
 
-	static bool replay_cache_enabled = true;
+	static bool replay_cache_enabled = false;
 
 	static size_t o_count;
 	static size_t jo_count;
@@ -193,6 +191,8 @@ namespace Game
 	void NewGame();
 
 	void ToggleGhostCache();
+	void ToggleReplayCache();
+	void ToggleTurnFrameGhost();
 	void ToggleGhosts();
 
 	void TriggerPlayerJointState(PlayerID player_id, JointID joint_id, JointState state);
@@ -241,7 +241,7 @@ namespace Game
 	void DrawContacts(bool freeze);
 	void DrawFloor();
 
-	void DrawPlayerJoint(Joint j, vec4 q, vec3 p, raylib::Color color);
+	void DrawPlayerJoint(Joint j, vec4 q, vec3 p, raylib::Color color, bool draw_state);
 	void DrawPlayerBody(Body b, vec4 q, vec3 p, raylib::Color color);
 
 	void DrawPlayer(PlayerID pID, raylib::Color j_color, raylib::Color b_color);
@@ -251,6 +251,8 @@ namespace Game
 	void DrawPlayerGhostCache(PlayerID pID, uint32_t frame);
 	
 	bool GhostCacheEnabled();
+	bool ReplayCacheEnabled();
+	bool TurnFrameGhostEnabled();
     bool GhostCacheIsReady();
 
 	bool ReplayCacheEnabled();
@@ -294,6 +296,51 @@ namespace Window
 
 	float GetWidth ();
 	float GetHeight();
+};
+
+namespace ResourceManager
+{
+    enum DefaultModels
+    {
+        SPHERE,
+        SPHERE_SLICE,
+	    BOX,
+	    CAPSULE,
+        COUNT,
+    };
+	
+	static raylib::Shader shaders[8] = { 0 };
+    static size_t shader_count =  0;
+	
+    static raylib::Mesh meshes[8] = { 0 };
+    static size_t mesh_count =  0;
+	
+	static raylib::Model models[8] = { 0 };
+    static size_t model_count = 0;
+	  
+	static raylib::Texture textures[8] = { 0 };
+	static size_t texture_count = 0;
+
+	void Init();
+
+	int GenMeshPlane(float width, float length, int resX, int resZ);
+	int LoadModelFromMesh(int mesh_id);
+
+    int LoadShader(const char* vs, const char* fs);
+	int LoadModel(const char* model_path);
+    int LoadTexture(const char* texture_path);
+
+	raylib::Shader GetShader(uint32_t id);
+	raylib::Mesh GetMesh(uint32_t id);
+	raylib::Model GetModel(uint32_t id);
+	raylib::Texture GetTexture(uint32_t id);
+
+	void SetModelTexture(uint32_t model_id, uint32_t texture_id);
+	void SetModelShader(uint32_t model_id, uint32_t shader_id);
+
+	void DrawModel(uint32_t model_id);
+
+	void DestroyAll();
 };
 
 namespace Replay 
