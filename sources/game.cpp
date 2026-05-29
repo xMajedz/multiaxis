@@ -11,13 +11,10 @@ using namespace raylib;
 
 void Game::Init()
 {
+    GetSettings();
+	
     dInitODE();
-    world = dWorldCreate();
-    dWorldSetERP(world, 0.45);
-    dWorldSetCFM(world, 10E-2);
-
-    step = 1.0E-2;
-
+	
     data = new Arena(cache_size);
 
     API::Init();
@@ -29,8 +26,36 @@ void Game::Init()
     state.running = true;
 }
 
+void Game::GetSettings()
+{
+    std::ifstream file("settings.txt");
+	
+	if (file.is_open()) {
+	    std::string line;
+
+		while (std::getline(file, line)) {
+		    size_t s = line.find('=');
+			std::string setting = line.substr(0, s);
+			std::string value   = line.substr(s + 1);
+			if (setting == "ghostcache") {
+			    ghost_cache_enabled = (bool)std::stoi(value);
+			} else if (setting == "replaycache") {
+			    replay_cache_enabled = (bool)std::stoi(value);
+			} else if (setting == "turnframe_ghost") {
+			    turnframe_ghost = (bool)std::stoi(value);
+			}
+		}
+
+		file.close();
+	}
+}
+
 void Game::Reset()
 {
+    if (world != nullptr) {
+	    dWorldDestroy(world);
+		world = nullptr;
+    }
     if (space != nullptr) {
         dSpaceDestroy(space);
         space = nullptr;
@@ -82,7 +107,13 @@ void Game::NewGame()
     state.freeze_frame = 0;
     state.freeze_count = 0;
 
-    ghost_frames = 0;
+    ghost_cache_frames = 0;
+
+	world = dWorldCreate();
+    dWorldSetERP(world, 0.45);
+    dWorldSetCFM(world, 10E-2);
+
+    step = 1.0E-2;
 
     space = dHashSpaceCreate(0);
     contactgroup = dJointGroupCreate(0);
@@ -91,7 +122,7 @@ void Game::NewGame()
     dGeomSetCategoryBits(floor, 0b0001);
     dGeomSetCollideBits(floor, 0b0000);
 
-      dWorldSetGravity(world, rules.gravity.x, rules.gravity.y, rules.gravity.z);
+    dWorldSetGravity(world, rules.gravity.x, rules.gravity.y, rules.gravity.z);
 
     for (auto& o : objects) {
         o.Create(world, space);
@@ -241,7 +272,7 @@ void Game::Step(int frame_count)
 {
 	bool ready = true;
 
-	ghost_frames = 0;
+	ghost_cache_frames = 0;
 
 	switch(state.mode)
 	{
@@ -276,12 +307,13 @@ bool Game::GhostCacheEnabled()
 
 bool Game::GhostCacheIsReady()
 {
-    return ghost_frames >= ghost_length;
+    return ghost_cache_frames >= ghost_length;
 }
 
-bool Game::TurnFrameGhostEnabled()
+void Game::ResetGhostCache()
 {
-    return turnframe_ghost;
+    ghost_cache_offset = 0;
+    ghost_cache_frames = 0;
 }
 
 bool Game::ReplayCacheEnabled()
@@ -289,10 +321,19 @@ bool Game::ReplayCacheEnabled()
     return replay_cache_enabled;
 }
 
-void Game::ResetGhostCache()
+bool Game::ReplayCacheIsReady()
 {
-    ghost_cache_offset = 0;
-    ghost_frames = 0;
+    return replay_cache_frames >= Replay::GetMaxFrame() + 100;
+}
+
+void Game::ResetReplayCache()
+{
+    replay_cache_frames = 0;
+}
+
+bool Game::TurnFrameGhostEnabled()
+{
+    return turnframe_ghost;
 }
 
 template <class T>
@@ -466,16 +507,12 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 		b_total += players[pID].b_count;
 	}
 
-    frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
-	
-	uint32_t frame_offset = offset + ghost_frames * frame_size;
-
     //for (int oID = 0; oID < o_count;  oID +=1 )
 	
     for (int pID = 0; pID < p_count; pID += 1) {
-		auto& p = players[pID];
+	    auto& p = players[pID];
 
-		uint32_t j_offset = frame_offset + player_offset[pID];
+		uint32_t j_offset = offset + player_offset[pID];
 
 		for (int jID = 0; jID < p.j_count; jID += 1) {
 			auto& j = p.joint[jID];
@@ -492,7 +529,7 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 			j_cache->orientation.w = j.frame_orientation.w;
 		}
 		
-		uint32_t b_offset = frame_offset + player_offset[pID] + sizeof(PlayerFrameJoint) * p.j_count;
+		uint32_t b_offset = offset + player_offset[pID] + sizeof(PlayerFrameJoint) * p.j_count;
 		
 		for (int bID = 0; bID < p.b_count; bID += 1) {
 			auto& b = p.body[bID];
@@ -514,14 +551,43 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 static void RecordGhostCache()
 {
     using namespace Game;
-    RecordFrameToBuffer(data->buffer(), ghost_cache_offset);
+	
+	uint32_t j_total = 0;
+	uint32_t b_total = 0;
+
+	uint32_t player_offset[p_count] = { 0 };
+
+	for (int pID = 0; pID < p_count; pID += 1) {	  
+		j_total += players[pID].j_count;
+		b_total += players[pID].b_count;
+	}
+
+    frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
+  	
+    RecordFrameToBuffer(data->buffer(), ghost_cache_offset + ghost_cache_frames * frame_size);
+	ghost_cache_frames += 1;
 }
 
 static void RecordReplayCache()
 {
     using namespace Game;
-	RecordFrameToBuffer(data->buffer(), 0);
-	ghost_cache_offset = frame_size * state.game_frame;
+		
+	uint32_t j_total = 0;
+	uint32_t b_total = 0;
+
+	uint32_t player_offset[p_count] = { 0 };
+
+	for (int pID = 0; pID < p_count; pID += 1) {	  
+		j_total += players[pID].j_count;
+		b_total += players[pID].b_count;
+	}
+
+    frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
+   
+	RecordFrameToBuffer(data->buffer(), replay_cache_frames * frame_size);
+	replay_cache_frames += 1;
+	
+	ghost_cache_offset = frame_size * replay_cache_frames;
 }
 
 void Game::Update(dReal dt)
@@ -529,8 +595,6 @@ void Game::Update(dReal dt)
 	API::UpdateCallback(dt);
 
 	if (!state.pause) {
-		numcollisions = 0;
-
 		for (auto& o : objects) o.Step();
 		for (auto& p : players) p.Step();
 
@@ -550,18 +614,20 @@ void Game::Update(dReal dt)
 	
 				break;
 			case REPLAY_PLAY:
-				auto max_frame = Replay::GetMaxFrame();
+				size_t max_frame = Replay::GetMaxFrame();
+
+				if (ReplayCacheEnabled() && !ReplayCacheIsReady()) {
+				    RecordReplayCache();
+				}
 				
 				if (state.game_frame >= max_frame + 100) {
-					EnterMode(REPLAY_PLAY);
-					//} else if (ReplayCacheEnabled() && (state.game_frame <= max_frame + 100)) {
-				    //RecordReplayCache();
+                    Replay::Begin();
+
+					EnterMode(REPLAY_PLAY, true);
 				}
 
-				if (!ReplayCacheEnabled()) {
-					if (state.game_frame < max_frame) {
-						Replay::PlayFrame(state.game_frame);
-					}
+				if (!ReplayCacheEnabled() && (state.game_frame < max_frame)) {
+				    Replay::PlayFrame(state.game_frame);
 				}
 				
 				state.game_frame += 1;
@@ -587,8 +653,6 @@ void Game::Update(dReal dt)
 				
                 if (GhostCacheEnabled() && !GhostCacheIsReady()) {
 					RecordGhostCache();
-						
-	                ghost_frames += 1;
 				}
 	
 				break;
@@ -598,10 +662,22 @@ void Game::Update(dReal dt)
 		}
 
         if (space != nullptr) {
-		    if(!(ReplayCacheEnabled() && state.mode == REPLAY_PLAY) && !(GhostCacheEnabled() && GhostCacheIsReady() && state.mode != REPLAY_PLAY)) {
-			    dSpaceCollide(space, 0, nearCallback);
-                dWorldStep(world, step);
-                dJointGroupEmpty(contactgroup);
+		  	numcollisions = 0;
+
+			switch (state.mode)
+			{
+			case REPLAY_PLAY:
+			    if (!(ReplayCacheEnabled() && ReplayCacheIsReady())) {
+  				    dSpaceCollide(space, 0, nearCallback);
+                    dWorldStep(world, step);
+                    dJointGroupEmpty(contactgroup);
+				}
+			case REPLAY_EDIT: case FREE_PLAY: case SELF_PLAY:
+			    if (!(GhostCacheEnabled() && GhostCacheIsReady())) {
+			        dSpaceCollide(space, 0, nearCallback);
+                    dWorldStep(world, step);
+                    dJointGroupEmpty(contactgroup);
+				}
             }
         }
 	}
@@ -716,7 +792,14 @@ void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color, bool draw_s
 	  DrawObjectModel(j, q1, p, 1.00, sphere, color);
 	  break;
 	case BACKWARD:
-	  //q1 = QuaternionMultiply(q, QuaternionInvert(q1));
+	  q = QuaternionMultiply(QuaternionFromMatrix(MatrixRotateX(DEG2RAD * 180)), q);
+	  
+	  dir = { -1.0, 0.0, 0.0 };
+	  axis = { -j.axis.x, -j.axis.y, -j.axis.z };
+      axis = Vector3Normalize(axis);
+	
+      q1 = QuaternionFromVector3ToVector3(dir, axis);
+	  q1 = QuaternionMultiply(q, q1);
     case FORWARD:
 	  DrawObjectModel(j, q1, p, 1.00, sphere_slice, color);
 	default:
@@ -877,12 +960,12 @@ switch (o.shape)
 			    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, p.m_j_color, true);
 
 		        if (GhostCacheEnabled() && GhostCacheIsReady()) {
-				    if (ghost_frames >= ghost_length) {
+				    if (ghost_cache_frames >= ghost_length) {
 					    auto* cache_joint = GetPlayerJointFromGhostCache(state.freeze_count, pID, jID);
 						DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_g_color, false);
 				    }
 					
-					if (turnframe_ghost && ghost_frames >= rules.turnframes) {
+					if (TurnFrameGhostEnabled() && ghost_cache_frames >= rules.turnframes) {
 					    auto* cache_joint = GetPlayerJointFromGhostCache(rules.turnframes, pID, jID);	
 						DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_g_color, false);
 					}
@@ -893,7 +976,7 @@ switch (o.shape)
 		    } else {
 			    if (ReplayCacheEnabled()) {
 				    auto* cache_joint = GetPlayerJointFromReplayCache(state.game_frame, pID, jID);
-			        DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_j_color, true);
+			        DrawPlayerJoint(j, cache_joint->orientation, cache_joint->position, p.m_j_color, false);
 			    } else {
 				    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_j_color, true);
 			    }
@@ -912,12 +995,12 @@ switch (o.shape)
 				}
 				
 		        if (GhostCacheEnabled() && GhostCacheIsReady()) {	
-				    if (ghost_frames >= ghost_length) {
+				    if (ghost_cache_frames >= ghost_length) {
 					  auto* cache_body = GetPlayerBodyFromGhostCache(state.freeze_count, pID, bID);
 					  DrawPlayerBody(b, cache_body->orientation, cache_body->position, p.m_g_color);
 				    }
 					
-					if (turnframe_ghost && ghost_frames >= rules.turnframes) {
+					if (TurnFrameGhostEnabled() && ghost_cache_frames >= rules.turnframes) {
 					  auto* cache_body = GetPlayerBodyFromGhostCache(rules.turnframes, pID, bID);
 					  DrawPlayerBody(b, cache_body->orientation, cache_body->position, p.m_g_color);
                     }
@@ -941,7 +1024,7 @@ switch (o.shape)
 	
     if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
 	    auto& j = players[state.selected_player].joint[state.selected_joint];
-	    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, RAYWHITE, false);
+	    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, j.m_select_color, false);
     }
 
     DrawFloor();
@@ -951,14 +1034,19 @@ switch (o.shape)
 	EndMode3D();
 }
 
+size_t Game::GetContactCount()
+{
+	return numcollisions;
+}
+
 void Game::SetBackgroundColor(uint16_t r, uint16_t g, uint16_t b, uint16_t a)
 {
 	background_color = {r, g, b, a};
 }
 
-size_t Game::GetContactCount()
+void Game::SetGameFrame(uint32_t frame)
 {
-	return numcollisions;
+    state.game_frame = frame;
 }
 
 void Game::SetGravity(dReal x, dReal y, dReal z)
@@ -971,7 +1059,6 @@ void Game::SetMaxContacts(size_t count)
 {
 	rules.max_contacts = count;
 }
-
 
 void Game::SetFriction(dReal friction)
 {
@@ -1874,24 +1961,29 @@ float Window::GetHeight()
 	return height;
 }
 
-void Game::EnterMode(Gamemode mode)
+void Game::EnterMode(Gamemode mode, bool reset)
 {	
 	auto prev_mode = FREE_PLAY;
 
 	if (mode == REPLAY_EDIT) {
 		prev_mode = mode;
-	} else {
-		state.game_frame = 0;
-		Restart();
 	}
+	
+	if (reset) {
+		state.game_frame = 0;
 
-	for (auto& p : players) {
-		p.RelaxAll();
-		p.RelaxAllAlt();
+		Restart();
 
-		for (auto& b : p.body) {
-			b.active = false;
-		}
+		for (auto& p : players) {
+	     	p.RelaxAll();
+	    	p.RelaxAllAlt();
+
+		    for (auto& b : p.body) {
+			    b.active = false;
+		    }
+	    }
+	} else {
+	    Refreeze();
 	}
 
 	state.reaction_count = 0;
@@ -1905,16 +1997,14 @@ void Game::EnterMode(Gamemode mode)
 		
 		ResetGhostCache();
 
-		//if (state.game_frame >= Replay::GetMaxFrame() + 100) {
-		   Replay::Begin();
-		//}
-
 		break;
 	case REPLAY_EDIT: case SELF_PLAY: case FREE_PLAY:
 		if (mode == REPLAY_EDIT) {
 			mode = prev_mode;
 		}
 
+		ResetReplayCache();
+		
 		Replay::Reset();
 		Replay::Begin();
 

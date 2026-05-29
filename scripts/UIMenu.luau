@@ -77,10 +77,10 @@ function API.NewGame.init()
 	o_count = Game.GetObjectCount()
 	p_count = Game.GetPlayerCount()
 	p_details = ""
-	for i = 0, p_count - 1 do
-		local b_count = Game.GetPlayerBodyCount(i)
-		local j_count = Game.GetPlayerJointCount(i)
-		p_details = p_details .. "p" .. (i + 1) .. ": "
+	for pID = 0, p_count - 1 do
+		local b_count = Game.GetPlayerBodyCount(pID)
+		local j_count = Game.GetPlayerJointCount(pID)
+		p_details = p_details .. "p" .. (pID + 1) .. ": "
 		p_details = p_details .. "b:" .. b_count .. " "
 		p_details = p_details .. "j:" .. j_count .. " "
 	end
@@ -116,11 +116,15 @@ function API.Update.init(dt)
 		Replay.Export("tempreplayfile.bin")
 	end
 	
+	if Game.IsPause() and Game.IsMode(Game["MODE_REPLAY"]) and Game.ReplayCacheEnabled() then
+	    local value = API.NumberFromData(replay_slider_value)
+		Game.SetGameFrame(value * Replay.GetMaxFrame())
+	end
+	
 if Net then
-else
-
+else	
 	if RAYLIB.IsKeyPressed(RAYLIB["KEY_R"]) then
-		Game.EnterMode(Game["MODE_REPLAY"])
+		Game.EnterMode(Game["MODE_REPLAY"], false)
 	end
 
 	if RAYLIB.IsKeyPressed(RAYLIB["KEY_P"]) then
@@ -141,11 +145,11 @@ else
 	end
 
 	if Game.IsMode(Game["MODE_REPLAY"]) and RAYLIB.IsKeyPressed(RAYLIB["KEY_SPACE"]) then
-		Game.EnterMode(Game["MODE_FREEPLAY"])
+		Game.EnterMode(Game["MODE_FREEPLAY"], true)
 	end
 
 	if Game.IsMode(Game["MODE_REPLAY"]) and RAYLIB.IsKeyPressed(RAYLIB["KEY_E"]) then
-		Game.EnterMode(Game["MODE_REPLAY_EDIT"])
+		Game.EnterMode(Game["MODE_REPLAY_EDIT"], false)
 	end
 
 	if Game.IsFreeze() and Game.IsMode(Game["MODE_FREEPLAY"]) and Game.IsSelectedJointValid() then
@@ -437,7 +441,7 @@ if showGui then
 								Game.NewGame()
 							end
 						end
-						Game.EnterMode(Game["MODE_REPLAY"])
+						Game.EnterMode(Game["MODE_REPLAY"], true)
 					end
 	
 					showReplays = false
@@ -470,11 +474,11 @@ if showGui then
 	end
 
 	if showSettings then
-		if RAYGUI.GuiWindowBox(10, 40, 400, 400, "Settings") then
+		if RAYGUI.GuiWindowBox(10, 40, (screenWidth/4) - 10, screenHeight - 100, "Settings") then
 			showSettings = false
 		end
 
-		RAYGUI.GuiLabel(20, 70, 200, 20, "Resolution")
+		RAYGUI.GuiLabel(20, 70, 400, 20, "Resolution")
 
 		if RAYGUI.GuiTextBox(120, 70, 90, 20, Data["Settings_WindowWidth_GuiTextBox"], 1024, editValue["Settings_WindowWidth_GuiTextBox"]) then
 			editValue["Settings_WindowWidth_GuiTextBox"] = editValue["Settings_WindowWidth_GuiTextBox"] == false
@@ -518,19 +522,19 @@ if showGui then
 			end
 		end
 
-        RAYGUI.GuiLabel(20, 170, 200, 20, "Ghost Cache")
+        RAYGUI.GuiLabel(20, 170, 400, 20, "Ghost Cache")
 
         if (RAYGUI.GuiButton(310, 170, 90, 20, (Game.GhostCacheEnabled() and "Disable") or "Enable")) then
 		    Game.ToggleGhostCache()
 		end
 		
-		RAYGUI.GuiLabel(20, 195, 200, 20, "Show Next Turn Ghost")
+		RAYGUI.GuiLabel(20, 195, 400, 20, "Show Next Turn Ghost")
 
         if (RAYGUI.GuiButton(310, 195, 90, 20, (Game.TurnFrameGhostEnabled() and "Disable") or "Enable")) then
 		    Game.ToggleTurnFrameGhost()
 		end
 		
-		RAYGUI.GuiLabel(20, 220, 200, 20, "Replay Cache")
+		RAYGUI.GuiLabel(20, 220, 400, 20, "Replay Cache")
 
         if (RAYGUI.GuiButton(310, 220, 90, 20, (Game.ReplayCacheEnabled() and "Disable") or "Enable")) then
 		    Game.ToggleReplayCache()

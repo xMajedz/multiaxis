@@ -7,6 +7,12 @@ static int Game_SetMode(lua_State* L)
     return 1;
 }
 
+static int Game_SetGameFrame(lua_State* L)
+{
+    Game::SetGameFrame((uint32_t)lua_tointeger(L, -1));
+    return 1;
+}
+
 static int Game_SetBackgroundColor(lua_State* L)
 {
     Game::SetBackgroundColor(lua_tointeger(L, -4), lua_tointeger(L, -3), lua_tointeger(L, -2), lua_tointeger(L, -1));
@@ -33,7 +39,7 @@ static int Game_Step(lua_State* L)
 
 static int Game_EnterMode(lua_State* L)
 {
-    Game::EnterMode((Gamemode)lua_tointeger(L, -1));
+    Game::EnterMode((Gamemode)lua_tointeger(L, -2), (bool)lua_toboolean(L, -1));
     return 1;
 }
 
@@ -70,6 +76,11 @@ static int Game_ToggleTurnFrameGhost(lua_State* L)
 static int Game_ReplayCacheEnabled(lua_State* L)
 {
     lua_pushboolean(L, Game::ReplayCacheEnabled());
+    return 1;
+}
+static int Game_ReplayCacheIsReady(lua_State* L)
+{
+    lua_pushboolean(L, Game::ReplayCacheIsReady());
     return 1;
 }
 
@@ -495,6 +506,7 @@ static const luaL_Reg api_game[]
 	{"GhostCacheIsReady", Game_GhostCacheIsReady},
 
     {"SetMode", Game_SetMode},
+	{"SetGameFrame", Game_SetGameFrame},
     {"SetGravity", Game_SetGravity},
     {"SetMaxContacts", Game_SetMaxContacts},
     {"SetFriction", Game_SetFriction},

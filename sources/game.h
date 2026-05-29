@@ -1,3 +1,4 @@
+
 #pragma once
 #include "common.h"
 #include "player.h"
@@ -95,15 +96,17 @@ namespace Game
 	static size_t cache_size = 4*1024*1024;
 
 	static size_t frame_size = 0;
-	  
-	static bool turnframe_ghost = false;
-	static bool ghost_cache_enabled = true;
+	
+	static bool ghost_cache_enabled = false;
 	static uint32_t ghost_cache_offset = 0;
-	static uint32_t ghost_length = 50;
-	static uint32_t ghost_frames = 0;
-	static uint8_t  ghost_transparency = 255;
+	static uint32_t ghost_cache_frames = 0;
 
+	static uint32_t ghost_length = 50;
+	static uint8_t  ghost_transparency = 255;
+    static bool turnframe_ghost = false;
+ 
 	static bool replay_cache_enabled = false;
+	static uint32_t replay_cache_frames = 0;
 
 	static size_t o_count;
 	static size_t jo_count;
@@ -126,16 +129,21 @@ namespace Game
 	void Stop();
 
 	void TogglePause();
-	bool GetFreeze();
+
+    void GetSettings();
+
 	bool GetPause();
+	bool GetFreeze();
+	
 	double GetTime();
 	double GetFrameTime();
 
 	void SetMode(Gamemode mode);
+	void SetGameFrame(uint32_t frame);
 	void SetBackgroundColor(uint16_t r, uint16_t g, uint16_t b, uint16_t a);
 
 	void SetSelectedPlayer();
-	void SetSelectedPlayer(PlayerID);
+	void SetSelectedPlayer(PlayerID pID);
 
 	Player& GetPlayer(PlayerID pID);
 	Player& GetSelectedPlayer();
@@ -189,10 +197,7 @@ namespace Game
 
 	void ImportMod();
 	void NewGame();
-
-	void ToggleGhostCache();
-	void ToggleReplayCache();
-	void ToggleTurnFrameGhost();
+	
 	void ToggleGhosts();
 
 	void TriggerPlayerJointState(PlayerID player_id, JointID joint_id, JointState state);
@@ -245,24 +250,25 @@ namespace Game
 	void DrawPlayerBody(Body b, vec4 q, vec3 p, raylib::Color color);
 
 	void DrawPlayer(PlayerID pID, raylib::Color j_color, raylib::Color b_color);
-
 	void DrawPlayerFreeze(PlayerID pID);
-	
 	void DrawPlayerGhostCache(PlayerID pID, uint32_t frame);
 	
 	bool GhostCacheEnabled();
-	bool ReplayCacheEnabled();
-	bool TurnFrameGhostEnabled();
-    bool GhostCacheIsReady();
-
-	bool ReplayCacheEnabled();
-
+	bool GhostCacheIsReady();
 	void ToggleGhostCache();
 	void ResetGhostCache();
+	
+	bool ReplayCacheEnabled();
+	bool ReplayCacheIsReady();
+	void ResetReplayCache();
+	void ToggleReplayCache();
+	
+	bool TurnFrameGhostEnabled();
+	void ToggleTurnFrameGhost();
 
 	void Draw(raylib::Camera3D camera);
 
-	void EnterMode(Gamemode mode);
+	void EnterMode(Gamemode mode, bool reset);
 
 	void Step(int frame_count);
 	void Freeze();
