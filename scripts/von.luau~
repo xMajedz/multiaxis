@@ -1,8 +1,0 @@
-local model   = Expermental.LoadModelFromMesh(mesh)
-local texture = Expermental.LoadTexture("scripts/von/von.png")
-
-Expermental.SetModelTexture(model, texture)
-
-function API.Draw3D.von()
-    Expermental.DrawModel(model)
-end

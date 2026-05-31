@@ -1,4 +1,5 @@
-local require = API["require"]
+local API = Api
+local require = Api["require"]
 local default = require("modstuff/default")
 local fs = require("filestuff")
 local Math = require("Math")
@@ -21,9 +22,9 @@ ms["player_color"][5] = RAYLIB["YELLOW"]
 ms["player_color"][6] = RAYLIB["PINK"]
 
 ms["SHAPE_MAP"] = {}
-ms["SHAPE_MAP"]["box"] = API["SHAPE_BOX"]
-ms["SHAPE_MAP"]["sphere"] = API["SHAPE_SPHERE"]
-ms["SHAPE_MAP"]["cylinder"] = API["SHAPE_CAPSULE"]
+ms["SHAPE_MAP"]["box"] = Api["SHAPE_BOX"]
+ms["SHAPE_MAP"]["sphere"] = Api["SHAPE_SPHERE"]
+ms["SHAPE_MAP"]["cylinder"] = Api["SHAPE_CAPSULE"]
 
 function ms.clone_player(p)
 	local clone = {}

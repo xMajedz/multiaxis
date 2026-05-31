@@ -9,16 +9,79 @@ using namespace raylib;
 #include "raymath.h"
 #include "rlgl.h"
 
+static void ParseTBM(std::string filename)
+{
+    std::ifstream file(filename);
+	
+	if (file.is_open()) {
+	    std::string line;
+
+		int context = 0;
+		int version = 0;
+		
+		Gamerules gamerules;
+
+		while (std::getline(file, line)) {
+		    size_t s = line.find(' ');
+
+			std::string field = line.substr(0, s);
+			std::string value = line.substr(s + 1);
+
+			//std::cout << field << std::endl;
+
+			/*if (field == "version") {
+			    version = std::stoi(value);
+			} else if (field == "numplayers") {
+			  //gamerules.numplayers = std::stoi(value);
+			} else if (field == "turnframes") {
+			  //gamerules.turnframes = std::stoi(value);
+			} else if (field == "maxcontacts") {
+			  //gamerules.max_contacts = std::stoi(value);
+			} else if (field == "reactointime") {
+			  //gamerules.reaction_time = (dReal)std::stoi(value);
+			} else if (field == "engagedistance") {
+			  //gamerules.engagedistance = (dReal)std::stoi(value);
+			} else if (field == "engageheight") {
+			  //gamerules.engageheight = (dReal)std::stoi(value);
+			} else if (field == "gravity") {
+			  //gamerules.engagedistance = (dReal)std::stoi(value);
+			} else if (field == "env_obj") {
+			} else if (field == "env_obj_joint") {
+			} else if (field == "player") {
+			} else if (field == "body") {
+			} else if (field == "joint") {
+			}
+			
+			switch (context)
+			{
+			case 0:
+			  if (field == "friction") {
+				//gamerules.friction = (dReal)std::stoi(value);
+			  } else if (field == "bounce") {
+				//gamerules.friction = (dReal)std::stoi(value);
+			  }
+			  break;
+			case 1:
+			}*/
+		}
+
+		file.close();
+	}
+}
+
 void Game::Init()
 {
     GetSettings();
+
+	//ParseTBM("mods/v8-modern-final.tbm");
 	
     dInitODE();
 	
-    data = new Arena(cache_size);
+    cache = new Arena(cache_size);
+	mod_data = new Arena(2 * 1024 * 1024);
 
-    API::Init();
-    API::loadscript("init");
+    Api::Init();
+    Api::loadscript("init");
 
     Replay::Init();
 
@@ -80,21 +143,21 @@ void Game::Reset()
 
 void Game::ImportMod()
 {
-    rules = API::GetRules();
+    rules = Api::GetRules();
 
-    o_count = API::GetObjectsCount();
-    jo_count = API::GetJointObjectsCount();
+    o_count = Api::GetObjectsCount();
+    jo_count = Api::GetJointObjectsCount();
 
-    p_count = API::GetPlayersCount();
+    p_count = Api::GetPlayersCount();
 
     objects.reserve(o_count);
-    objects = API::GetObjects();
+    objects = Api::GetObjects();
 
     joint_objects.reserve(jo_count);
-    joint_objects = API::GetJointObjects();
+    joint_objects = Api::GetJointObjects();
 
     players.reserve(p_count);
-    players = API::GetPlayers();
+    players = Api::GetPlayers();
 }
 
 void Game::NewGame()
@@ -157,7 +220,7 @@ void Game::NewGame()
 
 	Replay::WriteMetaData();
 
-    API::NewGameCallback();
+    Api::NewGameCallback();
 }
 
 bool Game::Running()
@@ -178,7 +241,7 @@ void Game::Quit()
         dCloseODE();
     }
 
-    API::Close();
+    Api::Close();
 
     Replay::Close();
 }
@@ -564,7 +627,7 @@ static void RecordGhostCache()
 
     frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
   	
-    RecordFrameToBuffer(data->buffer(), ghost_cache_offset + ghost_cache_frames * frame_size);
+    RecordFrameToBuffer(cache->buffer(), ghost_cache_offset + ghost_cache_frames * frame_size);
 	ghost_cache_frames += 1;
 }
 
@@ -584,7 +647,7 @@ static void RecordReplayCache()
 
     frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
    
-	RecordFrameToBuffer(data->buffer(), replay_cache_frames * frame_size);
+	RecordFrameToBuffer(cache->buffer(), replay_cache_frames * frame_size);
 	replay_cache_frames += 1;
 	
 	ghost_cache_offset = frame_size * replay_cache_frames;
@@ -592,7 +655,7 @@ static void RecordReplayCache()
 
 void Game::Update(dReal dt)
 {
-	API::UpdateCallback(dt);
+	Api::UpdateCallback(dt);
 
 	if (!state.pause) {
 		for (auto& o : objects) o.Step();
@@ -739,25 +802,25 @@ static PlayerFrameBody* GetPlayerBodyFromBuffer(uintptr_t buffer, size_t offset,
 static PlayerFrameJoint* GetPlayerJointFromGhostCache(uint32_t frame, PlayerID pID, JointID jID)
 {
     using namespace Game;
-    return GetPlayerJointFromBuffer(data->buffer(), ghost_cache_offset, frame, pID, jID);
+    return GetPlayerJointFromBuffer(cache->buffer(), ghost_cache_offset, frame, pID, jID);
 }
 
 static PlayerFrameBody* GetPlayerBodyFromGhostCache(uint32_t frame, PlayerID pID, BodyID bID)
 {
     using namespace Game;
-    return GetPlayerBodyFromBuffer(data->buffer(), ghost_cache_offset, frame, pID, bID);
+    return GetPlayerBodyFromBuffer(cache->buffer(), ghost_cache_offset, frame, pID, bID);
 }
 
 static PlayerFrameJoint* GetPlayerJointFromReplayCache(uint32_t frame, PlayerID pID, JointID jID)
 {
     using namespace Game;
-    return GetPlayerJointFromBuffer(data->buffer(), 0, frame, pID, jID);
+    return GetPlayerJointFromBuffer(cache->buffer(), 0, frame, pID, jID);
 }
 
 static PlayerFrameBody* GetPlayerBodyFromReplayCache(uint32_t frame, PlayerID pID, BodyID bID)
 {
     using namespace Game;
-    return GetPlayerBodyFromBuffer(data->buffer(), 0, frame, pID, bID);
+    return GetPlayerBodyFromBuffer(cache->buffer(), 0, frame, pID, bID);
 }
 
 /*
@@ -1029,7 +1092,7 @@ switch (o.shape)
 
     DrawFloor();
     
-	API::Draw3DCallback();
+	Api::Draw3DCallback();
 	
 	EndMode3D();
 }
@@ -1936,7 +1999,7 @@ void Window::Draw()
 	RenderBackground(camera);
 	RenderForeground(camera);
 
-	API::DrawCallback();
+	Api::DrawCallback();
 
 	EndDrawing();
 }

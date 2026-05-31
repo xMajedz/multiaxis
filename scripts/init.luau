@@ -1,14 +1,14 @@
-local require = API["require"]
+local require = Api["require"]
 
 --     load console first so i can get errors logged
-local UIConsole = require "UIConsole"
+local UiConsole = require "Ui/UiConsole"
 
 --     insert the intro message into the chat
 for k, v in require("intro") do
-	UIConsole.InsertMessage(k .. ": " .. v)
+	UiConsole.InsertMessage(k .. ": " .. v)
 end
 
-UIConsole.ShowMessages()
+UiConsole.ShowMessages()
 
---     load the rest of the UI
-local UIMenu = require "UIMenu"
+--     load the menu
+local UiMenu = require "Ui/UiMenu"

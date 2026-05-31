@@ -102,6 +102,25 @@ static int RAYGUI_GuiMessageBox(lua_State* L)
 	return 1;
 }
 
+static int RAYGUI_GuiTextBox2(lua_State* L)
+{
+	bool editMode = lua_toboolean(L, -1);
+	
+    size_t textSize;
+	char* text = (char*)lua_tobuffer(L, -2, &textSize);
+
+	float h = lua_tonumber(L, -3);
+	float w = lua_tonumber(L, -4);
+	float y = lua_tonumber(L, -5);
+	float x = lua_tonumber(L, -6);
+
+	int status = GuiTextBox((Rectangle){x, y, w, h}, text, (int)textSize, editMode);
+
+	lua_pushboolean(L, (bool)status);
+
+	return 1;
+}
+
 static int RAYGUI_GuiTextBox(lua_State* L)
 {
 	bool editMode = lua_toboolean(L, -1);
@@ -290,6 +309,7 @@ static const luaL_Reg api_raygui[] {
 	{"GuiButton", RAYGUI_GuiButton},
 
 	{"GuiTextBox", RAYGUI_GuiTextBox},
+	{"GuiTextBox2", RAYGUI_GuiTextBox2},
 
 	{"GuiTextInputBox", RAYGUI_GuiTextInputBox},
 

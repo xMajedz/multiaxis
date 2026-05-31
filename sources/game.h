@@ -82,6 +82,8 @@ namespace Game
 	static dReal floor_bounce = 0;
 
 	static raylib::Color background_color = { 0 };
+
+	static Arena* mod_data = nullptr;
 			
 	static std::vector<Body> objects;
 
@@ -92,8 +94,8 @@ namespace Game
 	static std::vector<Player> players;
 	static int player_ghosts[16];
 
-	static Arena* data = nullptr;
-	static size_t cache_size = 4*1024*1024;
+	static Arena* cache = nullptr;
+	static size_t cache_size = 4 * 1024 * 1024;
 
 	static size_t frame_size = 0;
 	

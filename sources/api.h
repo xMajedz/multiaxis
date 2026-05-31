@@ -3,7 +3,7 @@
 #include "luau.h"
 #include "game.h"
 
-namespace API
+namespace Api
 {
 	static lua_State* L;
 

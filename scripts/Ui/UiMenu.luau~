@@ -35,7 +35,6 @@ Data["ReplayName_GuiTextBox"] = API.CreateData(1024)
 
 Data["Settings_WindowWidth_GuiTextBox"] = API.CreateData(1024)
 Data["Settings_WindowHeight_GuiTextBox"] = API.CreateData(1024)
-Data["Settings_Fullscreen_GuiCheckBox"] = API.CreateData(1)
 
 API.StringToData(tostring(screenWidth), Data["Settings_WindowWidth_GuiTextBox"])
 API.StringToData(tostring(screenHeight) ,Data["Settings_WindowHeight_GuiTextBox"])
@@ -229,7 +228,13 @@ else
 end
 end
 
+local buf = buffer.create(256)
+buffer.writestring(buf, 0, "buffer")
+
 function API.Draw.init()
+
+    RAYGUI.GuiTextBox2(20, 20, 100, 20, buf, false)
+
 if showGui then
 	if showMenu then
 		local offset = 10

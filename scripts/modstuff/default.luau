@@ -4,92 +4,92 @@ local default_player = {}
 default_player["tori"] = {}
 default_player["tori"]["body"] = {}
 default_player["tori"]["body"]["head"] = {}
-default_player["tori"]["body"]["head"]["shape"] = API["SHAPE_SPHERE"]
+default_player["tori"]["body"]["head"]["shape"] = Api["SHAPE_SPHERE"]
 default_player["tori"]["body"]["head"]["pos"] = "0.00 0.85 2.67"
 default_player["tori"]["body"]["head"]["sides"] = "0.20 0.00 0.00"
 default_player["tori"]["body"]["head"]["radius"] = "0.20"
 default_player["tori"]["body"]["head"]["density"] = "0.25"
 
 default_player["tori"]["body"]["breast"] = {}
-default_player["tori"]["body"]["breast"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["breast"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["breast"]["pos"] = "0.00 0.90 2.20"
 default_player["tori"]["body"]["breast"]["sides"] = "0.20 0.10 0.30"
 default_player["tori"]["body"]["breast"]["density"] = "0.25"
 
 default_player["tori"]["body"]["chest"] = {}
-default_player["tori"]["body"]["chest"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["chest"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["chest"]["pos"] = "0.00 0.90 1.95"
 default_player["tori"]["body"]["chest"]["sides"] = "0.50 0.15 0.20"
 default_player["tori"]["body"]["chest"]["density"] = "0.25"
 
 default_player["tori"]["body"]["stomach"] = {}
-default_player["tori"]["body"]["stomach"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["stomach"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["stomach"]["pos"] = "0.00 0.95 1.75"
 default_player["tori"]["body"]["stomach"]["sides"] = "0.35 0.15 0.20"
 default_player["tori"]["body"]["stomach"]["density"] = "0.25"
 
 default_player["tori"]["body"]["groin"] = {}
-default_player["tori"]["body"]["groin"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["groin"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["groin"]["pos"] = "0.00 1.00 1.55"
 default_player["tori"]["body"]["groin"]["sides"] = "0.20 0.15 0.20"
 default_player["tori"]["body"]["groin"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_pecs"] = {}
-default_player["tori"]["body"]["l_pecs"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["l_pecs"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["l_pecs"]["pos"] = "0.25 0.90 2.15"
 default_player["tori"]["body"]["l_pecs"]["sides"] = "0.20 0.15 0.20"
 default_player["tori"]["body"]["l_pecs"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_biceps"] = {}
-default_player["tori"]["body"]["l_biceps"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["l_biceps"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["l_biceps"]["pos"] = "0.55 0.90 2.30"
 default_player["tori"]["body"]["l_biceps"]["sides"] = "0.40 0.20 0.20"
 default_player["tori"]["body"]["l_biceps"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_triceps"] = {}
-default_player["tori"]["body"]["l_triceps"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["l_triceps"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["l_triceps"]["pos"] = "0.95 0.90 2.30"
 default_player["tori"]["body"]["l_triceps"]["sides"] = "0.40 0.10 0.10"
 default_player["tori"]["body"]["l_triceps"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_hand"] = {}
-default_player["tori"]["body"]["l_hand"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["l_hand"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["l_hand"]["pos"] = "1.35 0.85 2.30"
 default_player["tori"]["body"]["l_hand"]["sides"] = "0.22 0.22 0.22"
 default_player["tori"]["body"]["l_hand"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_pecs"] = {}
-default_player["tori"]["body"]["r_pecs"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["r_pecs"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["r_pecs"]["pos"] = "-0.25 0.90 2.15"
 default_player["tori"]["body"]["r_pecs"]["sides"] = "0.20 0.15 0.20"
 default_player["tori"]["body"]["r_pecs"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_biceps"] = {}
-default_player["tori"]["body"]["r_biceps"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["r_biceps"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["r_biceps"]["pos"] = "-0.55 0.90 2.30"
 default_player["tori"]["body"]["r_biceps"]["sides"] = "0.40 0.20 0.20"
 default_player["tori"]["body"]["r_biceps"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_triceps"] = {}
-default_player["tori"]["body"]["r_triceps"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["r_triceps"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["r_triceps"]["pos"] = "-0.95 0.90 2.30"
 default_player["tori"]["body"]["r_triceps"]["sides"] = "0.40 0.10 0.10"
 default_player["tori"]["body"]["r_triceps"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_hand"] = {}
-default_player["tori"]["body"]["r_hand"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["r_hand"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["r_hand"]["pos"] = "-1.35 0.85 2.30"
 default_player["tori"]["body"]["r_hand"]["sides"] = "0.22 0.22 0.22"
 default_player["tori"]["body"]["r_hand"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_butt"] = {}
-default_player["tori"]["body"]["l_butt"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["l_butt"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["l_butt"]["pos"] = "0.20 1.00 1.45"
 default_player["tori"]["body"]["l_butt"]["sides"] = "0.10 0.10 0.10"
 default_player["tori"]["body"]["l_butt"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_thigh"] = {}
-default_player["tori"]["body"]["l_thigh"]["shape"] = API["SHAPE_CAPSULE"]
+default_player["tori"]["body"]["l_thigh"]["shape"] = Api["SHAPE_CAPSULE"]
 default_player["tori"]["body"]["l_thigh"]["pos"] = "0.20 1.00 1.10"
 default_player["tori"]["body"]["l_thigh"]["sides"] = "0.12 0.30 0.20"
 default_player["tori"]["body"]["l_thigh"]["radius"] = "0.12"
@@ -97,7 +97,7 @@ default_player["tori"]["body"]["l_thigh"]["length"] = "0.30"
 default_player["tori"]["body"]["l_thigh"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_leg"] = {}
-default_player["tori"]["body"]["l_leg"]["shape"] = API["SHAPE_CAPSULE"]
+default_player["tori"]["body"]["l_leg"]["shape"] = Api["SHAPE_CAPSULE"]
 default_player["tori"]["body"]["l_leg"]["pos"] = "0.20 1.00 0.50"
 default_player["tori"]["body"]["l_leg"]["sides"] = "0.13 0.30 0.00"
 default_player["tori"]["body"]["l_leg"]["radius"] = "0.13"
@@ -105,19 +105,19 @@ default_player["tori"]["body"]["l_leg"]["length"] = "0.30"
 default_player["tori"]["body"]["l_leg"]["density"] = "0.25"
 
 default_player["tori"]["body"]["l_foot"] = {}
-default_player["tori"]["body"]["l_foot"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["l_foot"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["l_foot"]["pos"] = "0.20 0.90 0.10"
 default_player["tori"]["body"]["l_foot"]["sides"] = "0.20 0.50 0.08"
 default_player["tori"]["body"]["l_foot"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_butt"] = {}
-default_player["tori"]["body"]["r_butt"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["r_butt"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["r_butt"]["pos"] = "-0.20 1.00 1.45"
 default_player["tori"]["body"]["r_butt"]["sides"] = "0.10 0.10 0.10"
 default_player["tori"]["body"]["r_butt"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_thigh"] = {}
-default_player["tori"]["body"]["r_thigh"]["shape"] = API["SHAPE_CAPSULE"]
+default_player["tori"]["body"]["r_thigh"]["shape"] = Api["SHAPE_CAPSULE"]
 default_player["tori"]["body"]["r_thigh"]["pos"] = "-0.20 1.00 1.10"
 default_player["tori"]["body"]["r_thigh"]["sides"] = "0.12 0.30 0.00"
 default_player["tori"]["body"]["r_thigh"]["radius"] = "0.12"
@@ -125,7 +125,7 @@ default_player["tori"]["body"]["r_thigh"]["length"] = "0.30"
 default_player["tori"]["body"]["r_thigh"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_leg"] = {}
-default_player["tori"]["body"]["r_leg"]["shape"] = API["SHAPE_CAPSULE"]
+default_player["tori"]["body"]["r_leg"]["shape"] = Api["SHAPE_CAPSULE"]
 default_player["tori"]["body"]["r_leg"]["pos"] = "-0.20 1.00 0.50"
 default_player["tori"]["body"]["r_leg"]["sides"] = "0.13 0.30 0.00"
 default_player["tori"]["body"]["r_leg"]["radius"] = "0.13"
@@ -133,7 +133,7 @@ default_player["tori"]["body"]["r_leg"]["length"] = "0.30"
 default_player["tori"]["body"]["r_leg"]["density"] = "0.25"
 
 default_player["tori"]["body"]["r_foot"] = {}
-default_player["tori"]["body"]["r_foot"]["shape"] = API["SHAPE_BOX"]
+default_player["tori"]["body"]["r_foot"]["shape"] = Api["SHAPE_BOX"]
 default_player["tori"]["body"]["r_foot"]["pos"] = "-0.20 0.90 0.10"
 default_player["tori"]["body"]["r_foot"]["sides"] = "0.20 0.50 0.08"
 default_player["tori"]["body"]["r_foot"]["density"] = "0.25"
