@@ -1,4 +1,4 @@
-local require = Api["require"]
+local require = Api.require
 
 --     load console first so i can get errors logged
 local UiConsole = require "Ui/UiConsole"

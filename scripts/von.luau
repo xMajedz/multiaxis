@@ -4,10 +4,10 @@ local texture = Expermental.LoadTexture("scripts/von/von.png")
 
 Expermental.SetModelTexture(model, texture)
 --[[
-function API.Draw.von()
+function Api.Draw.von()
     Expermental.DrawTexture(texture, 0, 0, RAYLIB["WHITE"])
 end
 ]]
-function API.Draw3D.von()
+function Api.Draw3D.von()
     Expermental.DrawModel(model)
 end

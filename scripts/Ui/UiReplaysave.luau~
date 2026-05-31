@@ -1,0 +1,33 @@
+local UiReplaysave = {}
+
+function Api.Draw.UiReplaysave()
+
+	if showReplaysSaving then
+		if (RAYGUI.GuiButton(10, screenHeight - 30, screenWidth-20, 20, "Save")) then
+			showReplaysSaving = false
+
+			local text = Api.StringFromData(Data["ReplayName_GuiTextBox"])
+
+			if text ~= "" then
+				Replay.Export(text .. ".bin")
+			else
+				Replay.Export("utitiledreplayfile.bin")
+			end
+
+			Api.StringToData("", Data["ReplayName_GuiTextBox"])
+		end
+
+		offset = offset - 30
+
+		local data = Data["ReplayName_GuiTextBox"]
+		local edit = editValue["ReplayName_GuiTextBox"]
+
+		if RAYGUI.GuiTextBox(10, offset, screenWidth-20, 20, data, 1024, edit) then
+			editValue["ReplayName_GuiTextBox"] = editValue["ReplayName_GuiTextBox"] == false
+		end
+
+		offset = offset - 30
+	end
+end
+
+return UiReplaysave

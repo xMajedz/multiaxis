@@ -1,0 +1,14 @@
+local UiModlist = {}
+local show = false
+
+
+function UiModlist.Toggle()
+
+function Api.Draw.UiModlist()
+    showMods = showMods == false
+	if showMods then
+	mod_list = RAYLIB.LoadDirectoryFiles("mods");
+	end
+end
+
+return UiModlist

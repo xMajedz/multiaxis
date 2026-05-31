@@ -52,7 +52,7 @@ end
 
 function Api.Draw.UiGamerules()
    if show then
-	    if RAYGUI.GuiWindowBox(10, 40, (screenWidth/4) - 10, screenHeight - 100, `Gamerules: {mod}`) then
+	    if RAYGUI.GuiWindowBox(10, 40, (screenWidth/4) - 20, screenHeight - 100, `Gamerules: {mod}`) then
 			show = false
 		end
 
