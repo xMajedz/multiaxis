@@ -202,7 +202,7 @@ static int RAYLIB_IsWindowFullscreen(lua_State* L)
 	return 1;
 }
 
-static const luaL_Reg api_raylib[] {
+static const luaL_Reg ApiRaylib[] {
 	{"DrawText", RAYLIB_DrawText},
 	{"DrawRectangle", RAYLIB_DrawRectangle},
 	{"DrawRectangleLines", RAYLIB_DrawRectangleLines},
@@ -406,9 +406,9 @@ static RaylibKey raylib_keys[] = {
 	{"KEY_VOLUME_DOWN",25},
 };
 
-int luaopen_api_raylib(lua_State* L)
+int luaopenApiRaylib(lua_State* L)
 {
-	luaL_register(L, "RAYLIB", api_raylib);
+	luaL_register(L, "RAYLIB", ApiRaylib);
 
 	lua_getglobal(L, "RAYLIB");
 

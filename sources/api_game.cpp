@@ -441,7 +441,7 @@ static int Game_Quit(lua_State* L)
     Game::Stop();
     return 1;
 }
-static const luaL_Reg api_game[]
+static const luaL_Reg ApiGame[]
 {
     {"Reset", Game_Reset},
     {"Quit", Game_Quit},
@@ -565,7 +565,7 @@ static int Replay_GetMaxFrame(lua_State* L)
     return 1;
 }
 
-static const luaL_Reg api_replay[]
+static const luaL_Reg ApiReplay[]
 {
     {"Import", Replay_Import},
     {"Export", Replay_Export},
@@ -576,16 +576,20 @@ static const luaL_Reg api_replay[]
     {NULL, NULL},
 };
 
-int luaopen_api_replay(lua_State* L)
+int luaopenApiReplay(lua_State* L)
 {
-    luaL_register(L, "Replay", api_replay);
+    luaL_register(L, "Replay", ApiReplay);
     return 1;
 }
 
-int luaopen_api_game(lua_State* L)
+int luaopenApiGame(lua_State* L)
 {
-    luaL_register(L, "Game", api_game);
+    luaL_register(L, "Game", ApiGame);
     lua_getglobal(L, "Game");
+	
+	lua_pushstring(L, GAME_VERSION);
+    lua_setfield(L, -2, "Version");
+   	
     lua_pushinteger(L, Gamemode::FREE_PLAY);
     lua_setfield(L, -2, "MODE_FREEPLAY");
     lua_pushinteger(L, Gamemode::SELF_PLAY);
@@ -694,7 +698,7 @@ static int Expermental_DrawModel(lua_State* L)
     return 1;
 }
 
-static const luaL_Reg api_expermental[]
+static const luaL_Reg ApiExpermental[]
 {
     {"TriggerSelectedJointActiveStateAlt", Expermental_TriggerSelectedJointActiveStateAlt},
     {"TriggerSelectedJointActiveState", Expermental_TriggerSelectedJointActiveState},
@@ -715,12 +719,9 @@ static const luaL_Reg api_expermental[]
     {NULL, NULL},
 };
 
-int luaopen_api_expermental(lua_State* L)
+int luaopenApiExpermental(lua_State* L)
 {
-    luaL_register(L, "Expermental", api_expermental);
-    lua_getglobal(L, "Expermental");
-    lua_pushboolean(L, false);
-    lua_setfield(L, -2, "variable_joint_vel");
+    luaL_register(L, "Expermental", ApiExpermental);
     return 1;
 }
 

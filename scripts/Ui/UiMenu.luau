@@ -17,9 +17,12 @@ local showMenu = false
 
 local mod, o_count, p_count, p_details, frame, contact_count, reaction_count, rules, gravity
 
-RAYGUI.GuiSetStyle(0, 16, 20)
-
 local screenWidth, screenHeight = RAYLIB.GetScreenWidth(), RAYLIB.GetScreenHeight()
+
+RAYGUI.GuiSetStyle(RAYGUI["CONTROL_DEFAULT"], 16, 20)
+RAYGUI.GuiSetStyle(RAYGUI["CONTROL_DEFAULT"], 2, 0x010101ff)
+local TEXT_SIZE = RAYGUI.GuiGetStyle(RAYGUI["CONTROL_DEFAULT"], 2)
+Api.log(string.format("%x", TEXT_SIZE))
 
 function Api.NewGame.UiMenu()
     mod = Game.GetMod()
@@ -36,6 +39,8 @@ function Api.NewGame.UiMenu()
 		p_details = p_details .. "j:" .. j_count .. " "
 	end
 end
+
+--Api.RegisterInputEvent(freeze, ctrl, shift, key)
 
 function Api.Update.UiMenu(dt)
 	frame = Game.GetGameFrame()
@@ -68,8 +73,12 @@ else
 	end
 
 	if Game.IsFreeze() and not Game.IsMode(Game["MODE_REPLAY"]) and RAYLIB.IsKeyPressed(RAYLIB["KEY_SPACE"]) then
-		local step_size = (RAYLIB.IsKeyDown(RAYLIB["KEY_LEFT_SHIFT"]) and 1) or rules.turnframes
-		Game.Step(step_size)
+	    if rules then
+		   local step_size = (RAYLIB.IsKeyDown(RAYLIB["KEY_LEFT_SHIFT"]) and 1) or rules.turnframes
+		   Game.Step(step_size)
+		else
+		   Api.log("please load a mod")
+		end
 	end
 
 	if Game.IsMode(Game["MODE_REPLAY"]) and RAYLIB.IsKeyPressed(RAYLIB["KEY_SPACE"]) then

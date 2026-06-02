@@ -102,7 +102,7 @@ static int RAYGUI_GuiMessageBox(lua_State* L)
 	return 1;
 }
 
-static int RAYGUI_GuiTextBox2(lua_State* L)
+static int RAYGUI_GuiTextBox(lua_State* L)
 {
 	bool editMode = lua_toboolean(L, -1);
 	
@@ -115,25 +115,6 @@ static int RAYGUI_GuiTextBox2(lua_State* L)
 	float x = lua_tonumber(L, -6);
 
 	int status = GuiTextBox((Rectangle){x, y, w, h}, text, (int)textSize, editMode);
-
-	lua_pushboolean(L, (bool)status);
-
-	return 1;
-}
-
-static int RAYGUI_GuiTextBox(lua_State* L)
-{
-	bool editMode = lua_toboolean(L, -1);
-	int textSize = lua_tointeger(L, -2);
-	
-	char* text = (char*)lua_tolightuserdata(L, -3);
-
-	float h = lua_tonumber(L, -4);
-	float w = lua_tonumber(L, -5);
-	float y = lua_tonumber(L, -6);
-	float x = lua_tonumber(L, -7);
-
-	int status = GuiTextBox((Rectangle){x, y, w, h}, text, textSize, editMode);
 
 	lua_pushboolean(L, (bool)status);
 
@@ -197,8 +178,8 @@ static int RAYGUI_GuiSlider(lua_State* L)
 	float max = lua_tonumber(L, -1);
 	float min = lua_tonumber(L, -2);
 
-	float* value = (float*)lua_tolightuserdata(L, -3);
-
+	float* value = (float*)lua_tobuffer(L, -3, NULL);
+      
 	auto textL = lua_tostring(L, -4);
 	auto textR = lua_tostring(L, -5);
 
@@ -226,8 +207,8 @@ static int RAYGUI_GuiSliderBar(lua_State* L)
 	float max = lua_tonumber(L, -1);
 	float min = lua_tonumber(L, -2);
 
-	float* value = (float*)lua_tolightuserdata(L, -3);
-
+    float* value = (float*)lua_tobuffer(L, -3, NULL);
+	
 	auto textL = lua_tostring(L, -4);
 	auto textR = lua_tostring(L, -5);
 
@@ -297,7 +278,7 @@ static int RAYGUI_GuiListView(lua_State* L)
 	return 1;
 }
 
-static const luaL_Reg api_raygui[] {
+static const luaL_Reg ApiRaygui[] {
 	{"GuiSetStyle", RAYGUI_GuiSetStyle},
 	{"GuiGetStyle", RAYGUI_GuiGetStyle},
 
@@ -309,7 +290,6 @@ static const luaL_Reg api_raygui[] {
 	{"GuiButton", RAYGUI_GuiButton},
 
 	{"GuiTextBox", RAYGUI_GuiTextBox},
-	{"GuiTextBox2", RAYGUI_GuiTextBox2},
 
 	{"GuiTextInputBox", RAYGUI_GuiTextInputBox},
 
@@ -323,13 +303,39 @@ static const luaL_Reg api_raygui[] {
 	{NULL, NULL},
 };
 
-struct RayguiIcon
+struct RayGuiControl
 {
-	const char* key;
+    const char* name;
+    int constant;
+};
+
+static RayGuiControl raygui_controls[] = {    
+    { "CONTROL_DEFAULT", 0},
+
+    { "CONTROL_LABEL", 1 },
+    { "CONTROL_BUTTON", 2 },
+    { "CONTROL_TOGGLE", 3 },
+    { "CONTROL_SLIDER", 4 },
+    { "CONTROL_PROGRESSBAR", 5},
+    { "CONTROL_CHECKBOX", 6 },
+    { "CONTROL_COMBOBOX", 7 },
+    { "CONTROL_DROPDOWNBOX", 8 },
+    { "CONTROL_TEXTBOX", 9 },
+    { "CONTROL_VALUEBOX", 10 },
+    { "CONTROL_CONTROL11", 11 },
+    { "CONTROL_LISTVIEW", 12 },
+    { "CONTROL_COLORPICKER", 13 },
+    { "CONTROL_SCROLLBAR", 14 },
+    { "CONTROL_STATUSBAR", 15 },
+};
+
+struct RayGuiIcon
+{
+	const char* name;
 	int constant;
 };
 
-static RayguiIcon raygui_icons[] = {
+static RayGuiIcon raygui_icons[] = {
 	{"ICON_NONE", 0},
 
 	{"ICON_FOLDER_FILE_OPEN", 1},
@@ -589,9 +595,9 @@ static RayguiIcon raygui_icons[] = {
 	{"ICON_255", 255},
 };
 
-int luaopen_api_raygui(lua_State* L)
+int luaopenApiRaygui(lua_State* L)
 {
-	luaL_register(L, "RAYGUI", api_raygui);
+	luaL_register(L, "RAYGUI", ApiRaygui);
 
 	lua_getglobal(L, "RAYGUI");
 	lua_pushnumber(L, RAYGUI_VERSION_MAJOR);
@@ -603,9 +609,14 @@ int luaopen_api_raygui(lua_State* L)
 	lua_pushstring(L, RAYGUI_VERSION);
 	lua_setfield(L, -2, "VERSION");
 
-	for (auto& [icon, constant] : raygui_icons) {
+	for (auto& [name, constant] : raygui_controls) {
 		lua_pushinteger(L, constant);
-		lua_setfield(L, -2, icon);
+		lua_setfield(L, -2, name);
+	}
+	
+	for (auto& [name, constant] : raygui_icons) {
+		lua_pushinteger(L, constant);
+		lua_setfield(L, -2, name);
 	}
 
 	lua_pop(L, 1);

@@ -1,8 +1,11 @@
-
 #pragma once
 #include "common.h"
 #include "player.h"
 #include "mem.h"
+
+#ifndef GAME_VERSION
+#define GAME_VERSION "git-master"
+#endif
 
 enum Gamemode
 {

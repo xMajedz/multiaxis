@@ -23,7 +23,7 @@ function commands.restart()
 end
 
 function commands.clear() 
-	messages = {}
+	table.clear(messages)
 end
 
 function commands.whisper(arg) 
@@ -47,6 +47,15 @@ end
 commands["ls"] = commands["loadscript"]
 commands["lm"] = commands["loadmod"]
 commands["rt"] = commands["restart"]
+commands["cl"] = commands["clear"]
+
+function UiConsole.RegisterCommandAlias(alias, command)
+    commands[alias] = commands[command]
+end
+
+function UiConsole.RegisterCommand(command, func)
+    commands[command] = func;
+end
 
 function UiConsole.InsertMessage(msg)
     table.insert(messages, msg)
@@ -61,7 +70,7 @@ local screenWidth, screenHeight = RAYLIB.GetScreenWidth(), RAYLIB.GetScreenHeigh
 function Api.Draw.UiConsole()
     local offset = screenHeight - 25
 	
-	if showConsole and RAYGUI.GuiTextBox2(10, offset, screenWidth - 20, 20, text, edit) then end
+	if showConsole and RAYGUI.GuiTextBox(10, offset, screenWidth - 20, 20, text, edit) then end
 	
 	if showMessages then
 	    local i = 1

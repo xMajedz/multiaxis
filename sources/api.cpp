@@ -28,18 +28,16 @@ static void log_ode(int errnum, const char* msg, va_list ap)
 void Api::Init()
 {
 	L = luaL_newstate();
-	luaopen_api_main(L);
-	luaopen_api_game(L);
-	luaopen_api_net(L);
-	luaopen_api_replay(L);
-	luaopen_api_raylib(L);
-	luaopen_api_raygui(L);
-	luaopen_api_raymath(L);
-	luaopen_api_expermental(L);
+	luaopenApiMain(L);
+	luaopenApiGame(L);
+	luaopenApiNet(L);
+	luaopenApiReplay(L);
+	luaopenApiRaylib(L);
+	luaopenApiRaygui(L);
+	luaopenApiRaymath(L);
+	luaopenApiExpermental(L);
 	luaL_openlibs(L);
 	luaL_sandbox(L);
-
-	data = new Arena(1024*1024);
 
 	Luau::setlogcallback(log_luau);
 
@@ -1056,45 +1054,48 @@ static int Api_loadscript(lua_State* L)
 	return 1;
 }
 
-void Console::SetCallback(void(*callback)(const char*))
+void Console::SetCallback(ConsoleCallback_t callback)
 {
-	if (callback != nullptr) {
-		m_callback = callback;
-	}
-}
-
-void Console::log(const char* message)
-{
-	SetMessage(message);
+	if (callback != nullptr) m_callback = callback;
 }
 
 void Console::Update()
 {
+    uint32_t message_buffer_start = 0;
+	
 	for (int i = 0; message_count != 0; i += 1) {
-	    LOG(messages[i])
-		Api::ConsoleCallback(messages[i]);
+	    char message[256];
+		
+		for (int i = 0; i < message_length; i += 1) {
+		    message[i] = message_buffer[message_buffer_start * message_length + i];
+		}
+		
+		Api::ConsoleCallback(message);
+		
+		message_buffer_start += 1;
 		message_count -= 1;
 	}
 }
 
-void Console::SetMessage(const char* message)
-{
-	for (int i = 0; i < message_length; i += 1) {
-		if (message[i] != '\0') {
-			last_message[i] = message[i];
+void Console::log(const char* message)
+{	
+	messages[message_count] = &message_buffer[message_count * message_length];
+
+	for (int i = 0; i < message_length; i += 1) { 
+        if (message[i] == '\0') {
+		   message_buffer[message_count * message_length + i] = '\0';
+		   break;
+		} else if (i > message_length - 1) {
+		   message_buffer[message_count * message_length + i] = '\0';
+		   break;
 		} else {
-			last_message[i] = '\0';
+		   message_buffer[message_count * message_length + i] = message[i];
 		}
-	}
-
-	if (message_count < 1024) {
-		messages[message_count] = last_message;
-		message_count += 1;
-	} else {
-		messages[message_count - 1] = last_message;
-	}
+    }
+	
+	message_count += 1;
 }
-
+	
 static int Api_log(lua_State* L)
 {
 	Console::log(lua_tostring(L, -1));
@@ -1127,63 +1128,7 @@ static int Api_loadmod_t(lua_State* L)
 	return 1;
 }
 
-static int Api_CreateData(lua_State* L)
-{
-	lua_pushlightuserdata(L, (void*)Api::data->allocate(lua_tointeger(L, -1)));
-	return 1;
-}
-
-static int Api_StringToData(lua_State* L)
-{
-	char* data = (char*)lua_touserdata(L, -1);
-	const char* string = lua_tostring(L, -2);
-	TextCopy(data, string);
-	return 1;
-}
-
-static int Api_NumberToData(lua_State* L)
-{
-	auto data = lua_touserdata(L, -1);
-	lua_Number number = lua_tonumber(L, -2);
-	*((float*)data) = (float)number;
-	return 1;
-}
-
-static int Api_ByteToData(lua_State* L)
-{
-	auto data = lua_touserdata(L, -1);
-	bool byte = lua_toboolean(L, -2);
-	*((bool*)data) = (bool)byte;
-	return 1;
-}
-
-static int Api_StringFromData(lua_State* L)
-{
-	lua_pushstring(L, (char*)lua_touserdata(L, -1));
-	return 1;
-}
-
-static int Api_NumberFromData(lua_State* L)
-{
-	lua_pushnumber(L, *((float*)lua_touserdata(L, -1)));
-	return 1;
-}
-
-static int Api_ByteFromData(lua_State* L)
-{
-	lua_pushboolean(L, *((bool*)lua_touserdata(L, -1)));
-	return 1;
-}
-
-static const luaL_Reg api_main[] {
-	{"CreateData", Api_CreateData},
-	{"StringToData", Api_StringToData},
-	{"NumberToData", Api_NumberToData},
-	{"ByteToData", Api_ByteToData},
-	{"StringFromData", Api_StringFromData},
-	{"NumberFromData", Api_NumberFromData},
-	{"ByteFromData", Api_ByteFromData},
-
+static const luaL_Reg ApiMain[] {
 	{"log", Api_log},
 	{"Reset", Api_Reset},
 
@@ -1272,8 +1217,9 @@ static const char* joint_types[] = {
 	"JOINT_CONTACT",
 };
 
-int luaopen_api_main(lua_State* L) {
-	luaL_register(L, "Api", api_main);
+int luaopenApiMain(lua_State* L)
+{
+	luaL_register(L, "Api", ApiMain);
 
 	lua_getglobal(L, "Api");
 	for (auto event : events) {

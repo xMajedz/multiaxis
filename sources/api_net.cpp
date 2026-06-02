@@ -31,7 +31,7 @@ static const luaL_Reg api_net[] = {
 	{NULL, NULL},
 };
 
-int luaopen_api_net(lua_State* L)
+int luaopenApiNet(lua_State* L)
 {
 #ifndef OFFLINE
 	luaL_register(L, "Net", api_net);

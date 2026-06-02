@@ -72,37 +72,38 @@ namespace Api
 	int loadscript(std::string_view scriptpath);
 }
 
+typedef void (*ConsoleCallback_t)(const char*);
+
 namespace Console
 {
 	static size_t message_count = 0;
-	static size_t message_length = 1024;
-	static const char* messages[1024];
-	//static const char* last_message;
-	static char last_message[1024];
-	static bool has_message;
+	static size_t message_length = 256;
+	static size_t message_buffer_offset = 0;
+	static char   message_buffer[1000 * 256];
+	static char*  messages[256];
+	static char   last_message[1024];
+	static bool   has_message;
 
-	static void (*m_callback)(const char*) = nullptr;
+	static ConsoleCallback_t m_callback = nullptr;
 
-	void Update();
-
-	void log(const char* message);
-	void SetCallback(void (*callback)(const char*));
-	void SetMessage(const char* message);
+	void SetCallback(ConsoleCallback_t callback);
+    void Update();
+    void log(const char* message);
 };
 
 
-int luaopen_api_main(lua_State* L);
+int luaopenApiMain(lua_State* L);
 
-int luaopen_api_game(lua_State* L);
+int luaopenApiGame(lua_State* L);
 
-int luaopen_api_net(lua_State* L);
+int luaopenApiNet(lua_State* L);
 
-int luaopen_api_replay(lua_State* L);
+int luaopenApiReplay(lua_State* L);
 
-int luaopen_api_raylib(lua_State* L);
+int luaopenApiRaylib(lua_State* L);
 
-int luaopen_api_raygui(lua_State* L);
+int luaopenApiRaygui(lua_State* L);
 
-int luaopen_api_raymath(lua_State* L);
+int luaopenApiRaymath(lua_State* L);
 
-int luaopen_api_expermental(lua_State* L);
+int luaopenApiExpermental(lua_State* L);

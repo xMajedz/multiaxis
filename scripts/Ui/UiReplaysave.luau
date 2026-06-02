@@ -33,7 +33,7 @@ function Api.Draw.UiReplaysave()
 
 		offset = offset - 30
 
-		if RAYGUI.GuiTextBox2(10, offset, screenWidth - 20, 20, text.buffer, text.edit) then
+		if RAYGUI.GuiTextBox(10, offset, screenWidth - 20, 20, text.buffer, text.edit) then
 			text.edit = text.edit == false
 		end
 

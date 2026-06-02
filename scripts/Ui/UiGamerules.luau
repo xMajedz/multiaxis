@@ -60,62 +60,62 @@ function Api.Draw.UiGamerules()
 
 		RAYGUI.GuiLabel(20, 75, 200, 40, "Gravity")
 
-		if RAYGUI.GuiTextBox2(20, 110, 60, 20, gravityX.buffer, gravityX.edit) then
+		if RAYGUI.GuiTextBox(20, 110, 60, 20, gravityX.buffer, gravityX.edit) then
 		    GravityX.edit = GravityX.edit == false
 		end
 
-		if RAYGUI.GuiTextBox2(85, 110, 60, 20, gravityY.buffer, gravityY.edit) then
+		if RAYGUI.GuiTextBox(85, 110, 60, 20, gravityY.buffer, gravityY.edit) then
 			GravityY.edit = GravityY.edit == false
 		end
 
-		if RAYGUI.GuiTextBox2(150, 110, 60, 20, gravityZ.buffer, gravityZ.edit) then
+		if RAYGUI.GuiTextBox(150, 110, 60, 20, gravityZ.buffer, gravityZ.edit) then
 			GravityZ.edit = GravityZ.edit == false
 		end
 		
   		RAYGUI.GuiLabel(20, 125, 170, 40, "Max Contacts")
-		if RAYGUI.GuiTextBox2(20, 160, 60, 20, maxcontacts.buffer, maxcontacts.edit) then
+		if RAYGUI.GuiTextBox(20, 160, 60, 20, maxcontacts.buffer, maxcontacts.edit) then
 			maxcontacts.edit = maxcontacts.edit == false
 		end
 
 		RAYGUI.GuiLabel(20, 175, 200, 40, "Friction")
 
-		if RAYGUI.GuiTextBox2(20, 210, 60, 20, friction.buffer, friction.edit) then
+		if RAYGUI.GuiTextBox(20, 210, 60, 20, friction.buffer, friction.edit) then
 			friction.edit = friction.edit == false
 		end
 
 		RAYGUI.GuiLabel(20, 225, 200, 40, "Bounce")
 
-		if RAYGUI.GuiTextBox2(20, 260, 60, 20, bounce.buffer, bounce.edit) then
+		if RAYGUI.GuiTextBox(20, 260, 60, 20, bounce.buffer, bounce.edit) then
 			bounce.edit = bounce.edit == false
 		end
 
 		RAYGUI.GuiLabel(20, 275, 200, 40, "Players")
 
-		if RAYGUI.GuiTextBox2(20, 310, 60, 20, numplayers.buffer, numplayers.edit) then
+		if RAYGUI.GuiTextBox(20, 310, 60, 20, numplayers.buffer, numplayers.edit) then
 			numuplayers.edit = numplayers.edit == false
 		end
 
 		RAYGUI.GuiLabel(20, 325, 200, 40, "Engage Height")
 
-		if RAYGUI.GuiTextBox2(20, 360, 60, 20, engageheight.buffer, engageheight.edit) then
+		if RAYGUI.GuiTextBox(20, 360, 60, 20, engageheight.buffer, engageheight.edit) then
 			engageheight.edit = engageheight.edit == false
 		end
 		
 		RAYGUI.GuiLabel(20, 375, 200, 40, "Engage Distance")
 
-		if RAYGUI.GuiTextBox2(20, 410, 60, 20, engagedistance.buffer, engagedistance.edit) then
+		if RAYGUI.GuiTextBox(20, 410, 60, 20, engagedistance.buffer, engagedistance.edit) then
 			engagedistance.edit = engagedistance.edit == false
 		end
 		
 		RAYGUI.GuiLabel(220, 75, 200, 40, "Turn Frames")
 
-		if RAYGUI.GuiTextBox2(220, 110, 60, 20, turnframes.buffer, turnframes.edit) then
+		if RAYGUI.GuiTextBox(220, 110, 60, 20, turnframes.buffer, turnframes.edit) then
 			turnframes.edit = turnframes.edit == false
 		end
 
 		RAYGUI.GuiLabel(220, 125, 200, 40, "Reaction Time")
 
-		if RAYGUI.GuiTextBox2(220, 160, 60, 20, reactiontime.buffer, reactiontime.edit) then
+		if RAYGUI.GuiTextBox(220, 160, 60, 20, reactiontime.buffer, reactiontime.edit) then
 			reactiontime.edit = reactiontime.edit == false
 		end
 

@@ -24,11 +24,11 @@ function Api.Draw.UiSettings()
 
 		RAYGUI.GuiLabel(20, 70, 400, 20, "Resolution")
 
-		if RAYGUI.GuiTextBox2(120, 70, 90, 20, windowWidth.buffer, windowWidth.edit) then
+		if RAYGUI.GuiTextBox(120, 70, 90, 20, windowWidth.buffer, windowWidth.edit) then
 			windowWidth.edit = windowWidth.edit == false
 		end
 
-		if RAYGUI.GuiTextBox2(215, 70, 90, 20, windowHeight.buffer, windowHeight.edit) then
+		if RAYGUI.GuiTextBox(215, 70, 90, 20, windowHeight.buffer, windowHeight.edit) then
 			windowHeight.edit = windowHeight.edit == false
 		end
 

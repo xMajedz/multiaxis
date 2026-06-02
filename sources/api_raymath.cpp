@@ -323,7 +323,7 @@ static int RAYMATH_Vector3RotateByQuaternion(lua_State* L)
 	return 1;
 }
 
-static const luaL_Reg api_raymath[] {
+static const luaL_Reg ApiRaymath[] {
 	{"MatrixIdentity", RAYMATH_MatrixIdentity},
 	{"MatrixMultiply", RAYMATH_MatrixMultiply},
 	{"MatrixRotate", RAYMATH_MatrixRotate},
@@ -338,9 +338,9 @@ static const luaL_Reg api_raymath[] {
 	{NULL, NULL},
 };
 
-int luaopen_api_raymath(lua_State* L)
+int luaopenApiRaymath(lua_State* L)
 {
-	luaL_register(L, "RAYMATH", api_raymath);
+	luaL_register(L, "RAYMATH", ApiRaymath);
 
 	lua_getglobal(L, "RAYMATH");
 	lua_pushnumber(L, PI);
