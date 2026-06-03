@@ -7,8 +7,6 @@ namespace Api
 {
 	static lua_State* L;
 
-	static Arena* data;
-
 	static Gamerules rules;
 
 	static std::vector<Body>   o_vector;
@@ -43,6 +41,7 @@ namespace Api
 	static Joint* j = nullptr;
 	
 	void Init();
+	void Boot();
 	void Reset();
 	void Close();
 

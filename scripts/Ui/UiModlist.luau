@@ -49,9 +49,9 @@ function Api.Draw.UiModlist()
 	
 				    show = false
 			    end
-			    j = j + 1
+			    j += 1
 		    end
-		    i = i + 1
+		    i += 1
 	    end
 	end
 end

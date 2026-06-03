@@ -5,8 +5,7 @@ local showMessages = false
 
 local maxMessages = 32
 
-local messages = {}
-local commands = {}
+local messages, commands = {}, {}
 
 local text, edit = buffer.create(256), false
 
@@ -81,10 +80,13 @@ function Api.Draw.UiConsole()
 		else
 			diff = 0
 		end
+		local textColor = RAYGUI.GuiGetStyle(0, 2)
+		RAYGUI.GuiSetStyle(0, 2, RAYGUI.ColorToInt(UiConsole["textColor"]))
         while i <= #messages - diff do
-			RAYLIB.DrawText(messages[i + diff], 10, offset - 20 * (max - i + 1), 20, UiConsole["textColor"])
-			i = i + 1
+		    RAYGUI.GuiLabel(10, offset - 25 * (max - i + 1), screenWidth - 20, 25, messages[i + diff])
+			i += 1
 		end
+		RAYGUI.GuiSetStyle(0, 2, textColor)
 	end
 end
 

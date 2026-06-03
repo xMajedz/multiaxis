@@ -81,7 +81,7 @@ void Game::Init()
 	mod_data = new Arena(2 * 1024 * 1024);
 
     Api::Init();
-    Api::loadscript("init");
+    Api::Boot();
 
     Replay::Init();
 
@@ -237,7 +237,6 @@ void Game::Quit()
 {
     if (state.running) {
         Reset();
-        dWorldDestroy(world);
         dCloseODE();
     }
 
@@ -890,23 +889,6 @@ void Game::DrawPlayerBody(Body b, vec4 b_q, vec3 b_p, Color color)
 	case CAPSULE:
 	  DrawObjectModel(b, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), color);
 	  break;
-	}
-}
- 
-void Game::DrawContacts(bool freeze)
-{
-	dContact* contacts;
-
-	if (freeze) {
-		contacts = m_freeze_contacts;
-	} else {
-		contacts = m_frame_contacts;
-	}
-
-	for (int i = 0; numcollisions != 0; i += 1) {
-		auto position = contacts[i].geom.pos;
-		DrawSphere((Vector3){position[0], position[1], position[2]}, 0.10, Fade(YELLOW, 0.10));
-		numcollisions -= 1;
 	}
 }
 
@@ -1980,7 +1962,7 @@ void Window::RenderForeground(Camera3D camera)
 {
 	BeginTextureMode(foreground);
 	    BeginMode3D(camera);
-	        ClearBackground(Fade(WHITE, 0.00));
+	        ClearBackground(Fade(BLACK, 0.10));
 	    EndMode3D();
 	EndTextureMode();
 }

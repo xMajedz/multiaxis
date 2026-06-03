@@ -46,6 +46,11 @@ void Api::Init()
 	dSetMessageHandler(log_ode);
 }
 
+void Api::Boot()
+{
+    loadscript("boot");
+}
+
 void Api::Reset()
 {
 	DataContext = NoContext;
@@ -79,8 +84,6 @@ void Api::Reset()
 void Api::Close()
 {
 	lua_close(L);
-	data->clear();
-	delete data;
 }
 
 lua_State* Api::GetL()

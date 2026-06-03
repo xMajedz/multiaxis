@@ -1,5 +1,8 @@
 local require = Api.require
 
+RAYGUI.GuiSetStyle(0, 16, 20)
+--RAYGUI.GuiSetStyle(0, 2, 0x0F0F0FFF)
+
 --     load console first so i can get errors logged
 local UiConsole = require "Ui/UiConsole"
 

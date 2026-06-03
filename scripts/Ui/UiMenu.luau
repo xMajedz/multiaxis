@@ -18,12 +18,7 @@ local showMenu = false
 local mod, o_count, p_count, p_details, frame, contact_count, reaction_count, rules, gravity
 
 local screenWidth, screenHeight = RAYLIB.GetScreenWidth(), RAYLIB.GetScreenHeight()
-
-RAYGUI.GuiSetStyle(RAYGUI["CONTROL_DEFAULT"], 16, 20)
-RAYGUI.GuiSetStyle(RAYGUI["CONTROL_DEFAULT"], 2, 0x010101ff)
-local TEXT_SIZE = RAYGUI.GuiGetStyle(RAYGUI["CONTROL_DEFAULT"], 2)
-Api.log(string.format("%x", TEXT_SIZE))
-
+ 
 function Api.NewGame.UiMenu()
     mod = Game.GetMod()
     rules = Game.GetGamerules()

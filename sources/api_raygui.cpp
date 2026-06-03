@@ -4,6 +4,23 @@ using namespace raylib;
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
+static int RAYGUI_ColorToInt(lua_State* L)
+{
+    Color color;
+	lua_rawgeti(L, -1, 1);
+	color.r = lua_tonumber(L, -1);
+	lua_rawgeti(L, -2, 2);
+	color.g = lua_tonumber(L, -1);
+	lua_rawgeti(L, -3, 3);
+	color.b = lua_tonumber(L, -1);
+	lua_rawgeti(L, -4, 4);
+	color.a = lua_tonumber(L, -1);
+
+	int status = ColorToInt(color);
+	lua_pushinteger(L, status);
+	return 1;
+}
+
 static int RAYGUI_GuiSetStyle(lua_State* L)
 {
 	int value = lua_tointeger(L, -1);
@@ -279,7 +296,9 @@ static int RAYGUI_GuiListView(lua_State* L)
 }
 
 static const luaL_Reg ApiRaygui[] {
-	{"GuiSetStyle", RAYGUI_GuiSetStyle},
+    {"ColorToInt", RAYGUI_ColorToInt},
+       
+    {"GuiSetStyle", RAYGUI_GuiSetStyle},
 	{"GuiGetStyle", RAYGUI_GuiGetStyle},
 
 	{"GuiWindowBox", RAYGUI_GuiWindowBox},

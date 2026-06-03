@@ -4,7 +4,7 @@ local show = false
 
 local list = {}
 
-local loaded = "init;Api;"
+local loaded = "boot;Api;Game;"
 
 local screenWidth, screenHeight = RAYLIB.GetScreenWidth(), RAYLIB.GetScreenHeight()
 
