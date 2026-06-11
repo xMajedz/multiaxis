@@ -3,9 +3,9 @@ newoption {
 	description = "sets build directory.",
 }
 
-local loc = "build-" .. _TARGET_OS
+local loc = _TARGET_OS .. "-build"
 if _OPTIONS["os"] then
-   loc = ("build-" .. _OPTIONS["os"]) or loc
+   loc = (_OPTIONS["os"] .. "-build") or loc
 end
 loc = _OPTIONS["location"] or loc
 
@@ -64,11 +64,11 @@ workspace "mulitaxis"
 	defines { "NDEBUG" }
 	optimize "On"
 
-	filter { "system:Windows" }
-	libdirs { "lib-windows" }
+	filter { "system:windows" }
+	libdirs { "windows-lib" }
 
-	filter { "not system:Windows" }
-	libdirs { "lib-linux" }
+	filter { "system:linux" }
+	libdirs { "linux-lib" }
 
 project "multiaxis"
 	kind "WindowedApp"
@@ -79,36 +79,6 @@ project "multiaxis"
 	filter { "system:linux" }
 	links { "X11" }
 
-	filter { "system:Windows" }
+	filter { "system:windows" }
 	links { "winmm", "gdi32", "opengl32" }
 	defines { "_WIN32" }
-	
---[[
-project "tobas"
-	kind "WindowedApp"
-	files {
-		"sources/tobas.cpp",
-		"sources/netcode_common.h", "sources/netcode_common.cpp",
-		"sources/netcode_client.h", "sources/netcode_client.cpp",
-		"sources/netcode_server.h", "sources/netcode_server.cpp",
-	}
-
-	filter { "system:Windows" }
-	links {"winmm", "gdi32", "opengl32"}
-        links { "kernel32", "ws2_32" }
-	defines{"_WIN32"}
-
-project "tobas_server"
-	kind "ConsoleApp"
-	files {
-		"sources/tobas_server.cpp",
-		"sources/netcode_common.h", "sources/netcode_common.cpp",
-		"sources/netcode_client.h", "sources/netcode_client.cpp",
-		"sources/netcode_server.h", "sources/netcode_server.cpp",
-	}
-
-	filter { "system:Windows" }
-	links {"winmm", "gdi32", "opengl32"}
-        links { "kernel32", "ws2_32" }
-	defines{"_WIN32"}
-]]
