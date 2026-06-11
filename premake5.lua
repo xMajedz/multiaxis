@@ -11,7 +11,6 @@ loc = _OPTIONS["location"] or loc
 
 workspace "mulitaxis"
 	language "C++"
-	cppdialect "C++20"
 	configurations { "release", "debug" }
 	location (loc)
 	targetdir (loc)
