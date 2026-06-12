@@ -79,10 +79,7 @@ void Game::Init()
 	
     cache = new Arena(cache_size);
 	mod_data = new Arena(2 * 1024 * 1024);
-
-    Api::Init();
-    Api::Boot();
-
+	
     Replay::Init();
 
     state.time = GetTime();
@@ -115,13 +112,13 @@ void Game::GetSettings()
 
 void Game::Reset()
 {
-    if (world != nullptr) {
-	    dWorldDestroy(world);
-		world = nullptr;
-    }
     if (space != nullptr) {
         dSpaceDestroy(space);
         space = nullptr;
+    }
+    if (world != nullptr) {
+	    dWorldDestroy(world);
+		world = nullptr;
     }
     if (contactgroup != nullptr) {
         dJointGroupDestroy(contactgroup);
@@ -1595,11 +1592,6 @@ void Game::ReverseCycleSelectedJointState()
 	ResetGhostCache();
 }
 
-static void rlLog(int level, const char* msg, va_list)
-{
-	Console::log(TextFormat("%d: %s", level, msg));
-}
-
 static bool mouse_input = true;
 static bool keyboard_input = true;
 
@@ -1613,7 +1605,7 @@ void Window::Init()
     GetSettings();
 	
     SetTraceLogLevel(LOG_ERROR);
-	SetTraceLogCallback(rlLog);
+	SetTraceLogCallback(log_raylib);
     
 	InitWindow(width, height, "MultiAxis");
 
@@ -1624,7 +1616,9 @@ void Window::Init()
 	if (fullscreen_mode) ToggleFullscreen();
 	
 	Gamecam::Init();
-	
+
+	InputManager::Init();
+
 	ResourceManager::Init();
 
 	Game::background_color = BLACK;
@@ -1746,6 +1740,36 @@ void ResourceManager::DrawTexture(uint32_t texture_id, int posX, int posY, Color
 void ResourceManager::DrawModel(uint32_t model_id)
 {
   DrawModelEx(GetModel(model_id), (Vector3){ 0 }, (Vector3){ 0.0, 1.0, 0.0 }, 180.0f, (Vector3){ 1.0f, 1.0f, 1.0f }, WHITE);
+}
+
+static void ActionTogglePause(void)
+{
+  Game::TogglePause();
+}
+
+void InputManager::Init()
+{
+  key_events[0] = RegisterKeyEvent(2, 2, 2, KEY_P, ActionTogglePause);
+}
+
+KeyEvent* InputManager::RegisterKeyEvent(uint8_t freeze, uint8_t ctrl, uint8_t shift, uint8_t key, InputCallback fn)
+{
+  KeyEvent* e = new KeyEvent;
+  e->freeze = freeze;
+  e->ctrl = ctrl;
+  e->shift = shift;
+  e->key = key;
+  e->fn = fn;
+  key_event_count += 1;
+  return e;
+}
+
+void InputManager::Update()
+{
+  for (int i = 0; i < key_event_count; i += 1) {
+	KeyEvent* e = key_events[i];
+    if (e->freeze == 2 && e->ctrl == 2 && e->shift == 2 && IsKeyPressed(e->key) && e->fn != nullptr) e->fn();
+  }
 }
 
 void Window::GetSettings()
@@ -1928,6 +1952,8 @@ void Window::Update()
 
 	gSelector(camera);
 
+	InputManager::Update();
+	
 	if (Game::GetSelectedPlayerID() != -1)
 		Game::SetSelectedJoint(selected_joint);
 

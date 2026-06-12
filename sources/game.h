@@ -2,10 +2,7 @@
 #include "common.h"
 #include "player.h"
 #include "mem.h"
-
-#ifndef GAME_VERSION
-#define GAME_VERSION "git-master"
-#endif
+#include "gamae_version.h"
 
 enum Gamemode
 {
@@ -390,4 +387,38 @@ namespace Replay
 	std::string_view GetMod();
 
 	size_t GetMaxFrame();
+}
+
+typedef void (*InputCallback)(void);
+
+struct MouseEvent
+{
+  uint8_t freeze;
+  uint8_t shift;
+  uint8_t ctrl;
+  uint8_t btn;
+  
+  InputCallback fn;
+};
+
+struct KeyEvent
+{
+  uint8_t freeze;
+  uint8_t shift;
+  uint8_t ctrl;
+  uint8_t key;
+
+  InputCallback fn;
+};
+
+namespace InputManager
+{
+  static KeyEvent* key_events[4];
+  static uint32_t key_event_count = 0;
+
+  void Init();
+  void Update();
+  
+  MouseEvent* RegisterMouseEvent(uint8_t freeze, uint8_t ctrl, uint8_t shift, uint8_t btn, InputCallback fn);
+  KeyEvent* RegisterKeyEvent(uint8_t freez, uint8_t ctrl, uint8_t shift, uint8_t key, InputCallback fn);
 }

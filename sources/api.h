@@ -41,7 +41,8 @@ namespace Api
 	static Joint* j = nullptr;
 	
 	void Init();
-	void Boot();
+	void Boot(const char* filename);
+	
 	void Reset();
 	void Close();
 
@@ -90,6 +91,7 @@ namespace Console
     void log(const char* message);
 };
 
+void log_raylib(int logLevel, const char* text, va_list args);
 
 int luaopenApiMain(lua_State* L);
 

@@ -4,10 +4,44 @@
 using namespace raylib;
 
 struct Bytecode {
-private:
-	char* m_data;
-	size_t m_size;
-public:
+  	Bytecode(std::string_view string)
+	{
+		m_data = luau_compile(string.data(), string.size(), NULL, &m_size);
+	};
+
+	~Bytecode()
+	{
+		delete m_data;
+	};
+  
+    int execute(lua_State* L, std::string_view chunkname, int nargs, int nresults)
+    {
+	    luau_load(L, TextFormat("=%s", chunkname.data()), data(), size(), 0);
+		int status = lua_pcall(L, nargs, nresults, NULL);
+		if (status != LUA_OK) {
+		    Luau::log(lua_tostring(L, -1));
+	    }
+		return status;
+    };
+
+    int executeThread(lua_State* L, std::string_view chunkname, int nargs)
+    {
+	    lua_State* T = lua_newthread(L);
+		luaL_sandboxthread(T);
+	    luau_load(T, TextFormat("=%s", chunkname.data()), data(), size(), 0);
+		int status = lua_resume(T, L, nargs);
+		if (status != LUA_OK) {
+		    Luau::log(lua_tostring(T, -2));
+	    }
+	    return status; 
+    };
+
+    void dump(std::string_view path)
+    {
+	    const char* data = m_data;
+	    SaveFileText(path.data(), data);
+    };
+  
 	char* data()
 	{
 		return m_data;
@@ -17,82 +51,76 @@ public:
 	{
 		return m_size;
 	};
-
-	Bytecode(std::string_view string)
-	{
-		m_data = luau_compile(string.data(), string.size(), NULL, &m_size);
-	};
-
-	~Bytecode()
-	{
-		delete m_data;
-	};
+  
+private:
+	char* m_data;
+	size_t m_size;
 };
 
-void Luau::setlogcallback(void(*callback)(const char*))
+void Luau::log(const char* msg)
 {
-	log = callback;
+    logCallback(msg);
+    LOG(msg)
 }
 
-static void log(const char* msg)
+void Luau::setLogCallback(LuauLogCallback callback)
 {
-	if (Luau::log != nullptr) {
-		Luau::log(msg);
-	} else {
-		LOG(msg)
-	}
-}
-
-static int run(lua_State* L, std::string_view string, std::string_view chunkname)
-{
-	Bytecode bytecode(string);
-	int result = luau_load(L, TextFormat("=%s", chunkname.data()), bytecode.data(), bytecode.size(), 0);
-	int nresults = 1;
-	int status = lua_pcall(L, 0, nresults, 0);
-	if (status != LUA_OK) {
-		log(lua_tostring(L, -1));
-	}
-	return nresults;
+	logCallback = callback;
 }
 
 int Luau::dostring(lua_State* L, std::string_view string, std::string_view chunkname)
 {
-	return run(L, string, chunkname);
-}
-
-int Luau::dostring(lua_State* L, std::string_view string)
-{
-	return dostring(L, string, "dostring");
+    Bytecode bytecode(string);
+    
+	int status = bytecode.executeThread(L, TextFormat("dostring:%s", chunkname.data()), 0);
+	
+	return status;
 }
 
 int Luau::dofile(lua_State* L, std::string_view filepath, std::string_view chunkname)
 {
 	const char* path = TextFormat("%s.luau", filepath.data());
-	if (!FileExists(path)) return 1;
-	char* text = LoadFileText(path);
-	int status = dostring(L, text, chunkname);
-	UnloadFileText(text);
-	return status;
-}
 
-int Luau::dofile(lua_State* L, std::string_view filepath)
-{
-	return dofile(L, filepath, TextFormat("dofile:%s", filepath.data()));
+	if (!FileExists(path)) {
+	  //lua_pushstring(L, "");
+	  return 1;
+	}
+
+	char* text = LoadFileText(path);
+		
+	Bytecode bytecode(text);
+
+	UnloadFileText(text);
+    
+	int status = bytecode.executeThread(L, chunkname, 0);
+	
+	return status;
 }
 
 int Luau::require(lua_State* L, std::string_view filename)
 {
-	const char* _requirepaths = "./scripts/?.luau;./scripts/?/?.luau";
-	const char* requirepaths[] = {"./scripts/%s", "./scripts/%s/%s"};
+	const char* requirepaths = "./scripts/?.luau;./scripts/?/?.luau";
+	const char* requirepaths_fmt[] = { "./scripts/%s", "./scripts/%s/%s" };
 
 	int status = 1;
-	for (const auto& path : requirepaths) { 
-		status = dofile(
-				L,
-				TextFormat(path, filename.data(), filename.data()),
-				TextFormat("require:%s", filename.data())
-		);
+	for (const auto& path : requirepaths_fmt) {
+	    const char* path_fmt = TextFormat(path, filename.data(), filename.data());
+
+		if (!FileExists(path_fmt)) {
+		  //lua_error(L, TextFormat("file: %s doens't exist", path_fmt));
+	       return 1;
+	    }
+
+	    char* text = LoadFileText(path_fmt);
+	
+	    Bytecode bytecode(text);
+		
+		UnloadFileText(text);
+
+	    status = bytecode.execute(L, TextFormat("require:%s", filename.data()), 1, 1);
+
 		if (status == LUA_OK) return status;
 	}
+	
 	return status;
 }

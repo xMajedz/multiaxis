@@ -56,7 +56,7 @@ else
 	end
 
 	if RAYLIB.IsKeyPressed(RAYLIB["KEY_P"]) then
-		Game.TogglePause()
+		--Game.TogglePause()
 	end
 
 	if RAYLIB.IsKeyPressed(RAYLIB["KEY_G"]) then
