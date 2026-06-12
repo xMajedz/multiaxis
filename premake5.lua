@@ -1,6 +1,11 @@
 newoption {
-	trigger = "location",
-	description = "sets build directory.",
+    trigger = "location",
+    description = "sets build directory.",
+}
+
+newoption {
+    trigger = "version",
+    description = "sets build version.",
 }
 
 local loc = _TARGET_OS .. "-build"
@@ -8,6 +13,12 @@ if _OPTIONS["os"] then
    loc = (_OPTIONS["os"] .. "-build") or loc
 end
 loc = _OPTIONS["location"] or loc
+
+if _OPTIONS["version"] then
+   local game_version_h = io.open("./sources/game_version.h", "w")
+   game_version_h:write("#define GAME_VERSION \"" .. _OPTIONS["version"] .. "\"")
+   game_version_h:close()
+end
 
 workspace "mulitaxis"
 	language "C++"
