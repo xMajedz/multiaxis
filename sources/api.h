@@ -5,7 +5,7 @@
 
 namespace Api
 {
-	static lua_State* L;
+	static lua_State* ML;
 
 	static Gamerules rules;
 
@@ -45,8 +45,7 @@ namespace Api
 	
 	void Reset();
 	void Close();
-
-	lua_State* GetL();
+	
 	Gamerules GetRules();
 
 	std::vector<Body> GetObjects();
@@ -69,7 +68,7 @@ namespace Api
 	lua_CFunction GetCallback(const char* event, const char* handle);
 
 	int loadmod(std::string_view modpath);
-	int loadscript(std::string_view scriptpath);
+	int loadscript(lua_State* L, std::string_view scriptpath);
 }
 
 typedef void (*ConsoleCallback_t)(const char*);
@@ -93,7 +92,7 @@ namespace Console
 
 void log_raylib(int logLevel, const char* text, va_list args);
 
-int luaopenApiMain(lua_State* L);
+void luaopenApi(lua_State* L);
 
 int luaopenApiGame(lua_State* L);
 

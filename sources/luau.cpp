@@ -14,26 +14,9 @@ struct Bytecode {
 		delete m_data;
 	};
   
-    int execute(lua_State* L, std::string_view chunkname, int nargs, int nresults)
+    int load(lua_State* L, std::string_view chunkname)
     {
-	    luau_load(L, TextFormat("=%s", chunkname.data()), data(), size(), 0);
-		int status = lua_pcall(L, nargs, nresults, NULL);
-		if (status != LUA_OK) {
-		    Luau::log(lua_tostring(L, -1));
-	    }
-		return status;
-    };
-
-    int executeThread(lua_State* L, std::string_view chunkname, int nargs)
-    {
-	    lua_State* T = lua_newthread(L);
-		luaL_sandboxthread(T);
-	    luau_load(T, TextFormat("=%s", chunkname.data()), data(), size(), 0);
-		int status = lua_resume(T, L, nargs);
-		if (status != LUA_OK) {
-		    Luau::log(lua_tostring(T, -2));
-	    }
-	    return status; 
+	    return luau_load(L, TextFormat("=%s", chunkname.data()), data(), size(), 0);
     };
 
     void dump(std::string_view path)
@@ -60,7 +43,6 @@ private:
 void Luau::log(const char* msg)
 {
     logCallback(msg);
-    LOG(msg)
 }
 
 void Luau::setLogCallback(LuauLogCallback callback)
@@ -72,9 +54,9 @@ int Luau::dostring(lua_State* L, std::string_view string, std::string_view chunk
 {
     Bytecode bytecode(string);
     
-	int status = bytecode.executeThread(L, TextFormat("dostring:%s", chunkname.data()), 0);
+	//int status = bytecode.executeThread(L, TextFormat("dostring:%s", chunkname.data()), 0);
 	
-	return status;
+	return 1;
 }
 
 int Luau::dofile(lua_State* L, std::string_view filepath, std::string_view chunkname)
@@ -82,7 +64,6 @@ int Luau::dofile(lua_State* L, std::string_view filepath, std::string_view chunk
 	const char* path = TextFormat("%s.luau", filepath.data());
 
 	if (!FileExists(path)) {
-	  //lua_pushstring(L, "");
 	  return 1;
 	}
 
@@ -91,9 +72,29 @@ int Luau::dofile(lua_State* L, std::string_view filepath, std::string_view chunk
 	Bytecode bytecode(text);
 
 	UnloadFileText(text);
-    
-	int status = bytecode.executeThread(L, chunkname, 0);
+
+	//int status = bytecode.executeThread(L, chunkname, 0);
 	
+	return 1;
+}
+
+int Luau::loadfile(lua_State* L, std::string_view filepath, std::string_view chunkname)
+{
+  	const char* path = TextFormat("%s.luau", filepath.data());
+
+	if (!FileExists(path)) {
+	    log(TextFormat("%s no such file", path));
+	    return 1;
+	}
+
+	char* text = LoadFileText(path);
+		
+	Bytecode bytecode(text);
+
+	UnloadFileText(text);
+
+	int status = bytecode.load(L, chunkname);
+		
 	return status;
 }
 
@@ -103,23 +104,19 @@ int Luau::require(lua_State* L, std::string_view filename)
 	const char* requirepaths_fmt[] = { "./scripts/%s", "./scripts/%s/%s" };
 
 	int status = 1;
-	for (const auto& path : requirepaths_fmt) {
-	    const char* path_fmt = TextFormat(path, filename.data(), filename.data());
-
-		if (!FileExists(path_fmt)) {
-		  //lua_error(L, TextFormat("file: %s doens't exist", path_fmt));
-	       return 1;
-	    }
-
-	    char* text = LoadFileText(path_fmt);
 	
-	    Bytecode bytecode(text);
+	for (const auto& fmt : requirepaths_fmt) {
+	     const char* path = TextFormat(fmt, filename.data(), filename.data());
+         
+		 int result = loadfile(L, path, TextFormat("require:%s.luau", path));
+
+		 status = lua_pcall(L, 0, 1, NULL);
+
+		 if (status != LUA_OK) {
+		    log(lua_tostring(L, 1));
+		 }
 		
-		UnloadFileText(text);
-
-	    status = bytecode.execute(L, TextFormat("require:%s", filename.data()), 1, 1);
-
-		if (status == LUA_OK) return status;
+		 if (status == LUA_OK) return status;
 	}
 	
 	return status;

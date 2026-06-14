@@ -1,0 +1,9 @@
+log("--- log.test ---")
+
+-- no argument
+log()
+
+-- log nil
+log(nil)
+
+log("PASS")

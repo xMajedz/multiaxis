@@ -1,4 +1,4 @@
-local require = Api.require
+RAYGUI.GuiSetStyle(0, 16, 20)
 
 local UiSettings = require "Ui/UiSettings"
 

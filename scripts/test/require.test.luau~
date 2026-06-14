@@ -1,0 +1,12 @@
+log("--- require.test ---")
+
+-- no argument
+require()
+
+-- require nil
+require(nil)
+
+log(require("test/rettable"))
+log(require("test/rettable")[1])
+
+log("PASS")

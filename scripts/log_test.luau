@@ -1,1 +1,0 @@
-for n = 1, 100 do Api.log(n) end

@@ -1,7 +1,8 @@
 local UiConsole = { textColor = RAYLIB["RAYWHITE"] }
 
-local showConsole = false
-local showMessages = false
+RAYGUI.GuiSetStyle(0, 16, 20)
+
+local showConsole, showMessages = false, false
 
 local maxMessages = 32
 
@@ -10,7 +11,7 @@ local messages, commands = {}, {}
 local text, edit = buffer.create(256), false
 
 function commands.loadscript(script_path) 
-	Api.loadscript(script_path)
+	loadscript(script_path)
 end
 
 function commands.loadmod(mod_path) 
@@ -27,8 +28,8 @@ end
 
 function commands.whisper(arg) 
 if Net then
-	local arg = arg:split(" ")
-	Net.ClientWhisper(tonumber(arg[1]), arg[2])
+	local args = arg:split(" ")
+	Net.ClientWhisper(tonumber(args[1]), args[2])
 end
 end
 

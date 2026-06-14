@@ -1,7 +1,0 @@
-local name = Api.prototype.name
-
-Api.prototype()
-
-function Api.prototype.new() end
-
-Game.Quit()

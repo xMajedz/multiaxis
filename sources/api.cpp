@@ -32,20 +32,14 @@ void log_raylib(int logLevel, const char* text, va_list args)
 
 void Api::Init()
 {
-	L = luaL_newstate();
+	ML = luaL_newstate();
+
+	luaL_openlibs(ML);
 	
-	luaopenApiMain(L);
-	luaopenApiGame(L);
-	luaopenApiNet(L);
-	luaopenApiReplay(L);
-	luaopenApiRaylib(L);
-	luaopenApiRaygui(L);
-	luaopenApiRaymath(L);
-	luaopenApiExpermental(L);
-
-	luaL_openlibs(L);
-	luaL_sandbox(L);
-
+	luaopenApi(ML);
+	
+	luaL_sandbox(ML);
+	
 	Luau::setLogCallback(log_luau);
 
 	dSetErrorHandler(log_ode);
@@ -55,13 +49,24 @@ void Api::Init()
 
 void Api::Boot(const char* filename)
 {
-    for (int i = lua_gettop(L); i > 0; i -= 1) LOG(luaL_tolstring(L, -i, NULL));
-	lua_pop(L, lua_gettop(L));
+    lua_State* T = lua_newthread(ML);
+	luaL_sandboxthread(T);
 
-    loadscript(filename);
+    loadscript(T, filename);
 	
-    for (int i = lua_gettop(L); i > 0; i -= 1) LOG(luaL_tolstring(L, -i, NULL));
-	lua_pop(L, 1);
+	int nargs = lua_gettop(T) - 1;
+	
+	int status = lua_resume(T, ML, nargs);
+
+	switch(status)
+	{
+	case LUA_OK:
+		 lua_pop(T, 1);
+		 break;
+	case LUA_COERR:
+		 Luau::log(luaL_tolstring(T, -1, NULL));
+		 break;
+	}
 }
 
 void Api::Reset()
@@ -96,19 +101,13 @@ void Api::Reset()
 
 void Api::Close()
 {
-	lua_close(L);
-}
-
-lua_State* Api::GetL()
-{
-	return L;
+	lua_close(ML);
 }
 
 Gamerules Api::GetRules()
 {
 	return rules;
 }
-
 
 std::vector<Body> Api::GetObjects()
 {
@@ -140,11 +139,28 @@ size_t Api::GetPlayersCount()
 	return p_count;
 }
 
+enum CallbackEvent {
+  PROTOTYPE = 0,
+  NEW_GAME,
+  FREEZE,
+  STEP,
+  UPDATE,
+  DRAW,
+  DRAW3D,
+  NEAR_CALLBACK,
+  FILE_DROPPED,
+  CONSOLE,
+
+  EVENT_COUNT,
+};
+
+CallbackEvent EventList[EVENT_COUNT];
+
 int Api::DrawCallback()
 {
-  //int status = Luau::dostring(L, TextFormat("for _, fn in _G[\"Api\"][\"%s\"] do fn() end", "Draw"), "Draw");
-  //lua_pop(L, 1);
-  return 0;
+    lua_rawgeti(ML, LUA_REGISTRYINDEX, EventList[DRAW]);
+    lua_pcall(ML, 0, 0, 0);
+    return 0;
 }
 
 int Api::Draw3DCallback()
@@ -177,31 +193,35 @@ int Api::StepCallback()
 
 int Api::UpdateCallback(dReal dt)
 {
-  //int status = Luau::dostring(L, TextFormat("for _, fn in _G[\"Api\"][\"%s\"] do fn(%lf) end", "Update", dt), "Update");
-  //lua_pop(L, 1);
-  return 0;
+    lua_rawgeti(ML, LUA_REGISTRYINDEX, EventList[UPDATE]);
+	lua_pushnumber(ML, dt);
+    lua_pcall(ML, 1, 0, 0);
+    return 0;
 }
 
 int Api::ConsoleCallback(const char* message)
 {
-  //int status = Luau::dostring(L, TextFormat("for _, fn in _G[\"Api\"][\"%s\"] do fn(\"%s\") end", "Console", message), "Console");
-  //lua_pop(L, 1);
-  return 0;
+    lua_rawgeti(ML, LUA_REGISTRYINDEX, EventList[CONSOLE]);
+	lua_pushstring(ML, message);
+    lua_pcall(ML, 1, 0, 0);
+    return 0;
 }
 
-int Api::loadscript(std::string_view scriptpath)
+int Api::loadscript(lua_State* L, std::string_view scriptpath)
 {
-	return Luau::dofile(
-		L,
-		TextFormat("./scripts/%s", scriptpath.data()),
-		TextFormat("%s:%s", "loadscript", scriptpath.data())
-	);
+    Luau::loadfile(
+        L,
+	    TextFormat("./scripts/%s", scriptpath.data()),
+	    TextFormat("%s:%s", "loadscript", scriptpath.data())
+    );
+
+	return 0;
 }
 
 int Api::loadmod(std::string_view modpath)
 {
 	return Luau::dofile(
-		L,
+		ML,
 		TextFormat("./mods/%s", modpath.data()),
 		TextFormat("%s:%s", "loadmod", modpath.data())
 	);
@@ -1053,23 +1073,56 @@ static int Api_connection_type(lua_State* L)
 	return 1;
 }
 
-static int Api_require(lua_State* Ll)
+static int Api_require(lua_State* L)
 {
-	const char* filename = lua_tostring(Ll, -1);
-	lua_Number result = Luau::require(Ll, filename);
-	return 1;
+    int nargs = lua_gettop(L);
+    
+	if (nargs > 0 && !lua_isnil(L, 1)) {
+	    const char* filename = lua_tostring(L, -1);
+		lua_pop(L, 1);
+		Luau::require(L, filename);
+	    return 1;
+	}
+
+	return 0;
 }
 
 static int Api_loadscript(lua_State* L)
 {
-	const char* scriptpath = lua_tostring(L, -1);
-	lua_Number result = Api::loadscript(scriptpath);
+    const char* scriptpath = lua_tostring(L, 1);
+
+    int L_args = lua_gettop(L);
+	
+	lua_State* T = lua_newthread(L);
+	luaL_sandboxthread(T);
+	
+	Api::loadscript(T, scriptpath);
+
+	for (int i = 2; i <= L_args; i += 1) {
+	    lua_xpush(L, T, i);
+	}
+	
+	int T_args = lua_gettop(T) - 1;
+	  
+	int status = lua_resume(T, L, T_args);
+
+    
+	switch(status)
+	{
+	case LUA_OK:
+		 lua_pop(T, 1);
+		 break;
+	case LUA_COERR:  
+		 Luau::log(luaL_tolstring(T, -1, NULL));
+		 break;
+	}
+    
 	return 0;
 }
 
 static int Api_loadmod(lua_State* L)
 {
-	const char* modpath = lua_tostring(L, -1);
+	const char* modpath = lua_tostring(L, 1);
 	lua_Number result = Api::loadmod(modpath);
 	return 0;
 }
@@ -1091,6 +1144,7 @@ void Console::Update()
 		}
 		
 		Api::ConsoleCallback(message);
+		LOG(message)
 		
 		message_buffer_start += 1;
 		message_count -= 1;
@@ -1118,9 +1172,9 @@ void Console::log(const char* message)
 	
 static int Api_log(lua_State* L)
 {
-    int n = lua_gettop(L);
+    int nargs = lua_gettop(L);
 	
-	for (int i = 1; i <= n; i += 1) {
+	for (int i = 1; i <= nargs; i += 1) {
 	    Console::log(luaL_tolstring(L, i, NULL));
 	}
 	
@@ -1152,12 +1206,14 @@ static int Api_loadmod_t(lua_State* L)
 	return 1;
 }
 
-static const luaL_Reg ApiMain[] {
+static const luaL_Reg ApiBase[] = {
 	{"log", Api_log},
-
 	{"require", Api_require},
-
 	{"loadscript", Api_loadscript},
+	{NULL, NULL},
+};
+
+static const luaL_Reg ApiMain[] = {
 	{"loadmod", Api_loadmod},
 	{"loadmod_t", Api_loadmod_t},
 
@@ -1207,7 +1263,9 @@ static const luaL_Reg ApiMain[] {
 	{NULL, NULL},
 };
 
-static const char* events[] = {
+static const char* Events[] = {
+    "prototype",
+
 	"NewGame",
 	"Freeze",
 	"Step",
@@ -1243,79 +1301,96 @@ static const char* joint_types[] = {
 
 static int metamethod_call(lua_State* L)
 {
-    LOG("__call " << luaL_tolstring(L, -1, NULL))
-    return 0;
+    const char* callback = lua_tostring(L, lua_upvalueindex(1));
+
+	size_t nargs = lua_gettop(L);
+	LOG(nargs)
+    lua_gettable(L, lua_upvalueindex(2));
+	//lua_rawgeti(L, nargs - 1, 1);
+    lua_pushnil(L);
+    LOG(callback)
+	while(lua_next(L, -(nargs + 2)) != 0) {
+	  //LOG("lua_next value: " << luaL_tolstring(L, -1, NULL))
+	  LOG("lua_next key: " << luaL_tolstring(L, -2, NULL))
+	  /*const char *key = lua_tostring(L, -2);
+        
+		LOG()
+        
+		if(lua_isfunction(L, -1)) {
+		   lua_pcall(L, 0, 0, 0);
+		}
+		LOG(lua_gettop(L))*/
+		if (nargs - 1 > 0)
+		    lua_pop(L, nargs - 1);
+    }
+	
+	LOG(TextFormat("Api.%s.__call()", callback))
+	
+	return 0;
 }
 
 static int metamethod_index(lua_State* L)
 {
-    LOG("__index " << luaL_tolstring(L, -1, NULL))
-	LOG("__index " << luaL_tolstring(L, -2, NULL))
-    return 0;
+    const char* callback = lua_tostring(L, lua_upvalueindex(1));
+	lua_getfield(L, lua_upvalueindex(2), lua_tostring(L, 2));
+    return 1;
 }
 
 static int metamethod_newindex(lua_State* L)
 {
-    LOG("__newindex " << luaL_tolstring(L, -1, NULL))
-	LOG("__newindex " << luaL_tolstring(L, -2, NULL))
-    return 0;
+    const char* callback = lua_tostring(L, lua_upvalueindex(1));
+	lua_setfield(L, lua_upvalueindex(2), lua_tostring(L, 2));
+	return 0;
 }
+
+
+int luaopenApiBase(lua_State* L)
+{
+	luaL_register(L, "_G", ApiBase);
+	return 1;
+}
+
+int callback_table = 0;
 
 int luaopenApiMain(lua_State* L)
 {
 	luaL_register(L, "Api", ApiMain);
 
-	//lua_newtable(L);
-	//lua_setfield(L, -2, "Field1");
-	//lua_newtable(L);
-	//lua_setfield(L, -2, "Field2");
-
-
-	//lua_newtable(L);
-	//lua_newtable(L);
-	//lua_setfield(L, -2, "Filed2");
-	//lua_setfield(L, -3, "Field1");
-	
-	//lua_newtable(L);
-	//lua_pushcfunction(L, metamethod_index, "__index");
-	//lua_setfield(L, -2, "__index");
-	//lua_pushcfunction(L, metamethod_newindex, "__newindex");
-	//lua_setfield(L, -2, "__newindex");
-	//lua_setfield(L, -3, "prototype");
-
-	/*
-	lua_newtable(L);
-	lua_newtable(L);
-    lua_newtable(L);
-	lua_pushcfunction(L, metamethod_call, "__call");
-	lua_setfield(L, -2, "__call");
-	lua_pushcfunction(L, metamethod_index, "__index");
-	lua_setfield(L, -2, "__index");
-	lua_pushcfunction(L, metamethod_newindex, "__newindex");
-    lua_setfield(L, -2, "__newindex");
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -3, "prototype");
-	*/
-
-	lua_newtable(L);
-	//luaL_newmetatable(L, "Api.callback");
-	lua_newtable(L);
-    lua_newtable(L);
-	lua_pushcfunction(L, metamethod_call, "Api.__call");
-	lua_setfield(L, -2, "__call");
-	lua_pushcfunction(L, metamethod_index, "Api.__index");
-	lua_setfield(L, -2, "__index");
-	lua_pushcfunction(L, metamethod_newindex, "Api.__newindex");
-    lua_setfield(L, -2, "__newindex");
-	lua_setmetatable(L, -2);
-	lua_setfield(L, -3, "prototype");
-	
-	/*
-	for (auto event : events) {
+	for (int i = 0; i < EVENT_COUNT; i += 1) {
+	    auto Event = Events[i];
+		
+	    lua_newtable(L);
 		lua_newtable(L);
-		lua_setfield(L, -2, event);
-	}
+        // closure table
+		lua_newtable(L);
+		lua_newtable(L);
+		lua_rawseti(L, -1, 1);
+		int closure_table = lua_ref(L, -1);
+        lua_pop(L, 1);
+		
+		lua_pushstring(L, Event);
+		lua_rawgeti(L, LUA_REGISTRYINDEX, closure_table);
+		lua_pushcclosure(L, metamethod_call, TextFormat("Api.%s.__call", Event), 2);
+	    lua_setfield(L, -2, "__call");
 
+		lua_pushstring(L, Event);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, closure_table);
+		lua_pushcclosure(L, metamethod_index, TextFormat("Api.%s.__index", Event), 2);
+		lua_setfield(L, -2, "__index");
+
+		lua_pushstring(L, Event);
+		lua_rawgeti(L, LUA_REGISTRYINDEX, closure_table);
+		lua_pushcclosure(L, metamethod_newindex, TextFormat("Api.%s.__newindex", Event), 2);
+        lua_setfield(L, -2, "__newindex");
+      
+		EventList[i] = (CallbackEvent)lua_ref(L, -2);
+
+		lua_setmetatable(L, -2);
+	    lua_setfield(L, -2, Event);
+		
+	}
+	
+	/*
 	int count;
 	count = 0;
 	for (auto shape : shapes) {
@@ -1330,7 +1405,31 @@ int luaopenApiMain(lua_State* L)
 		count += 1;
 	}
 	 
-	lua_pop(L, 1);
 	*/
 	return 1;
+}
+
+static const luaL_Reg Api_libs[] = {
+    {"",            luaopenApiBase},
+	{"Api",         luaopenApiMain},
+	
+	{"Game",        luaopenApiGame},
+	{"Replay",      luaopenApiReplay},
+	{"Expermental", luaopenApiExpermental},
+	{"Net",         luaopenApiNet},
+	
+	{"RAYLIB",  luaopenApiRaylib},
+	{"RAYGUI",  luaopenApiRaygui},
+	{"RAYMATH", luaopenApiRaymath},
+
+	{NULL, NULL},
+};
+
+void luaopenApi(lua_State* L)
+{
+    for (const luaL_Reg* lib = Api_libs; lib->func; lib += 1) {
+        lua_pushcfunction(L, lib->func, NULL);
+        lua_pushstring(L, lib->name);
+        lua_call(L, 1, 0);
+    }
 }

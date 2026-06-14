@@ -2,7 +2,7 @@
 #include "common.h"
 #include "player.h"
 #include "mem.h"
-#include "gamae_version.h"
+#include "game_version.h"
 
 enum Gamemode
 {
