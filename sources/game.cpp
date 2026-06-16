@@ -3,78 +3,14 @@
 #include "luau.h"
 #include "api.h"
 
-#include <fstream>
-
 using namespace raylib;
 #include "raymath.h"
 #include "rlgl.h"
-
-static void ParseTBM(std::string filename)
-{
-    std::ifstream file(filename);
-	
-	if (file.is_open()) {
-	    std::string line;
-
-		int context = 0;
-		int version = 0;
-		
-		Gamerules gamerules;
-
-		while (std::getline(file, line)) {
-		    size_t s = line.find(' ');
-
-			std::string field = line.substr(0, s);
-			std::string value = line.substr(s + 1);
-
-			//std::cout << field << std::endl;
-
-			/*if (field == "version") {
-			    version = std::stoi(value);
-			} else if (field == "numplayers") {
-			  //gamerules.numplayers = std::stoi(value);
-			} else if (field == "turnframes") {
-			  //gamerules.turnframes = std::stoi(value);
-			} else if (field == "maxcontacts") {
-			  //gamerules.max_contacts = std::stoi(value);
-			} else if (field == "reactointime") {
-			  //gamerules.reaction_time = (dReal)std::stoi(value);
-			} else if (field == "engagedistance") {
-			  //gamerules.engagedistance = (dReal)std::stoi(value);
-			} else if (field == "engageheight") {
-			  //gamerules.engageheight = (dReal)std::stoi(value);
-			} else if (field == "gravity") {
-			  //gamerules.engagedistance = (dReal)std::stoi(value);
-			} else if (field == "env_obj") {
-			} else if (field == "env_obj_joint") {
-			} else if (field == "player") {
-			} else if (field == "body") {
-			} else if (field == "joint") {
-			}
-			
-			switch (context)
-			{
-			case 0:
-			  if (field == "friction") {
-				//gamerules.friction = (dReal)std::stoi(value);
-			  } else if (field == "bounce") {
-				//gamerules.friction = (dReal)std::stoi(value);
-			  }
-			  break;
-			case 1:
-			}*/
-		}
-
-		file.close();
-	}
-}
 
 void Game::Init()
 {
     GetSettings();
 
-	//ParseTBM("mods/v8-modern-final.tbm");
-	
     dInitODE();
 	
     cache = new Arena(cache_size);

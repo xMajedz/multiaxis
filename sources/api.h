@@ -3,6 +3,8 @@
 #include "luau.h"
 #include "game.h"
 
+#include <fstream>
+
 namespace Api
 {
 	static lua_State* ML;
@@ -75,19 +77,11 @@ typedef void (*ConsoleCallback_t)(const char*);
 
 namespace Console
 {
-	static size_t message_count = 0;
-	static size_t message_length = 256;
-	static size_t message_buffer_offset = 0;
-	static char   message_buffer[1000 * 256];
-	static char*  messages[256];
-	static char   last_message[1024];
-	static bool   has_message;
-
 	static ConsoleCallback_t m_callback = nullptr;
 
 	void SetCallback(ConsoleCallback_t callback);
-    void Update();
-    void log(const char* message);
+
+	void log(const char* message);
 };
 
 void log_raylib(int logLevel, const char* text, va_list args);

@@ -30,7 +30,7 @@ function Api.Draw.UiScriptlist()
 				if (RAYGUI.GuiButton(350, 10 + 30 * (i + 1), 25, 25, `#{RAYGUI["ICON_PLAYER_PLAY"]}#`)) then
 					script = script:gsub("%..+", "")
 
-					Api.loadscript(script)
+					loadscript(script)
 
                     loaded = loaded .. script .. ";"
 

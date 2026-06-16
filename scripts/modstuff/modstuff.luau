@@ -1,8 +1,7 @@
 local API = Api
-local require = Api["require"]
-local default = require("modstuff/default")
-local fs = require("filestuff")
-local Math = require("Math")
+local default = require "modstuff/default"
+local fs = require "filestuff"
+local Math = require "Math"
 
 local ms = {}
 ms["player_name"] = {}
@@ -331,7 +330,7 @@ function ms.loadModifiedTBM(fn)
 end
 
 function ms.loadTable()
-	API["loadmod_t"] {
+	Api.loadmod_t {
 		["mod"] = "string",
 		["turnframes"] = 10,
 		["reactiontime"] = 20,

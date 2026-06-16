@@ -1,6 +1,6 @@
-local ms = Api.require "modstuff"
-
 local UiModlist = {}
+
+local ms = require "modstuff"
 
 local show = false
 
@@ -32,19 +32,20 @@ function Api.Draw.UiModlist()
 
 			    if RAYGUI.GuiButton(350, 10 + 30 * (j + 1), 25, 25, `#{RAYGUI["ICON_PLAYER_PLAY"]}#`) then
 				    if mod:match("^[%.%w%-_]+%.luau") then
-					    Api.Reset()
-					    Api.loadmod(mod:match("^[%w%-_]+"))
-					    Game.Reset()
-					    Game.ImportMod()
-					    Game.NewGame()
+					    --Api.Reset()
+					    --loadmod(mod:match("^[%w%-_]+"))
+					    --Game.Reset()
+					    --Game.ImportMod()
+					    --Game.NewGame()
 				    end
 				
 				    if mod:match("^[%.%w%-_]+%.tbm") then
-					    Api.Reset()
-					    ms.loadmodTBM2(mod:match("^[%w%-_]+"))
-					    Game.Reset()
-					    Game.ImportMod()
-					    Game.NewGame()
+					    loadmod(mod)
+					    --Api.Reset()
+					    --ms.loadmodTBM2(mod:match("^[%w%-_]+"))
+					    --Game.Reset()
+					    --Game.ImportMod()
+					    --Game.NewGame()
 				    end
 	
 				    show = false

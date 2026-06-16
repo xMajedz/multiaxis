@@ -110,6 +110,8 @@ int Luau::require(lua_State* L, std::string_view filename)
          
 		 int result = loadfile(L, path, TextFormat("require:%s.luau", path));
 
+		 if (result != 0) continue;
+
 		 status = lua_pcall(L, 0, 1, NULL);
 
 		 if (status != LUA_OK) {

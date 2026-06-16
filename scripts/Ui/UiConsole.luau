@@ -1,5 +1,7 @@
 local UiConsole = { textColor = RAYLIB["RAYWHITE"] }
 
+local csize = require "csize"
+
 RAYGUI.GuiSetStyle(0, 16, 20)
 
 local showConsole, showMessages = false, false
@@ -8,7 +10,7 @@ local maxMessages = 32
 
 local messages, commands = {}, {}
 
-local text, edit = buffer.create(256), false
+local text, edit = buffer.create(csize.u8[256]), false
 
 function commands.loadscript(script_path) 
 	loadscript(script_path)
@@ -20,6 +22,10 @@ end
 
 function commands.restart() 
 	Game.Restart()
+end
+
+function commands.quit() 
+	Game.Quit()
 end
 
 function commands.clear() 
@@ -48,6 +54,7 @@ commands["ls"] = commands["loadscript"]
 commands["lm"] = commands["loadmod"]
 commands["rt"] = commands["restart"]
 commands["cl"] = commands["clear"]
+commands["qu"] = commands["quit"]
 
 function UiConsole.RegisterCommandAlias(alias, command)
     commands[alias] = commands[command]
@@ -99,13 +106,13 @@ function Api.Update.UiConsole(dt)
 			if Net then
 				Net.ClientEcho(s)
 			else
-				Api.log(s)
+				log(s)
 			end
 			
             buffer.writeu8(text, 0, 0)
 		end
 
-		showMessages = (showConsole and showMessages) == false
+		--showMessages = showMessages == false
 		showConsole = showConsole == false
 		edit = showConsole
 	end
