@@ -69,6 +69,18 @@ void Api::Boot(const char* filename)
 	}
 }
 
+int HotKeys[300] = { 0 };
+
+void Api::UpdateHotKeys()
+{
+    for (int key = 0; key < 300; key += 1) {
+	    if (HotKeys[key] != NULL && IsKeyPressed(key)) {
+		    lua_rawgeti(ML, LUA_REGISTRYINDEX, HotKeys[key]);
+		    lua_call(ML, 0, 0);
+	    }
+    }
+}
+
 void Api::Reset()
 {
 	DataContext = NoContext;
@@ -283,6 +295,12 @@ int Api::loadmod(std::string_view modpath)
     parseTBM(TextFormat("./mods/%s", modpath.data()));
 
 	return 0;
+}
+
+void Api::SetHotKey(int key, int ref)
+{
+    LOG(key << " " << ref)
+    HotKeys[key] = ref;
 }
 
 static int Api_loadmod(lua_State* L)
@@ -1245,11 +1263,16 @@ static int Api_log(lua_State* L)
 	return 0;
 }
 
+static int Api_SetHotKey(lua_State* L)
+{
+    Api::SetHotKey(lua_tointeger(L, 1), lua_ref(L, 2));
+	return 0;
+}
+
 static int Api_Reset(lua_State* L)
 {
 	Api::Reset();
-	lua_pushinteger(L, 1);
-	return 1;
+	return 0;
 }
 
 static const luaL_Reg ApiBase[] = {
@@ -1264,6 +1287,8 @@ static const luaL_Reg ApiBase[] = {
 };
 
 static const luaL_Reg ApiMain[] = {
+    {"SetHotKey", Api_SetHotKey},
+
 	{"Reset", Api_Reset},
 	
 	{"reactiontime", Api_reactiontime},
@@ -1433,7 +1458,6 @@ int luaopenApiMain(lua_State* L)
 
 		lua_setmetatable(L, -2);
 	    lua_setfield(L, -2, Event);
-		
 	}
 	
 	

@@ -1670,42 +1670,27 @@ void ResourceManager::SetModelTexture(uint32_t model_id, uint32_t texture_id)
 
 void ResourceManager::DrawTexture(uint32_t texture_id, int posX, int posY, Color tint)
 {
-  DrawTexture(GetTexture(texture_id), posX, posY, tint);
+    DrawTexture(GetTexture(texture_id), posX, posY, tint);
 }
 
 void ResourceManager::DrawModel(uint32_t model_id)
 {
-  DrawModelEx(GetModel(model_id), (Vector3){ 0 }, (Vector3){ 0.0, 1.0, 0.0 }, 180.0f, (Vector3){ 1.0f, 1.0f, 1.0f }, WHITE);
+    DrawModelEx(GetModel(model_id), (Vector3){ 0 }, (Vector3){ 0.0, 1.0, 0.0 }, 180.0f, (Vector3){ 1.0f, 1.0f, 1.0f }, WHITE);
 }
 
 static void ActionTogglePause(void)
 {
-  Game::TogglePause();
+    Game::TogglePause();
 }
 
 void InputManager::Init()
 {
-  key_events[0] = RegisterKeyEvent(2, 2, 2, KEY_P, ActionTogglePause);
-}
-
-KeyEvent* InputManager::RegisterKeyEvent(uint8_t freeze, uint8_t ctrl, uint8_t shift, uint8_t key, InputCallback fn)
-{
-  KeyEvent* e = new KeyEvent;
-  e->freeze = freeze;
-  e->ctrl = ctrl;
-  e->shift = shift;
-  e->key = key;
-  e->fn = fn;
-  key_event_count += 1;
-  return e;
+  //key_events[0] = RegisterKeyEvent(2, 2, 2, KEY_P, ActionTogglePause);
 }
 
 void InputManager::Update()
 {
-  for (int i = 0; i < key_event_count; i += 1) {
-	KeyEvent* e = key_events[i];
-    if (e->freeze == 2 && e->ctrl == 2 && e->shift == 2 && IsKeyPressed(e->key) && e->fn != nullptr) e->fn();
-  }
+    Api::UpdateHotKeys();
 }
 
 void Window::GetSettings()

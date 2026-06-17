@@ -1,4 +1,6 @@
 if Api == nil then
+    Api = {}
+   
     --
     --    Api events
     --    any function under any of the given namespaces will be called at the given event
@@ -37,39 +39,4 @@ if Api == nil then
 
     Api["JOINT_FIXED"]     = 6,
     Api["JOINT_CONTACT"]   = 7,
-
-	--
-	--    triggers the internal logging function
-	--
-    function Api.log(str) end
-
-	--
-	--    resets the Api state machine
-	--
-    function Api.Reset() end
-
-	--
-	--    a standard implementation of the lua dofile function
-	--
-    function Api.dofile(filename) end
-
-	--
-	--    a standard implementation fo the lua require function
-	--
-	function Api.require(filename) end
-
-	--
-	--    loads a script from file
-	--
-	function Api.loadscript(filename) end
-
-	--
-	--    loads a mod from file
-	--
-    function Api.loadmod(filename) end
-	
-    --
-	-- not implemented, should be a better way to parse mods as tables instead of the current state machine design
-	--
-	function Api.loadmod_t(mod) end
 end

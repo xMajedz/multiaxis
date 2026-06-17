@@ -1,4 +1,0 @@
-local UiGamerules = {}
-
-function Api.Draw.UiGamerules()
-end

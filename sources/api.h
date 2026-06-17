@@ -43,9 +43,14 @@ namespace Api
 	static Joint* j = nullptr;
 	
 	void Init();
+
 	void Boot(const char* filename);
-	
+
+	void UpdateHotKeys();
+	void SetHotKey(int key, int ref);
+
 	void Reset();
+
 	void Close();
 	
 	Gamerules GetRules();
