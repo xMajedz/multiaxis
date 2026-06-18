@@ -1,4 +1,4 @@
-local Console = { Menu = { showUi = true }, textColor = RAYLIB["RAYWHITE"] }
+local Console = { Menu = { showUi = true }, textColor = RAYGUI.ColorToInt(RAYLIB["RAYWHITE"]) }
 
 local csize = require "csize"
 
@@ -17,7 +17,7 @@ function commands.loadscript(script_path)
 end
 
 function commands.loadmod(mod_path) 
-	Api.loadmod(mod_path)
+	loadmod(mod_path)
 end
 
 function commands.restart() 
@@ -74,31 +74,37 @@ end
 
 local screenWidth, screenHeight = RAYLIB.GetScreenWidth(), RAYLIB.GetScreenHeight()
 
-function Api.Update.Console(dt)
-	if RAYLIB.IsKeyPressed(RAYLIB["KEY_ENTER"]) then
-        local s = buffer.readstring(text, 0, buffer.len(text))
-		
-		if showConsole and buffer.readu8(text, 0) ~= 0 then
-			if Net then
-				Net.ClientEcho(s)
-			else
-				log(s)
-			end
-			
-            buffer.writeu8(text, 0, 0)
-		end
-        
-		showMessages = (showMessages and showConsole) == false
-		showConsole = showConsole == false
-		edit = showConsole
-	end
+local function readcstring(text)
+   local byte, i, s = buffer.readu8(text, 0), 0, ""
+   while byte ~= 0 do
+	  s = s .. string.char(byte)
+	  i += 1
+	  byte = buffer.readu8(text, i)
+   end
+   return s
+end
 
-    if not showConsole and RAYLIB.IsKeyPressed(RAYLIB["KEY_SLASH"]) then
-		showMessages = true 
+Api.SetHotKey(RAYLIB["KEY_ENTER"], function()
+	--local message = buffer.readstring(text, 0, buffer.len(text))
+	local message = readcstring(text)
+    if showConsole and message ~= "" then
+	    local res = (Net and Net.ClientEcho(message)) or log(message)		
+        buffer.writeu8(text, 0, 0)
+    else
+	    showMessages = (showConsole and showMessages) == false
+	end
+        
+	showConsole = showConsole == false
+	edit = showConsole
+end)
+
+Api.SetHotKey(RAYLIB["KEY_SLASH"], function()
+	if not showConsole then
+		showMessages = true
 		showConsole = true
 	    edit = true
 	end
-end
+end)
 
 function Api.Draw.Console()
 if Console.Menu.showUi then
@@ -116,7 +122,7 @@ if Console.Menu.showUi then
 			diff = 0
 		end
 		local textColor = RAYGUI.GuiGetStyle(0, 2)
-		RAYGUI.GuiSetStyle(0, 2, RAYGUI.ColorToInt(Console["textColor"]))
+		RAYGUI.GuiSetStyle(0, 2, Console["textColor"])
         while i <= #messages - diff do
 		    RAYGUI.GuiLabel(10, offset - 25 * (max - i + 1), screenWidth - 20, 25, messages[i + diff])
 			i += 1
@@ -130,11 +136,7 @@ function Api.Console.Console(msg)
 	if msg:match("^/.*") then
 		local cmd = msg:gsub("^/", "")
 		cmd = commands[cmd:match("^%w+")]
-		if cmd then
-		   cmd(msg:gsub("^/%w+%s*", ""))
-		else
-		   table.insert(messages, `Undefined command: {msg}`)
-		end
+		cmd = (cmd and cmd(msg:gsub("^/%w+%s*", ""))) or table.insert(messages, `Undefined command: {msg}`)   
 	else
 		table.insert(messages, msg)
 		showMessages = true

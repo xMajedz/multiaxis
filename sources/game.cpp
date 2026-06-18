@@ -109,7 +109,7 @@ void Game::NewGame()
     dWorldSetERP(world, 0.45);
     dWorldSetCFM(world, 10E-2);
 
-    step = 1.0E-2;
+    step = 1.0f / 60.0f;
 
     space = dHashSpaceCreate(0);
     contactgroup = dJointGroupCreate(0);
