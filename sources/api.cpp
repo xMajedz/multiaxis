@@ -15,6 +15,12 @@ enum Context
 
 } DataContext = NoContext;
 
+static void log(std::string_view message)
+{
+    std::cout << message << std::endl;
+}
+
+
 static void log_luau(const char* msg)
 {
 	Console::log(msg);
@@ -25,7 +31,7 @@ static void log_ode(int errnum, const char* msg, va_list ap)
 	Console::log(TextFormat("%d: %s", errnum, msg));
 }
 
-void log_raylib(int logLevel, const char* text, va_list args)
+static void log_raylib(int logLevel, const char* text, va_list args)
 {
     Console::log(TextFormat("%d: %s", logLevel, text));
 }
@@ -39,15 +45,19 @@ void Api::Init()
 	luaopenApi(ML);
 	
 	luaL_sandbox(ML);
+
+	Console::SetCallback(log);
 	
 	Luau::setLogCallback(log_luau);
-
+    
 	dSetErrorHandler(log_ode);
 	dSetDebugHandler(log_ode);
 	dSetMessageHandler(log_ode);
+	
+	SetTraceLogCallback(log_raylib);
 }
 
-void Api::Boot(const char* filename)
+void Api::Boot(std::string_view filename)
 {
     lua_State* T = lua_newthread(ML);
 	luaL_sandboxthread(T);
@@ -184,23 +194,19 @@ int Api::Draw3DCallback()
 
 int Api::NewGameCallback()
 {
-  //int status = Luau::dostring(L, TextFormat("for _, fn in _G[\"Api\"][\"%s\"] do fn() end", "NewGame"), "NewGame");
-  //lua_pop(L, 1);
-  return 0;
+    lua_rawgeti(ML, LUA_REGISTRYINDEX, EventList[NEW_GAME]);
+    lua_pcall(ML, 0, 0, 0);
+    return 0;
 }
 
 int Api::FreezeCallback()
 {
-  //int status = Luau::dostring(L, TextFormat("for _, fn in _G[\"Api\"][\"%s\"] do fn() end", "Freeze"), "Freeze");
-  //lua_pop(L, 1);
-  return 0;
+    return 0;
 }
 
 int Api::StepCallback()
 {
-  //int status = Luau::dostring(L, TextFormat("for _, fn in _G[\"Api\"][\"%s\"] do fn() end", "Step"), "Step");
-  //lua_pop(L, 1);
-  return 0;
+    return 0;
 }
 
 int Api::UpdateCallback(dReal dt)
@@ -211,13 +217,26 @@ int Api::UpdateCallback(dReal dt)
     return 0;
 }
 
-int Api::ConsoleCallback(const char* message)
+int Api::ConsoleCallback(std::string_view message)
 {
     lua_rawgeti(ML, LUA_REGISTRYINDEX, EventList[CONSOLE]);
-	lua_pushstring(ML, message);
+	lua_pushstring(ML, message.data());
     lua_pcall(ML, 1, 0, 0);
     return 0;
 }
+
+int Api::FileDroppedCallback(FilePathList files)
+{
+    lua_rawgeti(ML, LUA_REGISTRYINDEX, EventList[FILE_DROPPED]);
+    lua_newtable(ML);
+	for (int i = 0; i < files.count; i += 1) {
+	    lua_pushstring(ML, files.paths[i]);
+		lua_rawseti(ML, -2, 1 + i);
+	}
+    lua_pcall(ML, 1, 0, 0);
+    return 0;
+}
+
 
 int Api::loadscript(lua_State* L, std::string_view scriptpath)
 {
@@ -241,72 +260,112 @@ static void parseTBM(std::string filename)
 		int version = 0;
 		
 		Gamerules gamerules;
-
+		
+        size_t i;
 		while (std::getline(file, line)) {
-		    size_t s = line.find(' ');
-			Console::log(line.data());
-			std::string field = line.substr(0, s);
-			std::string value = line.substr(s + 1);
-
-			//std::cout << field << std::endl;
-
-			/*if (field == "version") {
-			    version = std::stoi(value);
-			} else if (field == "numplayers") {
-			  //gamerules.numplayers = std::stoi(value);
-			} else if (field == "turnframes") {
-			  //gamerules.turnframes = std::stoi(value);
-			} else if (field == "maxcontacts") {
-			  //gamerules.max_contacts = std::stoi(value);
-			} else if (field == "reactointime") {
-			  //gamerules.reaction_time = (dReal)std::stoi(value);
-			} else if (field == "engagedistance") {
-			  //gamerules.engagedistance = (dReal)std::stoi(value);
-			} else if (field == "engageheight") {
-			  //gamerules.engageheight = (dReal)std::stoi(value);
-			} else if (field == "gravity") {
-			  //gamerules.engagedistance = (dReal)std::stoi(value);
-			} else if (field == "env_obj") {
-			} else if (field == "env_obj_joint") {
-			} else if (field == "player") {
-			} else if (field == "body") {
-			} else if (field == "joint") {
+	        i = line.find("version");
+			if (i != std::string::npos) {
+			    size_t s = line.find(' ');
+			    if (i != std::string::npos) {
+			        std::string field = line.substr(0, s);
+			        std::string value = line.substr(s + 1);
+					version = std::stoi(value);
+				}
+				
+				continue;
 			}
 			
-			switch (context)
+			i = line.find("gamerule");
+			if (i != std::string::npos) {
+			    size_t s = line.find(' ');
+			    if (i != std::string::npos) {
+				  context = 1;
+				}
+				
+				continue;
+			}
+
+			i = line.find("env_obj ");
+			if (i != std::string::npos) {
+			    size_t s = line.find(' ');
+			    if (i != std::string::npos) {
+				  context = 2;
+				}
+				//Console::log(line);
+				continue;
+			}
+
+			i = line.find("env_obj_joint ");
+			if (i != std::string::npos) {
+			    size_t s = line.find(' ');
+			    if (i != std::string::npos) {
+				  context = 3;
+				}
+				//Console::log(line);
+				continue;
+			}
+			
+			i = line.find("player ");
+			if (i != std::string::npos) {
+			    size_t s = line.find(' ');
+			    if (i != std::string::npos) {
+				  context = 4;
+				}
+				//Console::log(line);
+				continue;
+			}
+
+			i = line.find("body ");
+			if (i != std::string::npos) {
+			    size_t s = line.find(' ');
+			    if (i != std::string::npos) {
+				  context = 5;
+				}
+				Console::log(line);
+				continue;
+			}
+
+			i = line.find("joint ");
+			if (i != std::string::npos) {
+			    size_t s = line.find(' ');
+			    if (i != std::string::npos) {
+				  context = 6;
+				}
+				Console::log(line);
+				continue;
+			}
+
+			switch(context)
 			{
-			case 0:
-			  if (field == "friction") {
-				//gamerules.friction = (dReal)std::stoi(value);
-			  } else if (field == "bounce") {
-				//gamerules.friction = (dReal)std::stoi(value);
-			  }
-			  break;
-			case 1:
-			}*/
+			case 1: break;
+
+			}
 		}
 
 		file.close();
 	}
 }
 
-int Api::loadmod(std::string_view modpath)
+int Api::loadmod(lua_State* L, std::string_view modpath)
 {
-    parseTBM(TextFormat("./mods/%s", modpath.data()));
-
+    Luau::loadfile(
+        L,
+	    TextFormat("./mods/%s", modpath.data()),
+	    TextFormat("%s:%s", "loadmod", modpath.data())
+    );
+	
 	return 0;
 }
 
 void Api::SetHotKey(int key, int ref)
 {
-    LOG(key << " " << ref)
     HotKeys[key] = ref;
 }
 
 static int Api_loadmod(lua_State* L)
 {
-	Api::loadmod(lua_tostring(L, -1));
-
+    const char* modpath = lua_tostring(L, 1);
+    parseTBM(modpath);
 	return 0;
 }
 
@@ -1223,42 +1282,34 @@ static int Api_loadscript(lua_State* L)
 
 void Console::SetCallback(ConsoleCallback_t callback)
 {
-	if (callback != nullptr) m_callback = callback;
+	if (callback != nullptr) console_callback = callback;
 }
 
-void Console::log(const char* message)
+void Console::log(std::string_view message)
 {
     Api::ConsoleCallback(message);
-	std::cout << message << std::endl;
-}
+	if (console_callback != nullptr) console_callback(message);
 
-char message_buffer[100 * 256];
+	//if (console_callback != nullptr) std::cout << message << std::endl;
+}
 
 static int Api_log(lua_State* L)
 {
-    int nargs = lua_gettop(L);
+    std::stringstream ss;
+
+	int nargs = lua_gettop(L);
 	
     if (nargs == 0) return 0;
-
-	int j = 0;
+	
 	for (int n = 1; n <= nargs; n += 1) {
-	    size_t length;
-	    const char* s = luaL_tolstring(L, n, &length);
+	    const char* s = luaL_tolstring(L, n, NULL);
 
-		if (n > 1) {
-			message_buffer[j++] = ' ';
-		    message_buffer[j++] = ' ';
-		}
+		if (n > 1) ss << "    ";
         
-		for (int i = 0; i < length; i += 1) {
-
-		    message_buffer[j++] = s[i];
-		}
+	    ss << s;
 	}
 	
-	message_buffer[j] = '\0';
-
-	Console::log(message_buffer);
+	Console::log(ss.str());
 
 	return 0;
 }

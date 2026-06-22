@@ -1,4 +1,4 @@
-local UiModlist = {}
+local Modlist = { Menu = { showUi = true } }
 
 local ms = require "modstuff"
 
@@ -8,7 +8,7 @@ local list = {}
 
 local screenWidth, screenHeight = RAYLIB.GetScreenWidth(), RAYLIB.GetScreenHeight()
 
-function UiModlist.Toggle()
+function Modlist.Toggle()
     show = show == false
 
 	if show then
@@ -17,6 +17,7 @@ function UiModlist.Toggle()
 end
 
 function Api.Draw.UiModlist()
+if Modlist.Menu.showUi then
    if show then
         if RAYGUI.GuiWindowBox(10, 40, (screenWidth/4) - 20, screenHeight - 100, "Mods") then
 		    show = false
@@ -40,9 +41,9 @@ function Api.Draw.UiModlist()
 				    end
 				
 				    if mod:match("^[%.%w%-_]+%.tbm") then
-					    loadmod(mod)
 					    --Api.Reset()
-					    --ms.loadmodTBM2(mod:match("^[%w%-_]+"))
+					    ms.portTBM(mod:match("^[%w%-_]+"))
+					    --loadmod(`./mods/{mod}`)
 					    --Game.Reset()
 					    --Game.ImportMod()
 					    --Game.NewGame()
@@ -54,7 +55,8 @@ function Api.Draw.UiModlist()
 		    end
 		    i += 1
 	    end
-	end
+   end
+end
 end
 
-return UiModlist
+return Modlist

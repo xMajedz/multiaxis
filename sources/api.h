@@ -44,7 +44,7 @@ namespace Api
 	
 	void Init();
 
-	void Boot(const char* filename);
+	void Boot(std::string_view filename);
 
 	void UpdateHotKeys();
 	void SetHotKey(int key, int ref);
@@ -68,28 +68,25 @@ namespace Api
 	int FreezeCallback();
 	int StepCallback();
 
-	int FileDroppedCallback(std::string_view dropped_file);
-	int ConsoleCallback(const char* message);
+	int ConsoleCallback(std::string_view message);
 
-	void SetCallback(const char* event, const char* handle, lua_CFunction function);
-	lua_CFunction GetCallback(const char* event, const char* handle);
+	int FileDroppedCallback(raylib::FilePathList files);
 
-	int loadmod(std::string_view modpath);
+	int loadmod(lua_State* L, std::string_view modpath);
+
 	int loadscript(lua_State* L, std::string_view scriptpath);
 }
 
-typedef void (*ConsoleCallback_t)(const char*);
+typedef void (*ConsoleCallback_t)(std::string_view);
 
 namespace Console
 {
-	static ConsoleCallback_t m_callback = nullptr;
+	static ConsoleCallback_t console_callback = nullptr;
 
 	void SetCallback(ConsoleCallback_t callback);
 
-	void log(const char* message);
+	void log(std::string_view message);
 };
-
-void log_raylib(int logLevel, const char* text, va_list args);
 
 void luaopenApi(lua_State* L);
 

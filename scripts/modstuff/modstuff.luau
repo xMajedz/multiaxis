@@ -518,6 +518,51 @@ function ms.loadTBM(TBM)
 	end
 end
 
+function ms.portTBM(filename)
+   local tbm = ms.parseTBM(filename)
+   tbm.engageheight = 3.40
+   tbm.engagedistance = 2.36
+   
+   fs.clear_content()
+   
+   fs.line(`version {tbm.version}\ngamerule`)
+   --fs.line("matchframes 1500")
+   fs.line(`turnframes {tbm.turnframes}`)
+   --fs.line("flags 0")
+   --fs.line("grip 1")
+   --fs.line("dismemberment 0")
+   --fs.line("fracture 0")
+   --fs.line("disqualification 0")
+   --fs.line("dqtimeout 0")
+   --fs.line("dqflag 0")
+   --fs.line("dismemberthreshold 0")
+   --fs.line("fracturethreshold 0")
+   --fs.line("pointthreshold 3")
+   --fs.line("winpoint 0")
+   --fs.line("dojotype 0")
+   --fs.line("dojosize 1100")
+   fs.line(`engagedistance {tbm.engagedistance}`)
+   fs.line(`engageheight {tbm.engageheight}`)
+   --fs.line("engagerotation 0")
+   --fs.line("engageplayerpos 0.00,2.32,1.75,0.00,-2.30,1.75")
+   --fs.line("engageplayerrot 0,0,0,0,0,180")
+   --fs.line("damage 0")
+   fs.line(`gravity {tbm.gravity[1]} {tbm.gravity[2]} {tbm.gravity[3]}`)
+   --fs.line("sumo 0")
+   --fs.line(`reactiontime {tbm.reactiontime}`)
+   --fs.line("drawwinner 0")
+   --fs.line("maxcontacts 8")
+   --fs.line("ghostlength 200")
+   --fs.line("ghostspeed 200")
+   --fs.line("ghostcustom 1")
+   --fs.line("grabmode 0")
+   --fs.line("tearthreshold 0")
+   fs.line(`numplayers {tbm.numplayers}`)
+
+
+   fs.writefile("./mods/port_" .. filename:gsub(".tbm", "") .. ".tbm")
+end
+
 function ms.parseTBM(filename)
 	local file_lines = fs.readfile("mods/" .. filename:gsub(".tbm", "") .. ".tbm")
 	local TBM = table.clone(default)

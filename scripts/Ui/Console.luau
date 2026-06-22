@@ -32,6 +32,11 @@ function commands.clear()
 	table.clear(messages)
 end
 
+function commands.log(arg)
+    arg = arg:split(" ")
+	arg = (arg[1] == "") or log(unpack(arg))
+end
+
 function commands.whisper(arg) 
 if Net then
 	local args = arg:split(" ")

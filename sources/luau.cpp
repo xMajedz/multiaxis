@@ -98,28 +98,49 @@ int Luau::loadfile(lua_State* L, std::string_view filepath, std::string_view chu
 	return status;
 }
 
-int Luau::require(lua_State* L, std::string_view filename)
+int Luau::requirefile(lua_State* L, std::string_view filename, std::string_view chunkname)
 {
-	const char* requirepaths = "./scripts/?.luau;./scripts/?/?.luau";
-	const char* requirepaths_fmt[] = { "./scripts/%s", "./scripts/%s/%s" };
+  	const char* requirepaths_fmt[] = { "./scripts/%s.luau", "./scripts/%s/%s.luau" };
 
-	int status = 1;
+	char* text = nullptr;
 	
 	for (const auto& fmt : requirepaths_fmt) {
-	     const char* path = TextFormat(fmt, filename.data(), filename.data());
-         
-		 int result = loadfile(L, path, TextFormat("require:%s.luau", path));
-
-		 if (result != 0) continue;
-
-		 status = lua_pcall(L, 0, 1, NULL);
-
-		 if (status != LUA_OK) {
-		    log(lua_tostring(L, 1));
-		 }
-		
-		 if (status == LUA_OK) return status;
+	    const char* path = TextFormat(fmt, filename.data(), filename.data());
+        
+	    if (FileExists(path)) {
+		  text = LoadFileText(path);
+		  break;
+	    }
 	}
 	
+	if (text == nullptr) {
+	  log(TextFormat("couldn't require %s", filename.data()));
+	    return 1;
+	}
+
+	Bytecode bytecode(text);
+
+	UnloadFileText(text);
+
+	int status = bytecode.load(L, chunkname);
+		
 	return status;
+}
+
+int Luau::require(lua_State* L, std::string_view filename)
+{
+     std::string_view requirepaths = "./scripts/?.luau;./scripts/?/?.luau";
+
+	 int result = requirefile(L, filename, TextFormat("require:%s", filename.data()));
+
+	 if (result != 0 ) return 1;
+
+	 int status = lua_pcall(L, 0, 1, NULL);
+
+	 if (status != LUA_OK) {
+		 log(lua_tostring(L, 1));
+		 return 1;
+	 }
+	
+	 return 0;
 }

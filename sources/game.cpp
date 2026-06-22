@@ -1541,8 +1541,7 @@ void Window::Init()
     GetSettings();
 	
     SetTraceLogLevel(LOG_ERROR);
-	SetTraceLogCallback(log_raylib);
-    
+	
 	InitWindow(width, height, "MultiAxis");
 
 	SetExitKey(KEY_NULL);
@@ -1890,8 +1889,9 @@ void Window::Update()
 	Gamecam::Update();
 
 	if (IsFileDropped()) {
-		FilePathList dropped_files = LoadDroppedFiles();
-		UnloadDroppedFiles(dropped_files);
+		FilePathList files = LoadDroppedFiles();
+		Api::FileDroppedCallback(files);
+		UnloadDroppedFiles(files);
 	}
 }
 

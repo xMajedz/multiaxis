@@ -1,25 +1,32 @@
-local LoadFileText = RAYLIB["LoadFileText"]
-local fs = {content = "", lines = {}}
+local LoadFileText, SaveFileText = RAYLIB["LoadFileText"], RAYLIB["SaveFileText"]
+
+local fs = {}
+
+local content, lines = "", {}
 
 function fs.clear_content()
-    fs.content = ""
-    fs.lines = {}
+    content = ""
+    lines = {}
 end
 
 function fs.readfile(pathtofile)
     if (pathtofile) then
-	    fs.content = LoadFileText(pathtofile)
-	    fs.content = fs.content:gsub("\r", "") 
-        return fs.content:split("\n")
+	    content = LoadFileText(pathtofile)
+	    content = content:gsub("\r", "")
+		lines = content:split("\n")
+        return lines
     end
 end
 
+
 function fs.writefile(filename)
+    SaveFileText(filename, content)    
     fs.clear_content()
+	log(`{filename} saved.`)
 end
 
 function fs.line(line)
-    fs.content = fs.content .. line .. "\n"
+    content = content .. line .. "\n"
 end
 
 return fs

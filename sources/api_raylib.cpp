@@ -71,12 +71,21 @@ static int RAYLIB_DrawRectangleLines(lua_State* L)
 	lua_pushnumber(L, result);
 	return 1;
 }
+
 static int RAYLIB_LoadFileText(lua_State* L)
 {
 	const char* filename = lua_tostring(L, -1);
 	char* text = LoadFileText(filename);
 	lua_pushstring(L, text);
 	UnloadFileText(text);
+	return 1;
+}
+
+static int RAYLIB_SaveFileText(lua_State* L)
+{
+	const char* filename = lua_tostring(L, 1);
+	const char* text = lua_tostring(L, 2);
+	lua_pushboolean(L, SaveFileText(filename, text));
 	return 1;
 }
 
@@ -206,6 +215,7 @@ static const luaL_Reg ApiRaylib[] {
 	{"DrawText", RAYLIB_DrawText},
 	{"DrawRectangle", RAYLIB_DrawRectangle},
 	{"DrawRectangleLines", RAYLIB_DrawRectangleLines},
+	{"SaveFileText", RAYLIB_SaveFileText},
 	{"LoadFileText", RAYLIB_LoadFileText},
 	{"LoadDirectoryFilesEx", RAYLIB_LoadDirectoryFilesEx},
 	{"LoadDirectoryFiles", RAYLIB_LoadDirectoryFiles},

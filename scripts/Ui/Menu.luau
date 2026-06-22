@@ -193,4 +193,6 @@ if Menu.showUi then
 end
 end
 
+function Api.FileDropped.Menu(files) for i, file in files do log(i, file) end end
+
 return Menu
