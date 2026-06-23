@@ -40,6 +40,15 @@ private:
 	size_t m_size;
 };
 
+static void query_replace(std::string& source, const std::string& from, const std::string& to)
+{
+    size_t start = 0;
+    while ((start = source.find(from, start)) != std::string::npos) {
+		source.replace(start, from.length(), to);
+	    start += to.length();
+	}
+}
+
 void Luau::log(const char* msg)
 {
     logCallback(msg);
@@ -50,44 +59,23 @@ void Luau::setLogCallback(LuauLogCallback callback)
 	logCallback = callback;
 }
 
-int Luau::dostring(lua_State* L, std::string_view string, std::string_view chunkname)
+int Luau::loadstring(lua_State* L, std::string string, std::string chunkname)
 {
     Bytecode bytecode(string);
     
-	//int status = bytecode.executeThread(L, TextFormat("dostring:%s", chunkname.data()), 0);
-	
-	return 1;
+	return bytecode.load(L, chunkname);
 }
 
-int Luau::dofile(lua_State* L, std::string_view filepath, std::string_view chunkname)
+int Luau::loadfile(lua_State* L, std::string filepath, std::string chunkname)
 {
-	const char* path = TextFormat("%s.luau", filepath.data());
+    std::string path = filepath + ".luau";
 
-	if (!FileExists(path)) {
-	  return 1;
-	}
-
-	char* text = LoadFileText(path);
-		
-	Bytecode bytecode(text);
-
-	UnloadFileText(text);
-
-	//int status = bytecode.executeThread(L, chunkname, 0);
-	
-	return 1;
-}
-
-int Luau::loadfile(lua_State* L, std::string_view filepath, std::string_view chunkname)
-{
-  	const char* path = TextFormat("%s.luau", filepath.data());
-
-	if (!FileExists(path)) {
-	    log(TextFormat("%s no such file", path));
+	if (!FileExists(path.data())) {
+	    log(TextFormat("%s no such file", path.data()));
 	    return 1;
 	}
 
-	char* text = LoadFileText(path);
+	char* text = LoadFileText(path.data());
 		
 	Bytecode bytecode(text);
 
@@ -98,23 +86,27 @@ int Luau::loadfile(lua_State* L, std::string_view filepath, std::string_view chu
 	return status;
 }
 
-int Luau::requirefile(lua_State* L, std::string_view filename, std::string_view chunkname)
-{
-  	const char* requirepaths_fmt[] = { "./scripts/%s.luau", "./scripts/%s/%s.luau" };
+int Luau::requirefile(lua_State* L, std::string filename, std::string chunkname, std::string requirestring)
+{  
+     query_replace(requirestring, ";", " ");
 
-	char* text = nullptr;
+	 std::stringstream requirestream(requirestring);
 	
-	for (const auto& fmt : requirepaths_fmt) {
-	    const char* path = TextFormat(fmt, filename.data(), filename.data());
-        
-	    if (FileExists(path)) {
-		  text = LoadFileText(path);
-		  break;
+	 char* text = nullptr;
+
+	 std:: string path;
+
+	 while (requirestream >> path) {	
+		query_replace(path, "?", filename);
+		
+		if (FileExists(path.data())) {
+		    text = LoadFileText(path.data());
+		    break;
 	    }
 	}
 	
 	if (text == nullptr) {
-	  log(TextFormat("couldn't require %s", filename.data()));
+	    log(TextFormat("couldn't require %s", filename.data()));
 	    return 1;
 	}
 
@@ -127,11 +119,12 @@ int Luau::requirefile(lua_State* L, std::string_view filename, std::string_view 
 	return status;
 }
 
-int Luau::require(lua_State* L, std::string_view filename)
+int Luau::require(lua_State* L, std::string filename)
 {
-     std::string_view requirepaths = "./scripts/?.luau;./scripts/?/?.luau";
-
-	 int result = requirefile(L, filename, TextFormat("require:%s", filename.data()));
+     std::string requirestring = "./scripts/?.luau;./scripts/?/?.luau";
+	 std::string chunkname = "require:" + filename;
+	 
+	 int result = requirefile(L, filename, chunkname, requirestring);
 
 	 if (result != 0 ) return 1;
 

@@ -42,8 +42,8 @@ if Modlist.Menu.showUi then
 				
 				    if mod:match("^[%.%w%-_]+%.tbm") then
 					    --Api.Reset()
-					    ms.portTBM(mod:match("^[%w%-_]+"))
-					    --loadmod(`./mods/{mod}`)
+					    --ms.portTBM(mod:match("^[%w%-_]+"))
+					    loadmod(`./mods/{mod}`)
 					    --Game.Reset()
 					    --Game.ImportMod()
 					    --Game.NewGame()

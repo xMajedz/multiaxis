@@ -2,15 +2,14 @@
 
 local Console = require "Ui/Console"
 
-Console.InsertMessage(`version: {Game.Version}`)
-
 --     insert the intro message into the chat
 
-for k, v in require("intro") do
-	Console.InsertMessage(k .. ": " .. v)
+for i, message in require("intro") do
+    Console.InsertMessage(`{message.lable}: {message.content}`)
 end
 
 Console.ShowMessages()
 
 --     load the menu
 Console.Menu = require "Ui/Menu"
+Console.Menu.Console = Console

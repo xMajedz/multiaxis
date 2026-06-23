@@ -15,11 +15,10 @@ enum Context
 
 } DataContext = NoContext;
 
-static void log(std::string_view message)
+static void log(std::string message)
 {
     std::cout << message << std::endl;
 }
-
 
 static void log_luau(const char* msg)
 {
@@ -57,7 +56,7 @@ void Api::Init()
 	SetTraceLogCallback(log_raylib);
 }
 
-void Api::Boot(std::string_view filename)
+void Api::Boot(std::string filename)
 {
     lua_State* T = lua_newthread(ML);
 	luaL_sandboxthread(T);
@@ -71,9 +70,9 @@ void Api::Boot(std::string_view filename)
 	switch(status)
 	{
 	case LUA_OK:
-		 lua_pop(T, 1);
+		 lua_pop(ML, 1);
 		 break;
-	case LUA_COERR:
+	case LUA_ERRRUN:     
 		 Luau::log(luaL_tolstring(T, -1, NULL));
 		 break;
 	}
@@ -163,6 +162,7 @@ size_t Api::GetPlayersCount()
 
 enum CallbackEvent {
   PROTOTYPE = 0,
+  
   NEW_GAME,
   FREEZE,
   STEP,
@@ -217,7 +217,7 @@ int Api::UpdateCallback(dReal dt)
     return 0;
 }
 
-int Api::ConsoleCallback(std::string_view message)
+int Api::ConsoleCallback(std::string message)
 {
     lua_rawgeti(ML, LUA_REGISTRYINDEX, EventList[CONSOLE]);
 	lua_pushstring(ML, message.data());
@@ -238,7 +238,7 @@ int Api::FileDroppedCallback(FilePathList files)
 }
 
 
-int Api::loadscript(lua_State* L, std::string_view scriptpath)
+int Api::loadscript(lua_State* L, std::string scriptpath)
 {
     Luau::loadfile(
         L,
@@ -256,82 +256,76 @@ static void parseTBM(std::string filename)
 	if (file.is_open()) {
 	    std::string line;
 
-		int context = 0;
 		int version = 0;
+		int context = 0;
+
+		int env_obj_id = 0;
+		int env_obj_joint_id = 0;
+
+		int player_id = 0;
+        int body_id = 0;
+		int joint_id = 0;
+
+		std::string body_name;
+		std::string joint_name;
 		
 		Gamerules gamerules;
 		
         size_t i;
 		while (std::getline(file, line)) {
-	        i = line.find("version");
-			if (i != std::string::npos) {
-			    size_t s = line.find(' ');
-			    if (i != std::string::npos) {
-			        std::string field = line.substr(0, s);
-			        std::string value = line.substr(s + 1);
-					version = std::stoi(value);
-				}
-				
+		    std::stringstream datastream(line);
+		    std::string data;
+		    datastream >> data;
+		    
+			if (data == "version") {
+			    if (datastream >> version) std::cout << version << std::endl;
+			  	
 				continue;
 			}
 			
-			i = line.find("gamerule");
-			if (i != std::string::npos) {
-			    size_t s = line.find(' ');
-			    if (i != std::string::npos) {
-				  context = 1;
-				}
+			if (data == "gamerule") {
+			    context = 1;
 				
 				continue;
 			}
 
-			i = line.find("env_obj ");
-			if (i != std::string::npos) {
-			    size_t s = line.find(' ');
-			    if (i != std::string::npos) {
-				  context = 2;
-				}
-				//Console::log(line);
+			if (data == "env_obj") {
+			    context = 2;
+				
+				if (datastream >> env_obj_id) std::cout << env_obj_id << std::endl;
+				
 				continue;
 			}
 
-			i = line.find("env_obj_joint ");
-			if (i != std::string::npos) {
-			    size_t s = line.find(' ');
-			    if (i != std::string::npos) {
-				  context = 3;
-				}
-				//Console::log(line);
+			if (data == "env_obj_joint") {
+			    context = 3;
+				
+				if (datastream >> env_obj_joint_id) std::cout << env_obj_joint_id << std::endl;
+				
 				continue;
 			}
 			
-			i = line.find("player ");
-			if (i != std::string::npos) {
-			    size_t s = line.find(' ');
-			    if (i != std::string::npos) {
-				  context = 4;
-				}
-				//Console::log(line);
+			if (data == "player") {
+			    context = 4;
+				
+				if (datastream >> player_id) std::cout << player_id << std::endl;
+				
 				continue;
 			}
 
-			i = line.find("body ");
-			if (i != std::string::npos) {
-			    size_t s = line.find(' ');
-			    if (i != std::string::npos) {
-				  context = 5;
-				}
-				Console::log(line);
+			if (data == "body") {
+				context = 5;
+				
+				if (datastream >> body_name) std::cout << body_name << std::endl;
+				
 				continue;
 			}
 
-			i = line.find("joint ");
-			if (i != std::string::npos) {
-			    size_t s = line.find(' ');
-			    if (i != std::string::npos) {
-				  context = 6;
-				}
-				Console::log(line);
+			if (data == "joint") {
+				context = 6;
+
+				if (datastream >> joint_name) std::cout << joint_name << std::endl;
+				
 				continue;
 			}
 
@@ -346,7 +340,7 @@ static void parseTBM(std::string filename)
 	}
 }
 
-int Api::loadmod(lua_State* L, std::string_view modpath)
+int Api::loadmod(lua_State* L, std::string modpath)
 {
     Luau::loadfile(
         L,
@@ -364,7 +358,7 @@ void Api::SetHotKey(int key, int ref)
 
 static int Api_loadmod(lua_State* L)
 {
-    const char* modpath = lua_tostring(L, 1);
+    std::string modpath = lua_tostring(L, 1);
     parseTBM(modpath);
 	return 0;
 }
@@ -1270,9 +1264,9 @@ static int Api_loadscript(lua_State* L)
 	switch(status)
 	{
 	case LUA_OK:
-		 lua_pop(T, 1);
+		 lua_pop(L, 1);
 		 break;
-	case LUA_COERR:  
+	case LUA_ERRRUN:  
 		 Luau::log(luaL_tolstring(T, -1, NULL));
 		 break;
 	}
@@ -1282,15 +1276,13 @@ static int Api_loadscript(lua_State* L)
 
 void Console::SetCallback(ConsoleCallback_t callback)
 {
-	if (callback != nullptr) console_callback = callback;
+	console_callback = callback;
 }
 
-void Console::log(std::string_view message)
+void Console::log(std::string message)
 {
     Api::ConsoleCallback(message);
 	if (console_callback != nullptr) console_callback(message);
-
-	//if (console_callback != nullptr) std::cout << message << std::endl;
 }
 
 static int Api_log(lua_State* L)

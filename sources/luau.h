@@ -9,13 +9,13 @@ typedef void (*LuauLogCallback)(const char*);
 
 namespace Luau
 {
-    int loadfile    (lua_State* L, std::string_view filename, std::string_view chunkname);
-    int requirefile (lua_State* L, std::string_view filename, std::string_view chunkname);
+    int loadstring  (lua_State* L, std::string string,   std::string chunkname);
+
+	int loadfile    (lua_State* L, std::string filename, std::string chunkname);
+
+    int requirefile (lua_State* L, std::string filename, std::string chunkname, std::string requirestring);
 	
-	int dostring (lua_State* L, std::string_view string,   std::string_view chunkname);
-	int dofile   (lua_State* L, std::string_view filename);
-	int dofile   (lua_State* L, std::string_view filename, std::string_view chunkname);
-	int require  (lua_State* L, std::string_view filename);
+    int require     (lua_State* L, std::string filename);
 
     void log(const char* msg);
 	  
