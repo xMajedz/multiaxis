@@ -7,19 +7,43 @@ using namespace raylib;
 #include "raymath.h"
 #include "rlgl.h"
 
-void Game::Init()
+Game::Game()
+{
+}
+
+Game::~Game()
+{
+	if (state.running) {
+        Reset();
+        dCloseODE();
+    }
+
+    Api::Close();
+    Replay::Close();
+}
+
+void Game::Start()
 {
     GetSettings();
 
-    dInitODE();
-	
-    cache = new Arena(cache_size);
-	mod_data = new Arena(2 * 1024 * 1024);
-	
-    Replay::Init();
+	dInitODE();
 
-    state.time = GetTime();
+	cache = new Arena(cache_size);
+
+	Replay::Init();
+	
+	state.time = GetTime();
     state.running = true;
+}
+
+bool Game::Running()
+{
+	return state.running;
+}
+
+void Game::Quit()
+{
+    state.running = !state.running;
 }
 
 void Game::GetSettings()
@@ -78,19 +102,49 @@ void Game::ImportMod()
 {
     rules = Api::GetRules();
 
+    planes.reserve(Api::GetEnvPlanesCount());
+	planes = Api::GetEnvPlanes();
+	/*
+	for (auto& object : Api::GetObjects()) {
+	    if (object.static_) {
+		  static_objects.push_back(object);
+	    } else {
+		  dynamic_objects.push_back(object);
+		}
+	}
+	
+	Console::log(std::to_string(static_objects.size()));
+	Console::log(std::to_string(dynamic_objects.size()));
+	*/
     o_count = Api::GetObjectsCount();
-    jo_count = Api::GetJointObjectsCount();
-
-    p_count = Api::GetPlayersCount();
-
-    objects.reserve(o_count);
+	objects.reserve(o_count);
     objects = Api::GetObjects();
+	
+    //jo_count = Api::GetJointObjectsCount();
 
-    joint_objects.reserve(jo_count);
-    joint_objects = Api::GetJointObjects();
+    //p_count = Api::GetPlayersCount();
+    
+    //joint_objects.reserve(jo_count);
+    //joint_objects = Api::GetJointObjects();
 
-    players.reserve(p_count);
-    players = Api::GetPlayers();
+    //players.reserve(p_count);
+    //players = Api::GetPlayers();
+}
+
+void Game::CreateDynamicObject(EnvObject& object)
+{
+}
+
+void Game::CreateStaticObject(EnvObject& object)
+{
+}
+
+void Game::CreatePlane(EnvPlane& plane)
+{
+    plane.geom_ = dCreatePlane(space, plane.param.x, plane.param.y, plane.param.z, plane.param.w);
+    dGeomSetData(plane.geom_, &plane.data_);
+	dGeomSetCategoryBits(plane.geom_, 1);
+	dGeomSetCollideBits(plane.geom_,  0);
 }
 
 void Game::NewGame()
@@ -108,22 +162,31 @@ void Game::NewGame()
 	world = dWorldCreate();
     dWorldSetERP(world, 0.45);
     dWorldSetCFM(world, 10E-2);
+    dWorldSetGravity(world, rules.gravity.x, rules.gravity.y, rules.gravity.z);
 
-    step = 1.0f / 60.0f;
+	step = 1.0f / 60.0f;
 
     space = dHashSpaceCreate(0);
     contactgroup = dJointGroupCreate(0);
-    floor = dCreatePlane(space, 0.00, 0.00, 1.00, 0.10);
-
-    dGeomSetCategoryBits(floor, 0b0001);
-    dGeomSetCollideBits(floor, 0b0000);
-
-    dWorldSetGravity(world, rules.gravity.x, rules.gravity.y, rules.gravity.z);
-
-    for (auto& o : objects) {
-        o.Create(world, space);
+	
+    for (auto& plane : planes) {
+	    CreatePlane(plane);
+	}
+	
+    for (auto& object : objects) {
+        object.Create(world, space);
     }
-
+	
+	/*
+	for (auto& object : static_objects) {
+	    object.Create(world, space);
+	}
+	
+	for (auto& object : dynamic_objects) {
+	    object.Create(world, space);
+	}
+	*/
+	/*
     for (auto& jo : joint_objects) {
         jo.Create(world, space, objects[jo.connections[0]], objects[jo.connections[1]]);
     }
@@ -146,42 +209,18 @@ void Game::NewGame()
 
         p.SetOffset();
     }
-
+    */
     state.running = true;
 
 	ResetGhostCache();
 
 	Replay::WriteMetaData();
-
+	
     Api::NewGameCallback();
 }
 
-bool Game::Running()
-{
-	return state.running;
-}
-
-void Game::Stop()
-{
-    state.running = !state.running;
-}
-
-void Game::Quit()
-{
-    if (state.running) {
-        Reset();
-        dCloseODE();
-    }
-
-    Api::Close();
-
-    Replay::Close();
-}
-
-static void attachContact(BodyUserData* data, dBodyID b1, dBodyID b2)
-{
-	using namespace Game;
-
+void Game::attachContact(dUserData* data, dBodyID b1, dBodyID b2)
+{    
 	if (data != nullptr && data->contact_joint == nullptr && data->active) {
 		data->contact_joint = dJointCreateFixed(world, 0);
 		dJointAttach(data->contact_joint, b1, b2);
@@ -196,8 +235,6 @@ static void attachContact(BodyUserData* data, dBodyID b1, dBodyID b2)
 
 static void nearCallback(void*, dGeomID o1, dGeomID o2)
 {
-	using namespace Game;
-
 	if (o1 == nullptr || o2 == nullptr) return;
 
 	dBodyID b1 = dGeomGetBody(o1);
@@ -214,30 +251,40 @@ static void nearCallback(void*, dGeomID o1, dGeomID o2)
 
 	if (!(cat1 & col2 || cat2 & col1)) return;
 
+    dUserData* data1 = static_cast<dUserData*>(dGeomGetData(o1));
+	dUserData* data2 = static_cast<dUserData*>(dGeomGetData(o2));
+
+	//std::cout << "o1: " << data1 << std::endl;
+	//std::cout << "o2: " << data2 << std::endl;
+
+	Game& Game_ = Game::GetInstance();
+
+	auto rules = Game_.GetGamerules();
+
 	dContact contacts[rules.max_contacts];
 
+	dReal mu = 0;
+	dReal rho = 0;
+	dReal bounce = 0;
+	
 	for (int i = 0; i < rules.max_contacts; i += 1) {
 		contacts[i].surface = (dSurfaceParameters) {
 			.mode = dContactApprox1|dContactBounce|dContactRolling,
-			.mu = rules.friction,
-			.rho = 0,
-			.bounce = rules.bounce,
+			.mu = mu,
+			.rho = rho,
+			.bounce = bounce,
 		};
-
-		m_frame_contacts[i] = contacts[i];
 	}
 
-	numcontacts = dCollide(o1, o2, rules.max_contacts, &contacts->geom, sizeof(dContact));
+	int numc = dCollide(o1, o2, rules.max_contacts, &contacts->geom, sizeof(dContact));
 
-	for (int i = 0; i < numcontacts; i += 1) {
-		dJointID c = dJointCreateContact(world, contactgroup, &contacts[i]);
+	for (int i = 0; i < numc; i += 1) {
+		dJointID c = dJointCreateContact(Game_.world, Game_.contactgroup, &contacts[i]);
 		dJointAttach(c, b1, b2);
 	}
-
-	numcollisions += 1;
-
-	attachContact((BodyUserData*)dGeomGetData(o1), b1, b2);
-	attachContact((BodyUserData*)dGeomGetData(o2), b1, b2);
+	
+    //Game_.attachContact(data1, b1, b2);
+	//Game_.attachContact(data2, b1, b2);
 }
 
 void Game::Refreeze()
@@ -334,8 +381,6 @@ bool Game::TurnFrameGhostEnabled()
 template <class T>
 static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 {
-    using namespace Game;
-
 	float angle;
 	Vector3 axis;
 
@@ -353,17 +398,9 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 	BeginMode3D(camera);
 	
 	rlPushMatrix();
-	rlTranslatef(
-		    p.x,
-		    p.y,
-		    p.z
-	);
-	
+	rlTranslatef(p.x, p.y, p.z);
 	rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
-
-	/*
-	 */
-
+	
 	switch(o.shape)
 	{
 	case BOX:
@@ -398,9 +435,6 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 		break;
 	}
 	
-	/*
-	 */
-
 	rlPopMatrix();
 
 	EndMode3D();
@@ -410,24 +444,14 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 template<class T>
 static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, Color color)
 {
-    using namespace Game;
-
 	float angle;
 	Vector3 axis;
 
 	QuaternionToAxisAngle(q, &axis, &angle);
 
 	rlPushMatrix();
-	rlTranslatef(
-		    p.x,
-		    p.y,
-		    p.z
-	);
-	
+	rlTranslatef(p.x, p.y, p.z);
 	rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
-
-	/*
-	 */
 
 	auto shader = ResourceManager::GetShader(0);
 
@@ -480,21 +504,20 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 		  break;
 	}
 
-	/*
-	 */
-
 	rlPopMatrix();
 }
 
 static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 {
-  	using namespace Game;
+    Game& Game_ = Game::GetInstance();
 
 	uint32_t j_total = 0;
 	uint32_t b_total = 0;
-
+	
+    size_t p_count = Game_.p_count;
 	uint32_t player_offset[p_count] = { 0 };
 
+	auto& players = Game_.GetPlayers();
 	for (int pID = 0; pID < p_count; pID += 1) {
 	    player_offset[pID] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
 	  
@@ -502,7 +525,7 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 		b_total += players[pID].b_count;
 	}
 
-    //for (int oID = 0; oID < o_count;  oID +=1 )
+    //for (int oID = 0; oID < o_count;  oID +=1)
 	
     for (int pID = 0; pID < p_count; pID += 1) {
 	    auto& p = players[pID];
@@ -512,7 +535,7 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 		for (int jID = 0; jID < p.j_count; jID += 1) {
 			auto& j = p.joint[jID];
 
-			auto* j_cache = (PlayerFrameJoint*)(buffer + j_offset + sizeof(PlayerFrameJoint) * jID);
+			auto* j_cache = reinterpret_cast<PlayerFrameJoint*>(buffer + j_offset + sizeof(PlayerFrameJoint) * jID);
 
 			j_cache->position.x = j.frame_position.x;
 			j_cache->position.y = j.frame_position.y;
@@ -529,7 +552,7 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 		for (int bID = 0; bID < p.b_count; bID += 1) {
 			auto& b = p.body[bID];
 			
-            auto* b_cache = (PlayerFrameBody*)(buffer + b_offset + sizeof(PlayerFrameBody) * bID);
+            auto* b_cache = reinterpret_cast<PlayerFrameBody*>(buffer + b_offset + sizeof(PlayerFrameBody) * bID);
 
 			b_cache->position.x = b.frame_position.x;
 			b_cache->position.y = b.frame_position.y;
@@ -545,60 +568,63 @@ static void RecordFrameToBuffer(uintptr_t buffer, size_t offset)
 
 static void RecordGhostCache()
 {
-    using namespace Game;
+    Game& Game_ = Game::GetInstance();
 	
 	uint32_t j_total = 0;
 	uint32_t b_total = 0;
 
+	size_t p_count = Game_.p_count;
 	uint32_t player_offset[p_count] = { 0 };
 
+	auto& players = Game_.GetPlayers();
 	for (int pID = 0; pID < p_count; pID += 1) {	  
 		j_total += players[pID].j_count;
 		b_total += players[pID].b_count;
 	}
 
-    frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
+    Game_.frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
   	
-    RecordFrameToBuffer(cache->buffer(), ghost_cache_offset + ghost_cache_frames * frame_size);
-	ghost_cache_frames += 1;
+    RecordFrameToBuffer(Game_.cache->buffer(), Game_.ghost_cache_offset + Game_.ghost_cache_frames * Game_.frame_size);
+	Game_.ghost_cache_frames += 1;
 }
 
 static void RecordReplayCache()
 {
-    using namespace Game;
-		
+    Game& Game_ = Game::GetInstance();
+
 	uint32_t j_total = 0;
 	uint32_t b_total = 0;
-
+    size_t p_count = Game_.p_count;
 	uint32_t player_offset[p_count] = { 0 };
-
+	
+    auto& players = Game_.GetPlayers();
 	for (int pID = 0; pID < p_count; pID += 1) {	  
 		j_total += players[pID].j_count;
 		b_total += players[pID].b_count;
 	}
 
-    frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
+    Game_.frame_size = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;
    
-	RecordFrameToBuffer(cache->buffer(), replay_cache_frames * frame_size);
-	replay_cache_frames += 1;
+	RecordFrameToBuffer(Game_.cache->buffer(), Game_.replay_cache_frames * Game_.frame_size);
+	Game_.replay_cache_frames += 1;
 	
-	ghost_cache_offset = frame_size * replay_cache_frames;
+	Game_.ghost_cache_offset = Game_.frame_size * Game_.replay_cache_frames;
 }
 
 void Game::Update(dReal dt)
 {
 	Api::UpdateCallback(dt);
-
+	
 	if (!state.pause) {
-		for (auto& o : objects) o.Step();
-		for (auto& p : players) p.Step();
+	    for (auto& o : objects) o.Step();
+	  //for (auto& p : players) p.Step();
 
 		if (!state.freeze) {
 			switch (state.mode)
 			{
 			case SELF_PLAY: case FREE_PLAY:
 			    if (ReplayCacheEnabled()) {
-			        RecordReplayCache();
+				  //RecordReplayCache();
 				}
 						
 				if (state.game_frame >= state.freeze_frame) {
@@ -612,7 +638,7 @@ void Game::Update(dReal dt)
 				size_t max_frame = Replay::GetMaxFrame();
 
 				if (ReplayCacheEnabled() && !ReplayCacheIsReady()) {
-				    RecordReplayCache();
+				  //RecordReplayCache();
 				}
 				
 				if (state.game_frame >= max_frame + 100) {
@@ -647,7 +673,7 @@ void Game::Update(dReal dt)
 				}
 				
                 if (GhostCacheEnabled() && !GhostCacheIsReady()) {
-					RecordGhostCache();
+				  //RecordGhostCache();
 				}
 	
 				break;
@@ -680,14 +706,17 @@ void Game::Update(dReal dt)
 
 static PlayerFrameJoint* GetPlayerJointFromBuffer(uintptr_t buffer, size_t offset, size_t frame, PlayerID pID, JointID jID)
 {
-    using namespace Game;
-
+    Game& Game_ = Game::GetInstance();
+  
 	uint32_t j_total = 0;
     uint32_t b_total = 0;
 
+	size_t p_count = Game_.p_count;
 	uint32_t player_offset[p_count] = { 0 };
+	
+    auto& players = Game_.GetPlayers();
 
-    for (int i = 0; i < p_count; i += 1) {
+	for (int i = 0; i < p_count; i += 1) {
 	    player_offset[i] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;    
 
 		j_total += players[i].j_count;
@@ -698,21 +727,23 @@ static PlayerFrameJoint* GetPlayerJointFromBuffer(uintptr_t buffer, size_t offse
    	
 	uint32_t j_offset = frame_offset + player_offset[pID];
 
-    auto j_cache = (PlayerFrameJoint*)(buffer + j_offset + sizeof(PlayerFrameJoint) * jID);
+    PlayerFrameJoint* j_cache = reinterpret_cast<PlayerFrameJoint*>(buffer + j_offset + sizeof(PlayerFrameJoint) * jID);
 
 	return j_cache;
-
 }
 
 static PlayerFrameBody* GetPlayerBodyFromBuffer(uintptr_t buffer, size_t offset, size_t frame, PlayerID pID, BodyID bID)
 {
-    using namespace Game;
+    Game& Game_ = Game::GetInstance();
 	
 	uint32_t j_total = 0;
     uint32_t b_total = 0;
-
+	
+    size_t p_count = Game_.p_count;
 	uint32_t player_offset[p_count] = { 0 };
 
+	auto& players = Game_.GetPlayers();
+	
     for (int i = 0; i < p_count; i += 1) {
 	    player_offset[i] = sizeof(PlayerFrameJoint) * j_total + sizeof(PlayerFrameBody) * b_total;    
 
@@ -726,40 +757,57 @@ static PlayerFrameBody* GetPlayerBodyFromBuffer(uintptr_t buffer, size_t offset,
 
 	uint32_t b_offset = frame_offset + player_offset[pID] + sizeof(PlayerFrameJoint) * p.j_count;
 
-    auto* b_cache = (PlayerFrameBody*)(buffer + b_offset + sizeof(PlayerFrameBody) * bID);
+    PlayerFrameBody* b_cache = reinterpret_cast<PlayerFrameBody*>(buffer + b_offset + sizeof(PlayerFrameBody) * bID);
 
 	return b_cache;
 }
 
 static PlayerFrameJoint* GetPlayerJointFromGhostCache(uint32_t frame, PlayerID pID, JointID jID)
 {
-    using namespace Game;
-    return GetPlayerJointFromBuffer(cache->buffer(), ghost_cache_offset, frame, pID, jID);
+    Game& Game_ = Game::GetInstance();
+    return GetPlayerJointFromBuffer(Game_.cache->buffer(), Game_.ghost_cache_offset, frame, pID, jID);
 }
 
 static PlayerFrameBody* GetPlayerBodyFromGhostCache(uint32_t frame, PlayerID pID, BodyID bID)
 {
-    using namespace Game;
-    return GetPlayerBodyFromBuffer(cache->buffer(), ghost_cache_offset, frame, pID, bID);
+    Game& Game_ = Game::GetInstance();
+    return GetPlayerBodyFromBuffer(Game_.cache->buffer(), Game_.ghost_cache_offset, frame, pID, bID);
 }
 
 static PlayerFrameJoint* GetPlayerJointFromReplayCache(uint32_t frame, PlayerID pID, JointID jID)
 {
-    using namespace Game;
-    return GetPlayerJointFromBuffer(cache->buffer(), 0, frame, pID, jID);
+    Game& Game_ = Game::GetInstance();
+    return GetPlayerJointFromBuffer(Game_.cache->buffer(), 0, frame, pID, jID);
 }
 
 static PlayerFrameBody* GetPlayerBodyFromReplayCache(uint32_t frame, PlayerID pID, BodyID bID)
 {
-    using namespace Game;
-    return GetPlayerBodyFromBuffer(cache->buffer(), 0, frame, pID, bID);
+    Game& Game_ = Game::GetInstance();
+    return GetPlayerBodyFromBuffer(Game_.cache->buffer(), 0, frame, pID, bID);
 }
 
 /*
  * Draw
  */
 
-void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color, bool draw_state)
+void Game::DrawPlane(EnvPlane& plane)
+{
+    float angle;
+    Vector3 axis;
+	
+	Vector3 dir = { 0.00, 1.00, 0.00 };	
+	Vector3 rot = { plane.param.x, plane.param.y, plane.param.z };
+
+	QuaternionToAxisAngle(QuaternionFromVector3ToVector3(dir, Vector3Normalize(rot)), &axis, &angle);
+	
+	rlPushMatrix();
+	rlTranslatef(rot.x * plane.param.w, rot.y * plane.param.w, rot.z * plane.param.w);
+    rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
+    DrawGrid(2, 10);
+    rlPopMatrix();
+}
+
+void Game::DrawPlayerJoint(Joint j, vec4<dReal> j_q, vec3<dReal> j_p, Color color, bool draw_state)
 {
     Quaternion q = { j_q.x, j_q.y, j_q.z, j_q.w };
 
@@ -802,7 +850,7 @@ void Game::DrawPlayerJoint(Joint j, vec4 j_q, vec3 j_p, Color color, bool draw_s
     }
 }
 
-void Game::DrawPlayerBody(Body b, vec4 b_q, vec3 b_p, Color color)
+void Game::DrawPlayerBody(Body b, vec4<dReal> b_q, vec3<dReal> b_p, Color color)
 {
     Quaternion q = { b_q.x, b_q.y, b_q.z, b_q.w };
 
@@ -833,18 +881,27 @@ void Game::DrawFloor()
 
     rlPushMatrix();
     rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
-    DrawGrid(2, 20);
+    DrawGrid(2, 10);
     rlPopMatrix();
 }
 
 void Game::Draw(Camera3D camera)
 {
-	for (int oID = 0; oID < objects.size(); oID += 1) {
+    BeginMode3D(camera);
+
+	for (auto& plane : planes) {
+	    DrawPlane(plane);
+	}
+	
+	EndMode3D();
+	
+    BeginMode3D(camera);
+	for (int oID = 0; oID < o_count; oID += 1) {
 	    auto& o = objects[oID];
 		
 		Quaternion q = { 0 };
 		Vector3 p = { 0 };
-        BeginMode3D(camera);
+        
 		if (state.freeze) {
 		    q.x = o.freeze_orientation.x;
 			q.y = o.freeze_orientation.y;
@@ -857,20 +914,20 @@ void Game::Draw(Camera3D camera)
 			p.z = o.freeze_position.z;
 
 			switch (o.shape)
-	{
-	case BOX:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
-	  break;
-	case SPHERE:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
-	  break;
-	case CYLINDER:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	  break;
-	case CAPSULE:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	  break;
-	}
+	        {
+	        case BOX:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
+	            break;
+	        case SPHERE:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
+	            break;
+	        case CYLINDER:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	            break;
+	        case CAPSULE:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	            break;
+	        }
 			
 		    q.x = o.frame_orientation.x;
 			q.y = o.frame_orientation.y;
@@ -882,20 +939,20 @@ void Game::Draw(Camera3D camera)
             p.z = o.frame_position.z;
 
 			switch (o.shape)
-	{
-	case BOX:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_g_color);
-	  break;
-	case SPHERE:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_g_color);
-	  break;
-	case CYLINDER:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
-	  break;
-	case CAPSULE:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
-	  break;
-	}
+	        {
+	        case BOX:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_g_color);
+	            break;
+	        case SPHERE:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_g_color);
+	            break;
+	        case CYLINDER:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
+	            break;
+	        case CAPSULE:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
+	            break;
+	        }
 	    } else {
 		    Quaternion q = {
                 o.frame_orientation.x,
@@ -909,26 +966,27 @@ void Game::Draw(Camera3D camera)
                 o.frame_position.y,
                 o.frame_position.z,
             };
-switch (o.shape)
-	{
-	case BOX:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
-	  break;
-	case SPHERE:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
-	  break;
-	case CYLINDER:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	  break;
-	case CAPSULE:
-	  DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	  break;
-	}
+			
+            switch (o.shape)
+	        {
+	        case BOX:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
+	            break;
+	        case SPHERE:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
+	            break;
+	        case CYLINDER:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	            break;
+	        case CAPSULE:
+	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
+	            break;
+	        }
 	    }
-		EndMode3D();
     }
-
-    for (PlayerID pID = 0; pID < players.size(); pID += 1) {
+	EndMode3D();
+	
+	/*for (PlayerID pID = 0; pID < players.size(); pID += 1) {
 	    auto& p = players[pID];
 	    BeginMode3D(camera);
 	    for (JointID jID = 0; jID < p.j_count; jID += 1) {
@@ -1003,9 +1061,9 @@ switch (o.shape)
     if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
 	    auto& j = players[state.selected_player].joint[state.selected_joint];
 	    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, j.m_select_color, false);
-    }
-
-    DrawFloor();
+		}*/
+	
+    BeginMode3D(camera);
     
 	Api::Draw3DCallback();
 	
@@ -1019,7 +1077,7 @@ size_t Game::GetContactCount()
 
 void Game::SetBackgroundColor(uint16_t r, uint16_t g, uint16_t b, uint16_t a)
 {
-	background_color = {r, g, b, a};
+  //background_color = {r, g, b, a};
 }
 
 void Game::SetGameFrame(uint32_t frame)
@@ -1078,7 +1136,7 @@ Gamerules& Game::GetGamerules()
 	return rules;
 }
 
-std::string_view Game::GetMod()
+std::string Game::GetMod()
 {
 	return rules.mod;
 }
@@ -1105,12 +1163,12 @@ dReal Game::GetReactionCount()
 
 size_t Game::GetObjectCount()
 {
-	return objects.size();
+    return o_count;
 }
 
 size_t Game::GetPlayerCount()
 {
-	return players.size();
+    return p_count;
 }
 
 size_t Game::GetPlayerBodyCount(PlayerID player_id)
@@ -1123,7 +1181,7 @@ size_t Game::GetPlayerJointCount(PlayerID player_id)
 	return players[player_id].joint.size();
 }
 
-std::vector<Body> Game::GetObjects()
+std::vector<Body>& Game::GetObjects()
 {
 	return objects;
 }
@@ -1173,7 +1231,7 @@ dReal Game::GetSelectedJointVelocityAlt()
 	return players[state.selected_player].joint[state.selected_joint].velocity_alt;
 }
 
-std::vector<Player> Game::GetPlayers()
+std::vector<Player>& Game::GetPlayers()
 {
 	return players;
 }
@@ -1240,19 +1298,8 @@ void Game::ToggleReplayCache()
 
 void Game::ToggleGhosts()
 {
-  for (PlayerID pID = 0; pID < p_count; pID += 1) {
-    if (state.selected_player == -1) {
-      player_ghosts[pID] = player_ghosts[pID] != 0;
-      //players[pID].ToggleGhost();
-    } else if (pID != state.selected_player) {
-      player_ghosts[pID] = player_ghosts[pID] != 0;
-      //players[pID].ToggleGhost();
-    }
-  }
-  
-  Refreeze();
+    Refreeze();
 }
-
 
 void Game::TogglePlayerPassiveStatesAlt(PlayerID player_id)
 {
@@ -1381,7 +1428,7 @@ void Game::ToggleSelectedPlayerBodyStates()
 {
 	for (auto& b : players[state.selected_player].body)
 	{
-		if (b.m_interactive)
+		if (b.interactive_)
 			b.ToggleState();
 	}
 
@@ -1556,7 +1603,7 @@ void Window::Init()
 
 	ResourceManager::Init();
 
-	Game::background_color = BLACK;
+	//Game::background_color = BLACK;
 
 	background = LoadRenderTexture(width, height);
 	foreground = LoadRenderTexture(width, height);
@@ -1679,7 +1726,7 @@ void ResourceManager::DrawModel(uint32_t model_id)
 
 static void ActionTogglePause(void)
 {
-    Game::TogglePause();
+    Game::GetInstance().TogglePause();
 }
 
 void InputManager::Init()
@@ -1719,7 +1766,7 @@ void Window::GetSettings()
 template <class T>
 static RayCollision CollideObject(Ray ray, T o)
 {
-	using namespace Game;
+    Game& Game_ = Game::GetInstance();
 
 	RayCollision collision = { 0 };
 
@@ -1794,14 +1841,16 @@ static RayCollision CollideObject(Ray ray, T o)
 
 static void gSelector(Camera3D camera)
 {
-    using namespace Game;
+    Game& Game_ = Game::GetInstance();
 
     Ray ray = GetMouseRay(GetMousePosition(), camera);
 
     RayCollision col1 = { 0 };
     RayCollision col2 = { 0 };
-    
-    for (BodyID oID = 0; oID < o_count; oID += 1) {
+
+	auto objects = Game_.GetObjects();
+
+	for (BodyID oID = 0; oID < Game_.o_count; oID += 1) {
         col1 = CollideObject(ray, objects[oID]);
 
         if (col1.hit && (col2.distance == 0 || col2.distance > col1.distance)) {
@@ -1811,7 +1860,9 @@ static void gSelector(Camera3D camera)
 
     bool hit = false;
 
-    for (PlayerID pID = 0; pID < p_count; pID += 1) {
+	auto players = Game_.GetPlayers();
+	
+    for (PlayerID pID = 0; pID < Game_.p_count; pID += 1) {
         for (JointID jID = 0; jID < players[pID].j_count; jID += 1) {
             col1 = CollideObject(ray, players[pID].joint[jID]);
 
@@ -1825,7 +1876,7 @@ static void gSelector(Camera3D camera)
             }
         }
 
-        if (state.selected_player != selected_player)
+        if (Game_.state.selected_player != selected_player)
             selected_joint = -1;
 
         if (hit) break;
@@ -1850,7 +1901,7 @@ static void gSelector(Camera3D camera)
 
         selected_player = -1;
         selected_body = -1;
-    }
+	}
 }
 
 void Window::Update()
@@ -1870,20 +1921,22 @@ void Window::Update()
 
 	const auto& camera = Gamecam::Get();
 
-	gSelector(camera);
+	//gSelector(camera);
 
 	InputManager::Update();
+
+    Game& Game_ = Game::GetInstance();
 	
-	if (Game::GetSelectedPlayerID() != -1)
-		Game::SetSelectedJoint(selected_joint);
+	if (-1 != Game_.GetSelectedPlayerID())
+		Game_.SetSelectedJoint(selected_joint);
 
 	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-		Game::SetSelectedPlayer(selected_player);
+		Game_.SetSelectedPlayer(selected_player);
 
-	if (0 > Game::GetSelectedPlayerID()) {
-		Gamecam::UpdateSpectatorcam(Game::GetFreeze(), Game::GetPlayers());
+	if  (0 > Game_.GetSelectedPlayerID()) {
+	    Gamecam::UpdateSpectatorcam(Game_.GetFreeze(), Game_.GetPlayers());
 	} else {
-		Gamecam::UpdatePlaycam(Game::GetFreeze(), Game::GetSelectedPlayer());
+	    Gamecam::UpdatePlaycam(Game_.GetFreeze(), Game_.GetSelectedPlayer());
 	}
 
 	Gamecam::Update();
@@ -1897,11 +1950,9 @@ void Window::Update()
 
 void Window::RenderBackground(Camera3D camera)
 {
-	using namespace Game;
-
 	BeginTextureMode(background);
-	    ClearBackground(background_color);
-		Game::Draw(camera);
+	    ClearBackground(BLACK);
+		Game::GetInstance().Draw(camera);
 	EndTextureMode();
 }
 
@@ -2027,15 +2078,18 @@ void Replay::Destroy()
 
 void Replay::WriteMetaData()
 {
-	auto mod = Game::GetMod();
-	auto p_count = Game::GetPlayerCount();
+    Game& Game_ = Game::GetInstance();
+	auto mod = Game_.GetMod();
+	auto p_count = Game_.GetPlayerCount();
+	
 	std::string meta = "M ";
 	std::string details = "";
-	
-	meta.append(TextFormat("%s %d %d", mod.data(), Game::GetObjectCount(), p_count));
+
+	auto o_count = Game_.GetObjectCount();
+	meta.append(TextFormat("%s %d %d", mod.data(), o_count, p_count));
 
 	for (int i = 0; i < p_count; i += 1) {
-		details.append(TextFormat(" %d %d", Game::GetPlayerJointCount(i), Game::GetPlayerBodyCount(i)));
+		details.append(TextFormat(" %d %d", Game_.GetPlayerJointCount(i), Game_.GetPlayerBodyCount(i)));
 	}
 
 	meta.append(TextFormat("%s", details.data()));
@@ -2048,29 +2102,30 @@ void Replay::WriteMetaData()
 
 	auto buffer = (uint32_t*)data->allocate(sizeof(uint32_t) * (2 + 2 * p_count));
 
-	buffer[0] = Game::GetObjectCount();
+	buffer[0] = o_count;
 	buffer[1] = p_count;
 
 	uint32_t o = 2;
 
 	for (uint32_t i = 0; i < p_count; i += 1) {
-		buffer[o + 0] = Game::GetPlayerJointCount(i);
-		buffer[o + 1] = Game::GetPlayerBodyCount(i);
+		buffer[o + 0] = Game_.GetPlayerJointCount(i);
+		buffer[o + 1] = Game_.GetPlayerBodyCount(i);
 		o += 2;
 	}
 }
 
 void Replay::WriteFrameData(std::string data)
 {
-	auto mod = Game::GetMod();
-	auto p_count = Game::GetPlayerCount();
+    Game& Game_ = Game::GetInstance();
+	auto mod = Game_.GetMod();
+	auto p_count = Game_.GetPlayerCount();
 	std::string meta = "M ";
 	std::string details = "";
 	
-	meta.append(TextFormat("%s %d %d", mod.data(), Game::GetObjectCount(), p_count));
+	meta.append(TextFormat("%s %d %d", mod.data(), Game_.GetObjectCount(), p_count));
 
 	for (int i = 0; i < p_count; i += 1) {
-		details.append(TextFormat(" %d %d", Game::GetPlayerJointCount(i), Game::GetPlayerBodyCount(i)));
+		details.append(TextFormat(" %d %d", Game_.GetPlayerJointCount(i), Game_.GetPlayerBodyCount(i)));
 	}
 
 	meta.append(TextFormat("%s\n%s", details.data(), data.data()));
@@ -2094,11 +2149,11 @@ bool Replay::CacheReady()
 
 void Replay::RecordFrame(int game_frame)
 {
-	using namespace Game;
-
 	std::string tempframe = "F ";
 	tempframe.append(TextFormat("%d\n", game_frame));
 
+	Game& Game_ = Game::GetInstance();
+    auto rules = Game_.GetGamerules();
 	max_frames = game_frame + rules.turnframes;
 
 	uint32_t* buffer = (uint32_t*)data->buffer();
@@ -2137,7 +2192,7 @@ void Replay::RecordFrame(int game_frame)
 		uint32_t j_count = p_buffer[p_id * p_count + 0];
 
 		for (uint32_t j_id = 0; j_id < j_count; j_id += 1) {
-			const auto& j = Game::GetJoint(p_id, j_id);
+			const auto& j = Game_.GetJoint(p_id, j_id);
 			uint8_t* state_buffer = (uint8_t*)(buffer + (chunk_start + p_id * j_count));
 			uint8_t state_byte = j.state + (j.state_alt << 2);
 			state_buffer[j_id] = state_byte;
@@ -2153,7 +2208,7 @@ void Replay::RecordFrame(int game_frame)
 		uint32_t b_count = p_buffer[p_id * p_count + 1];
 		
 		for (uint32_t b_id = 0; b_id < b_count; b_id += 1) {
-			const auto& b = Game::GetBody(p_id, b_id);
+			const auto& b = Game_.GetBody(p_id, b_id);
 			uint8_t* state_buffer = (uint8_t*)(buffer + (chunk_start + 5 * p_count * j_total + p_id * b_count));
 			state_buffer[b_id] = (uint8_t)b.active;
 
@@ -2241,6 +2296,8 @@ void Replay::PlayFrame(int game_frame)
 
 	uint32_t chunk_start = sizeof(uint32_t) * (p_offset + 1) + chunk_size * chunk;
 
+	Game& Game_ = Game::GetInstance();
+
 	for (uint32_t p_id = 0; p_id < p_count; p_id += 1) {
 		uint32_t* p_buffer = (buffer + 2);
 
@@ -2253,8 +2310,8 @@ void Replay::PlayFrame(int game_frame)
 			uint8_t state = state_byte - (state_alt << 2);
 			
 			double* vel_buffer = (double*)(buffer + (chunk_start + p_count * j_total + 4 * p_id * j_count));
-			Game::TriggerPlayerJoint(p_id, j_id, (JointState)state, vel_buffer[2 * j_id + 0]);
-			Game::TriggerPlayerJointAlt(p_id, j_id, (JointState)state_alt, vel_buffer[2 * j_id + 1]);
+			Game_.TriggerPlayerJoint(p_id, j_id, (JointState)state, vel_buffer[2 * j_id + 0]);
+			Game_.TriggerPlayerJointAlt(p_id, j_id, (JointState)state_alt, vel_buffer[2 * j_id + 1]);
 		}
 
 		uint32_t b_count = p_buffer[p_id * p_count + 1];
@@ -2262,7 +2319,7 @@ void Replay::PlayFrame(int game_frame)
 		for (uint32_t b_id = 0; b_id < b_count; b_id += 1) {
 			uint8_t* state_buffer = (uint8_t*)(buffer + (chunk_start + 5 * p_count * j_total + p_id * b_count));
             bool state = (bool)state_buffer[b_id];
-			Game::SetBodyState(p_id, b_id, state);
+			Game_.SetBodyState(p_id, b_id, state);
 			//LOG(b_id << " " << (int)state_buffer[b_id])
 
 			//auto& Qw = *((double*)p.Q + b_id * 4 + 0);
@@ -2349,7 +2406,7 @@ void Replay::Export(std::string replay_name)
 
 	std::ofstream savedreplayfile(replay.append(".rpl"), std::ios::binary);
 
-	auto mod = Game::GetMod();
+	auto mod = Game::GetInstance().GetMod();
 	
 	for (int i = 0; i < mod.size(); i += 1) {
 		if (mod.data()[i] != '\0') {
@@ -2398,7 +2455,7 @@ void Replay::Export(std::string replay_name)
 	savedreplayfile.close();
 }
 
-std::string_view Replay::GetMod()
+std::string Replay::GetMod()
 {
 	return mod;
 }

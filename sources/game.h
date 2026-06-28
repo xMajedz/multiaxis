@@ -14,7 +14,7 @@ enum Gamemode
 
 struct Gamerules
 {
-	std::string_view mod = "nomod";
+	std::string mod = "nomod";
 
 	int numplayers;
 	int turnframes;
@@ -25,7 +25,7 @@ struct Gamerules
 	dReal friction;
 	dReal bounce;
 
-	vec3 gravity;
+	vec3<dReal> gravity;
 };
 
 struct Gamestate
@@ -56,79 +56,168 @@ struct Gamestate
 	bool pause = false;
 };
 
+struct EnvPhysicsObject
+{
+    dReal friction;
+    dReal bounce;
+  
+    dGeomID geom_ = nullptr;
+    dUserData data_;
+
+};
+  
+struct EnvPlane : EnvPhysicsObject
+{
+    vec4<dReal> param;
+};
+
+struct EnvObject : EnvPhysicsObject
+{
+  	raylib::Color color;
+	raylib::Color g_color;
+
+    BodyShape shape;
+	
+    vec4<dReal> orientation;
+	vec3<dReal> position;
+	vec3<dReal> offset;
+	vec3<dReal> sides;
+
+    dReal radius;
+	dReal length;
+	dReal mass;
+  
+   	uint32_t flag_;
+	bool static_;
+	bool interactive_;
+    bool composite_;
+
+    dMass mass_;
+
+    dBodyID body_ = nullptr;
+};
+
+struct EnvJoint : public EnvObject
+{
+    JointType type;
+	JointState state;
+	JointState state_alt;
+
+	BodyID connections[2];
+
+    vec3<dReal> axis;
+    vec3<dReal> axis_alt;
+
+	dReal range[2];
+	dReal range_alt[2];
+	dReal strength;
+	dReal strength_alt;
+	dReal velocity;
+	dReal velocity_alt;
+
+	dReal frame_vel;
+	dReal frame_vel_alt;
+
+    dJointID joint_ = nullptr;
+};
+
+struct StaticEnv
+{
+    std::vector<EnvPlane> planes;
+    std::vector<EnvObject> objects;
+};
+
+struct DynamicEnv
+{
+    std::vector<EnvObject> objects;
+    std::vector<EnvJoint> joints;
+};
+
+struct ModData
+{
+    Gamerules rules;
+    StaticEnv static_env;
+    DynamicEnv dynamic_env;
+};
+
 struct PlayerFrameJoint
 {
-    vec3 position;
-    vec4 orientation;
+    vec3<dReal> position;
+    vec4<dReal> orientation;
 };
 
 struct PlayerFrameBody
 {
-    vec3 position;
-    vec4 orientation;
+    vec3<dReal> position;
+    vec4<dReal> orientation;
 };
 
-namespace Game
-{
-	static Gamestate state;
-	static Gamerules rules;
+class Game {
+public:	
+    static Game& GetInstance()
+    {
+        static Game instance;
+        return instance;
+    }
+  
+    void Start();
+	void Restart();
+    void Reset();
+ 	void Quit();
 
-	static dWorldID world = nullptr;
-	static dSpaceID space = nullptr;
-	static dJointGroupID contactgroup = nullptr;
+	bool Running();
+
+ 	Gamestate state;
+	Gamerules rules;
+
+	dWorldID world = nullptr;
+	dSpaceID space = nullptr;
+	dJointGroupID contactgroup = nullptr;
+
+	dMass mass;
+	dReal step;
 	
-	static dGeomID floor = nullptr;
-	static dReal floor_friction = 10E3;
-	static dReal floor_bounce = 0;
+	dGeomID floor = nullptr;
+	dReal floor_friction = 10E3;
+	dReal floor_bounce = 0;
+	dUserData floor_data;
 
-	static raylib::Color background_color = { 0 };
+    std::vector<EnvPlane> planes;
+	std::vector<Body> objects;
 
-	static Arena* mod_data = nullptr;
-			
-	static std::vector<Body> objects;
+	std::vector<Body> dynamic_objects;
+	std::vector<Body> static_objects;
+	std::vector<Joint> joint_objects;
 
-	static std::vector<Body> dynamic_objects;
-	static std::vector<Body> static_objects;
-	static std::vector<Joint> joint_objects;
+	std::vector<Player> players;
+	int player_ghosts[16];
 
-	static std::vector<Player> players;
-	static int player_ghosts[16];
+	Arena* cache = nullptr;
+	size_t cache_size = 4 * 1024 * 1024;
 
-	static Arena* cache = nullptr;
-	static size_t cache_size = 4 * 1024 * 1024;
-
-	static size_t frame_size = 0;
+	size_t frame_size = 0;
 	
-	static bool ghost_cache_enabled = false;
-	static uint32_t ghost_cache_offset = 0;
-	static uint32_t ghost_cache_frames = 0;
+	bool ghost_cache_enabled = false;
+	uint32_t ghost_cache_offset = 0;
+	uint32_t ghost_cache_frames = 0;
 
-	static uint32_t ghost_length = 50;
-	static uint8_t  ghost_transparency = 255;
-    static bool turnframe_ghost = false;
+	uint32_t ghost_length = 50;
+	uint8_t  ghost_transparency = 255;
+    bool turnframe_ghost = false;
  
-	static bool replay_cache_enabled = false;
-	static uint32_t replay_cache_frames = 0;
+	bool replay_cache_enabled = false;
+	uint32_t replay_cache_frames = 0;
 
-	static size_t o_count;
-	static size_t jo_count;
+	size_t o_count;
+	size_t jo_count;
 
-	static size_t p_count;
-	
-	static dMass mass;
+	size_t p_count;
 
-	static dReal step;
+	dContact m_frame_contacts[1024];
+	dContact m_freeze_contacts[1024];
 
-	static dContact m_frame_contacts[1024];
-	static dContact m_freeze_contacts[1024];
-
-	static int numcontacts;
-	static int numcollisions;
-
-	void Init();
-	void Quit();
-
-	void Stop();
+	int numcontacts;
+	int numcollisions;
 
 	void TogglePause();
 
@@ -168,8 +257,8 @@ namespace Game
 	Gamemode GetGamemode();
 	Gamerules& GetGamerules();
 
-	std::vector<Player> GetPlayers();
-	std::vector<Body> GetObjects();
+	std::vector<Player>& GetPlayers();
+	std::vector<Body>& GetObjects();
 	
 	void NearCallback(dGeomID o1, dGeomID o2);
 
@@ -180,7 +269,7 @@ namespace Game
 	void SetTurnFrames(size_t frames);
 	void SetReactionTime(size_t t);
 
-	std::string_view GetMod();
+	std::string GetMod();
 
 	size_t GetContactCount();
 	size_t GetObjectCount();
@@ -193,11 +282,12 @@ namespace Game
 
 	dReal GetReactionTime();
 	dReal GetReactionCount();
-
-	void Start();
-	void Reset();
-
+	
 	void ImportMod();
+    void CreateDynamicObject(EnvObject& object);
+    void CreateStaticObject(EnvObject& object);
+
+    void CreatePlane(EnvPlane& plane);  
 	void NewGame();
 	
 	void ToggleGhosts();
@@ -247,9 +337,10 @@ namespace Game
 
 	void DrawContacts(bool freeze);
 	void DrawFloor();
+    void DrawPlane(EnvPlane& plane);
 
-	void DrawPlayerJoint(Joint j, vec4 q, vec3 p, raylib::Color color, bool draw_state);
-	void DrawPlayerBody(Body b, vec4 q, vec3 p, raylib::Color color);
+    void DrawPlayerJoint(Joint j, vec4<dReal> q, vec3<dReal> p, raylib::Color color, bool draw_state);
+	void DrawPlayerBody(Body b, vec4<dReal> q, vec3<dReal> p, raylib::Color color);
 
 	void DrawPlayer(PlayerID pID, raylib::Color j_color, raylib::Color b_color);
 	void DrawPlayerFreeze(PlayerID pID);
@@ -276,10 +367,13 @@ namespace Game
 	void Freeze();
 	void Refreeze();
 
-	void Restart();
-	void Loop();
+    void attachContact(dUserData* data, dBodyID b1, dBodyID b2);
 
-	bool Running();
+    Game(const Game&) = delete;
+    Game& operator=(const Game&) = delete;
+private:
+	Game();
+	~Game();
 };
 
 namespace Window
@@ -354,7 +448,7 @@ namespace ResourceManager
 
 namespace Replay 
 {
-	static std::string_view mod;
+	static std::string mod;
 
 	static Arena* data = nullptr;
 	static Arena* cache = nullptr;
@@ -384,7 +478,7 @@ namespace Replay
 
 	void Destroy();
 
-	std::string_view GetMod();
+	std::string GetMod();
 
 	size_t GetMaxFrame();
 }

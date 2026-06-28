@@ -12,8 +12,11 @@ enum BodyShape
 	COMPOSITE,
 };
 
-struct BodyUserData
+struct dUserData
 {
+    int group;
+    int id;
+  
 	bool active;
 	dContact contact;
 	dJointID contact_joint = nullptr;
@@ -21,16 +24,16 @@ struct BodyUserData
 
 struct Body
 {
-	BodyUserData m_data;
+	dUserData data_;
 
-	BodyID m_id;
+	BodyID id_;
 
-	std::string m_name;
+	std::string name_;
 
-	dMass mass;
+	dMass mass_;
 
-	dWorldID m_world;
-	dSpaceID m_space;
+	dWorldID world_;
+	dSpaceID space_;
 
 	dBodyID dBody;
 	dGeomID dGeom;
@@ -40,25 +43,29 @@ struct Body
 	dReal radius;
 	dReal length;
 	dReal density;
+    dReal mass;
+  
+    dReal friction;
+    dReal bounce;
+  
+    vec4<dReal> m_orientation;
+	vec3<dReal> m_position;
+	vec3<dReal> m_offset;
+	vec3<dReal> m_sides;
 
-	vec4 m_orientation;
-	vec3 m_position;
-	vec3 m_offset;
-	vec3 m_sides;
+	vec3<dReal> frame_linear_vel;
+	vec3<dReal> frame_angular_vel;
 
-	vec3 frame_linear_vel;
-	vec3 frame_angular_vel;
+	vec4<dReal> frame_orientation;
+	vec3<dReal> frame_position;
+	vec3<dReal> frame_offset;
 
-	vec4 frame_orientation;
-	vec3 frame_position;
-	vec3 frame_offset;
+	vec3<dReal> freeze_linear_vel;
+	vec3<dReal> freeze_angular_vel;
 
-	vec3 freeze_linear_vel;
-	vec3 freeze_angular_vel;
-
-	vec4 freeze_orientation;
-	vec3 freeze_position;
-	vec3 freeze_offset;
+	vec4<dReal> freeze_orientation;
+	vec3<dReal> freeze_position;
+	vec3<dReal> freeze_offset;
 
 	raylib::Color m_color;
 	raylib::Color m_g_color;
@@ -71,17 +78,19 @@ struct Body
 
 	bool ghost;
 
-	bool m_composite;
+    uint8_t flag_;
+	
+	bool static_;
+	bool interactive_;
+    bool composite_;
 
-	bool m_static;
-	bool m_interactive;
-	uint32_t m_cat_bits;
+    uint32_t m_cat_bits;
 	uint32_t m_col_bits;
 
 	Body() {};
-	Body(BodyID id, const char* name);
+    Body(BodyID id, std::string name);
 
-	void SetOffset(vec3 offset);
+    void SetOffset(vec3<dReal> offset);
 	void SetColor(raylib::Color color);
 
 	void Create(dWorldID world, dSpaceID space);
@@ -159,8 +168,8 @@ struct Joint : public Body
 
 	BodyID connections[2];
 
-	vec3 axis;
-	vec3 axis_alt;
+    vec3<dReal> axis;
+    vec3<dReal> axis_alt;
 
 	dReal range[2];
 	dReal range_alt[2];
@@ -172,7 +181,7 @@ struct Joint : public Body
 	dReal frame_vel;
 	dReal frame_vel_alt;
 
-	Joint(JointID id, const char* name);
+    Joint(JointID id, std::string name);
 
 	void Create(dWorldID world, dSpaceID space, Body b1, Body b2);
 

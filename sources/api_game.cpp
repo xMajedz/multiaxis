@@ -3,403 +3,483 @@
 
 static int Game_SetMode(lua_State* L)
 {
-    Game::SetMode((Gamemode)lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetMode((Gamemode)lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_SetGameFrame(lua_State* L)
 {
-    Game::SetGameFrame((uint32_t)lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetGameFrame((uint32_t)lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_SetBackgroundColor(lua_State* L)
 {
-    Game::SetBackgroundColor(lua_tointeger(L, -4), lua_tointeger(L, -3), lua_tointeger(L, -2), lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetBackgroundColor(lua_tointeger(L, -4), lua_tointeger(L, -3), lua_tointeger(L, -2), lua_tointeger(L, -1));
+    return 0;
 }
 
 static int Game_ImportMod(lua_State* L)
 {
-    Game::ImportMod();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ImportMod();
+    return 0;
 }
 
 static int Game_NewGame(lua_State* L)
 {
-    Game::NewGame();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.NewGame();
+    return 0;
 }
 
 static int Game_Step(lua_State* L)
 {
-    Game::Step(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    if (lua_gettop(L) == 0) {
+	  Game_.Step(1);
+	} else {
+	  Game_.Step(lua_tointeger(L, 1));
+	}
+    return 0;
 }
 
 static int Game_EnterMode(lua_State* L)
 {
-    Game::EnterMode((Gamemode)lua_tointeger(L, -2), (bool)lua_toboolean(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.EnterMode((Gamemode)lua_tointeger(L, -2), (bool)lua_toboolean(L, -1));
+    return 0;
 }
 
 static int Game_GhostCacheEnabled(lua_State* L)
 {
-    lua_pushboolean(L, Game::GhostCacheEnabled());
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.GhostCacheEnabled());
     return 1;
 }
 
 static int Game_GhostCacheIsReady(lua_State* L)
 {
-    lua_pushboolean(L, Game::GhostCacheIsReady());
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.GhostCacheIsReady());
     return 1;
 }
 
 static int Game_ToggleGhostCache(lua_State* L)
 {
-    Game::ToggleGhostCache();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleGhostCache();
+    return 0;
 }
 
 static int Game_TurnFrameGhostEnabled(lua_State* L)
 {
-    lua_pushboolean(L, Game::TurnFrameGhostEnabled());
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.TurnFrameGhostEnabled());
     return 1;
 }
 
 static int Game_ToggleTurnFrameGhost(lua_State* L)
 {
-    Game::ToggleTurnFrameGhost();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleTurnFrameGhost();
+    return 0;
 }
 
 static int Game_ReplayCacheEnabled(lua_State* L)
 {
-    lua_pushboolean(L, Game::ReplayCacheEnabled());
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.ReplayCacheEnabled());
     return 1;
 }
 static int Game_ReplayCacheIsReady(lua_State* L)
 {
-    lua_pushboolean(L, Game::ReplayCacheIsReady());
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.ReplayCacheIsReady());
     return 1;
 }
 
 static int Game_ToggleReplayCache(lua_State* L)
 {
-    Game::ToggleReplayCache();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleReplayCache();
+    return 0;
 }
 
 static int Game_ToggleGhosts(lua_State* L)
 {
-    Game::ToggleGhosts();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleGhosts();
+    return 0;
 }
 
 static int Game_UndoSelectedPlayerMove(lua_State* L)
 {
-    Game::UndoSelectedPlayerMove();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.UndoSelectedPlayerMove();
+    return 0;
 }
 
 static int Game_ToggleBodyState(lua_State* L)
 {
-    Game::ToggleBodyState(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleBodyState(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_ToggleSelectedBodyState(lua_State* L)
 {
-    Game::ToggleSelectedBodyState();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleSelectedBodyState();
+    return 0;
 }
 
 static int Game_ToggleSelectedPlayerBodyStates(lua_State* L)
 {
-    Game::ToggleSelectedPlayerBodyStates();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleSelectedPlayerBodyStates();
+    return 0;
 }
 
 static int Game_TogglePause(lua_State* L)
 {
-    Game::TogglePause();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.TogglePause();
+    return 0;
 }
 
 static int Game_SetGravity(lua_State* L)
 {
-    Game::SetGravity(lua_tonumber(L, -3), lua_tonumber(L, -2), lua_tonumber(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetGravity(lua_tonumber(L, -3), lua_tonumber(L, -2), lua_tonumber(L, -1));
+    return 0;
 }
 
 static int Game_SetMaxContacts(lua_State* L)
 {
-    Game::SetMaxContacts(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetMaxContacts(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_SetFriction(lua_State* L)
 {
-    Game::SetFriction(lua_tonumber(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetFriction(lua_tonumber(L, 1));
+    return 0;
 }
 
 static int Game_SetBounce(lua_State* L)
 {
-    Game::SetBounce(lua_tonumber(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetBounce(lua_tonumber(L, 1));
+    return 0;
 }
 
 static int Game_SetTurnFrames(lua_State* L)
 {
-    Game::SetTurnFrames(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetTurnFrames(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_SetReactionTime(lua_State* L)
 {
-    Game::SetReactionTime(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.SetReactionTime(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_GetFreeze(lua_State* L)
 {
-    lua_pushboolean(L, Game::GetFreeze());
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.GetFreeze());
     return 1;
 }
 
 static int Game_GetPause(lua_State* L)
 {
-    lua_pushboolean(L, Game::GetPause());
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.GetPause());
     return 1;
 }
 
 static int Game_IsMode(lua_State* L)
 {
-    lua_pushboolean(L, Game::GetGamemode() == (Gamemode)lua_tointeger(L, -1));
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.GetGamemode() == (Gamemode)lua_tointeger(L, 1));
     return 1;
 }
 
 static int Game_GetMod(lua_State* L)
 {
-    auto mod = Game::GetMod();
+    Game& Game_ = Game::GetInstance();
+	std::string mod = Game_.GetMod();
     lua_pushlstring(L, mod.data(), mod.size());
     return 1;
 }
 
 static int Game_GetMaxContacts(lua_State* L)
 {
-    lua_pushinteger(L, Game::GetMaxContacts());
+    Game& Game_ = Game::GetInstance();
+    lua_pushinteger(L, Game_.GetMaxContacts());
     return 1;
 }
 
 static int Game_GetGameFrame(lua_State* L)
 {
-    lua_pushinteger(L, Game::GetGameFrame());
+    Game& Game_ = Game::GetInstance();
+    lua_pushinteger(L, Game_.GetGameFrame());
     return 1;
 }
 
 static int Game_GetReactionTime(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetReactionTime());
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetReactionTime());
     return 1;
 }
 
 static int Game_GetReactionCount(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetReactionCount());
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetReactionCount());
     return 1;
 }
 
 static int Game_GetContactCount(lua_State* L)
 {
-    lua_pushinteger(L, Game::GetContactCount());
+    Game& Game_ = Game::GetInstance();
+    lua_pushinteger(L, Game_.GetContactCount());
     return 1;
 }
 
 static int Game_GetObjectCount(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetObjectCount());
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetObjectCount());
     return 1;
 }
 
 static int Game_GetPlayerCount(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetPlayerCount());
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetPlayerCount());
     return 1;
 }
 
 static int Game_GetPlayerBodyCount(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetPlayerBodyCount(lua_tointeger(L, -1)));
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetPlayerBodyCount(lua_tointeger(L, 1)));
     return 1;
 }
 
 static int Game_GetPlayerJointCount(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetPlayerJointCount(lua_tointeger(L, -1)));
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetPlayerJointCount(lua_tointeger(L, 1)));
     return 1;
 }
 
 static int Game_GetSelectedPlayerID(lua_State* L)
 {
-    lua_pushinteger(L, Game::GetSelectedPlayerID());
+    Game& Game_ = Game::GetInstance();
+    lua_pushinteger(L, Game_.GetSelectedPlayerID());
     return 1;
 }
 
 static int Game_IsSelectedPlayerValid(lua_State* L)
 {
-    lua_pushboolean(L, Game::GetSelectedPlayerID() != -1);
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.GetSelectedPlayerID() != -1);
     return 1;
 }
 
 static int Game_Refreeze(lua_State* L)
 {
-    Game::Refreeze();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.Refreeze();
+    return 0;
 }
 
 static int Game_TogglePlayerPassiveStatesAlt(lua_State* L)
 {
-    Game::TogglePlayerPassiveStatesAlt(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.TogglePlayerPassiveStatesAlt(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_TogglePlayerPassiveStates(lua_State* L)
 {
-    Game::TogglePlayerPassiveStates(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.TogglePlayerPassiveStates(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_GetSelectedJointID(lua_State* L)
 {
-    lua_pushinteger(L, Game::GetSelectedJointID());
+    Game& Game_ = Game::GetInstance();
+    lua_pushinteger(L, Game_.GetSelectedJointID());
     return 1;
 }
 
 static int Game_GetSelectedJointVelocity(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetSelectedJointVelocity());
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetSelectedJointVelocity());
     return 1;
 }
 
 static int Game_GetSelectedJointVelocityAlt(lua_State* L)
 {
-    lua_pushnumber(L, Game::GetSelectedJointVelocityAlt());
+    Game& Game_ = Game::GetInstance();
+    lua_pushnumber(L, Game_.GetSelectedJointVelocityAlt());
     return 1;
 }
 
 static int Game_IsSelectedJointValid(lua_State* L)
 {
-    lua_pushboolean(L, Game::GetSelectedJointID() != -1);
+    Game& Game_ = Game::GetInstance();
+    lua_pushboolean(L, Game_.GetSelectedJointID() != -1);
     return 1;
 }
 
 static int Game_ToggleJointActiveStateAlt(lua_State* L)
 {
-    Game::ToggleJointActiveStateAlt(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleJointActiveStateAlt(lua_tointeger(L, -1));
+    return 0;
 }
+
 static int Game_ToggleJointActiveState(lua_State* L)
 {
-    Game::ToggleJointActiveState(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+	Game_.ToggleJointActiveState(lua_tointeger(L, 1));
+    return 0;
 }
 static int Game_ToggleJointPassiveStateAlt(lua_State* L)
 {
-    Game::ToggleJointPassiveStateAlt(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleJointPassiveStateAlt(lua_tointeger(L, 1));
+    return 0;
 }
 static int Game_ToggleJointPassiveState(lua_State* L)
 {
-    Game::ToggleJointPassiveState(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleJointPassiveState(lua_tointeger(L, 1));
+    return 0;
 }
 static int Game_CycleJointStateAlt(lua_State* L)
 {
-    Game::CycleJointStateAlt(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.CycleJointStateAlt(lua_tointeger(L, 1));
+    return 0;
 }
 static int Game_CycleJointState(lua_State* L)
 {
-    Game::CycleJointState(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.CycleJointState(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_ReverseCycleJointStateAlt(lua_State* L)
 {
-    Game::ReverseCycleJointStateAlt(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ReverseCycleJointStateAlt(lua_tointeger(L, 1));
+    return 0;
 }
 static int Game_ReverseCycleJointState(lua_State* L)
 {
-    Game::ReverseCycleJointState(lua_tointeger(L, -1));
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ReverseCycleJointState(lua_tointeger(L, 1));
+    return 0;
 }
 
 static int Game_ToggleSelectedPlayerPassiveStatesAlt(lua_State* L)
 {
-    Game::ToggleSelectedPlayerPassiveStatesAlt();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleSelectedPlayerPassiveStatesAlt();
+    return 0;
 }
 
 static int Game_ToggleSelectedPlayerPassiveStates(lua_State* L)
 {
-    Game::ToggleSelectedPlayerPassiveStates();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleSelectedPlayerPassiveStates();
+    return 0;
 }
 
 static int Game_ToggleSelectedJointActiveStateAlt(lua_State* L)
 {
-    Game::ToggleSelectedJointActiveStateAlt();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+	if (lua_gettop(L) == 0) {
+        Game_.ToggleSelectedJointActiveStateAlt();
+	} else {
+	    Game_.ToggleSelectedJointActiveStateAlt(lua_tonumber(L, 1));
+	}
+    return 0;
 }
 
 static int Game_ToggleSelectedJointActiveState(lua_State* L)
 {
-    Game::ToggleSelectedJointActiveState();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+	if (lua_gettop(L)) {
+        Game_.ToggleSelectedJointActiveState();
+	} else {
+	    Game_.ToggleSelectedJointActiveState(lua_tonumber(L, 1));
+	}
+    return 0;
 }
 
 static int Game_ToggleSelectedJointPassiveStateAlt(lua_State* L)
 {
-    Game::ToggleSelectedJointPassiveStateAlt();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleSelectedJointPassiveStateAlt();
+    return 0;
 }
 
 static int Game_ToggleSelectedJointPassiveState(lua_State* L)
 {
-    Game::ToggleSelectedJointPassiveState();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ToggleSelectedJointPassiveState();
+    return 0;
 }
 
 static int Game_CycleSelectedJointStateAlt(lua_State* L)
 {
-    Game::CycleSelectedJointStateAlt();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.CycleSelectedJointStateAlt();
+    return 0;
 }
 
 static int Game_CycleSelectedJointState(lua_State* L)
 {
-    Game::CycleSelectedJointState();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.CycleSelectedJointState();
+    return 0;
 }
 
 static int Game_ReverseCycleSelectedJointStateAlt(lua_State* L)
 {
-    Game::ReverseCycleSelectedJointStateAlt();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.ReverseCycleSelectedJointStateAlt();
+    return 0;
 }
 
 static int Game_ReverseCycleSelectedJointState(lua_State* L)
 {
-    Game::CycleSelectedJointState();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.CycleSelectedJointState();
+    return 0;
 }
 
 static int Game_GetGamerules(lua_State* L)
 {
-    auto rules = Game::GetGamerules();
+    auto rules = Game::GetInstance().GetGamerules();
     lua_newtable(L);
     lua_pushstring(L, rules.mod.data());
     lua_setfield(L, -2, "mod");
@@ -432,15 +512,17 @@ static int Game_GetGamerules(lua_State* L)
 
 static int Game_Reset(lua_State* L)
 {
-    Game::Reset();
-    return 1;
+    Game& Game_ = Game::GetInstance();
+    Game_.Reset();
+    return 0;
 }
 
 static int Game_Quit(lua_State* L)
 {
-    Game::Stop();
-    return 1;
+    Game::GetInstance().Quit();
+    return 0;
 }
+
 static const luaL_Reg ApiGame[]
 {
     {"Reset", Game_Reset},
@@ -604,26 +686,14 @@ int luaopenApiGame(lua_State* L)
 
 static int Expermental_TriggerSelectedJointActiveStateAlt(lua_State* L)
 {
-    Game::TriggerSelectedJointActiveStateAlt(lua_tonumber(L, -1));
-    return 1;
+    Game::GetInstance().TriggerSelectedJointActiveStateAlt(lua_tonumber(L, 1));
+    return 0;
 }
 
 static int Expermental_TriggerSelectedJointActiveState(lua_State* L)
 {
-    Game::TriggerSelectedJointActiveState(lua_tonumber(L, -1));
-    return 1;
-}
-
-static int Expermental_ToggleSelectedJointActiveStateAlt(lua_State* L)
-{
-    Game::ToggleSelectedJointActiveStateAlt(lua_tonumber(L, -1));
-    return 1;
-}
-
-static int Expermental_ToggleSelectedJointActiveState(lua_State* L)
-{
-    Game::ToggleSelectedJointActiveState(lua_tonumber(L, -1));
-    return 1;
+    Game::GetInstance().TriggerSelectedJointActiveState(lua_tonumber(L, 1));
+    return 0;
 }
 
 static int Expermental_GenMeshPlane(lua_State* L)
@@ -702,9 +772,6 @@ static const luaL_Reg ApiExpermental[]
 {
     {"TriggerSelectedJointActiveStateAlt", Expermental_TriggerSelectedJointActiveStateAlt},
     {"TriggerSelectedJointActiveState", Expermental_TriggerSelectedJointActiveState},
-
-    {"ToggleSelectedJointActiveStateAlt", Expermental_ToggleSelectedJointActiveStateAlt},
-    {"ToggleSelectedJointActiveState", Expermental_ToggleSelectedJointActiveState},
 
     {"GenMeshPlane", Expermental_GenMeshPlane},
     {"LoadModelFromMesh", Expermental_LoadModelFromMesh},

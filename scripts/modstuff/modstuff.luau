@@ -559,6 +559,17 @@ function ms.portTBM(filename)
    --fs.line("tearthreshold 0")
    fs.line(`numplayers {tbm.numplayers}`)
 
+   fs.line("env_obj 1")
+   fs.line("  shape sphere")
+   fs.line("  pos 0.00 0.00 4.00")
+   fs.line("  mass 0.0001")
+   fs.line("  color 1.00 0.00 0.00 1.00")
+   fs.line("  rot 0.00 0.00 0.00")
+   fs.line("  sides 1.00 1.00 1.00")
+   fs.line("  force 0.00 0.00 0.00")
+   fs.line("  flag 0")
+   fs.line("  bounce 0.00")
+   fs.line("  friction 0.00")
 
    fs.writefile("./mods/port_" .. filename:gsub(".tbm", "") .. ".tbm")
 end

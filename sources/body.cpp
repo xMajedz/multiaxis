@@ -4,10 +4,10 @@ using namespace raylib;
 #include "raymath.h"
 #include "rlgl.h"
 
-Body::Body(BodyID id, const char* name)
+Body::Body(BodyID id, std::string name)
 {
-	m_id = id;
-	m_name = name;
+	id_ = id;
+	name_ = name;
 
 	dBody = nullptr;
 	dGeom = nullptr;
@@ -42,15 +42,18 @@ Body::Body(BodyID id, const char* name)
 	select = false;
 	m_select_color = Fade(WHITE, 0.10);
 
-	m_static = false;
-	m_composite = false;
-	m_interactive = false;
+	flag_ = 0;
+	static_ = false;
+	composite_ = false;
+	interactive_ = false;
+
+	data_.id = id;
 }
 
 void Body::Create(dWorldID world, dSpaceID space)
 {
-	m_world = world;
-	m_space = space;
+	world_ = world;
+	space_ = space;
 
 	frame_position = m_position;
 	freeze_position = m_position;
@@ -58,27 +61,30 @@ void Body::Create(dWorldID world, dSpaceID space)
 	frame_orientation = m_orientation;
 	freeze_orientation = m_orientation;
 
-	if (m_static) {
+	if (static_) {
 		CreateStatic();
+		data_.group = 1;
 	} else {
 		CreateDynamic();
+        data_.group = 2;
+		
 		m_col_bits = 0b0001;
 	}
 
 	SetCatBits();
 	SetColBits();
 	
-	if (!m_interactive) {
+	if (!interactive_) {
 		dGeomSetData(dGeom, nullptr);
 	} else {
-		m_data.active = false;
-		dGeomSetData(dGeom, &m_data);
+		data_.active = false;
+		dGeomSetData(dGeom, &data_);
 	}
 }
 
 void Body::CreateBody()
 {
-	dBody = dBodyCreate(m_world);
+	dBody = dBodyCreate(world_);
 
 	dBodySetPosition(
 		dBody,
@@ -91,27 +97,27 @@ void Body::CreateBody()
 
 	dBodySetQuaternion(dBody, q);
 
-	dBodySetMass(dBody, &mass);
+	dBodySetMass(dBody, &mass_);
 }
 
 void Body::CreateGeom()
 {
 	switch(shape) {
 	case BOX: {
-		dGeom = dCreateBox(m_space, m_sides.x, m_sides.y, m_sides.z);
-		dMassSetBox(&mass, density, m_sides.x, m_sides.y, m_sides.z);
+		dGeom = dCreateBox(space_, m_sides.x, m_sides.y, m_sides.z);
+		dMassSetBox(&mass_, density, m_sides.x, m_sides.y, m_sides.z);
 	} break;
 	case SPHERE: {
-		dGeom = dCreateSphere(m_space, radius);
-		dMassSetSphere(&mass, density, radius);
+		dGeom = dCreateSphere(space_, radius);
+		dMassSetSphere(&mass_, density, radius);
 	} break;
 	case CAPSULE: {
-		dGeom = dCreateCapsule(m_space, radius, length);
-		dMassSetCapsule(&mass, density, 1, length, radius);
+		dGeom = dCreateCapsule(space_, radius, length);
+		dMassSetCapsule(&mass_, density, 1, length, radius);
 	} break;
 	case CYLINDER: {
-		dGeom = dCreateCylinder(m_space, radius, length);
-		dMassSetCylinder(&mass, density, 1, length, radius);
+		dGeom = dCreateCylinder(space_, radius, length);
+		dMassSetCylinder(&mass_, density, 1, length, radius);
 	} break;
 	}
 	
@@ -174,7 +180,7 @@ void Body::SetColor(Color color)
 
 BodyID Body::GetID()
 {
-	return m_id;
+	return id_;
 }
 
 void Joint::Step()
@@ -212,11 +218,11 @@ void Joint::Step()
 
 void Body::Step()
 {
-	if (m_interactive) {
-		m_data.active = active;
+	if (interactive_) {
+		data_.active = active;
 	}
 
-	if (!m_static && dBody != nullptr) {
+	if (!static_ && dBody != nullptr) {
 		const dReal* linear_vel = dBodyGetLinearVel(dBody);
 		const dReal* angular_vel = dBodyGetAngularVel(dBody);
 
@@ -257,7 +263,7 @@ void Body::SetColBits()
 
 void Body::Freeze()
 {
-	if (!m_static) {
+	if (!static_) {
 		const dReal* linear_vel = dBodyGetLinearVel(dBody);
 		const dReal* angular_vel = dBodyGetAngularVel(dBody);
 
@@ -275,7 +281,7 @@ void Body::Freeze()
 
 void Body::Refreeze()
 {
-	if (!m_static) {
+	if (!static_) {
 		dBodySetLinearVel(
 			dBody, 
 			freeze_linear_vel.x,
@@ -461,7 +467,7 @@ void Body::Draw(bool freeze)
 			DrawFreeze(m_color);
 		}
 
-		if (!m_static) {
+		if (!static_) {
 			if (ghost) {
 				Draw(m_g_color);
 			}
@@ -483,13 +489,14 @@ void Body::ToggleState()
 
 std::string Body::GetName()
 {
-	return m_name;
+	return name_;
 }
 
-Joint::Joint(JointID id, const char* name)
+Joint::Joint(JointID id, std::string name)
 {
-	m_id = id;
-	m_name = name;
+	id_ = id;
+	name_ = name;
+	
 	state = RELAX;
 	state_alt = RELAX;
 
@@ -517,8 +524,8 @@ Joint::Joint(JointID id, const char* name)
 
 void Joint::Create(dWorldID world, dSpaceID space, Body b1, Body b2)
 {
-	m_world = world;
-	m_space = space;
+	world_ = world;
+	space_ = space;
 
 	frame_position = m_position;
 	freeze_position = m_position;
@@ -529,7 +536,7 @@ void Joint::Create(dWorldID world, dSpaceID space, Body b1, Body b2)
 	dVector3 v_axis = { axis.x, axis.y, axis.z };
 	dVector3 v_axis_alt = { axis_alt.x, axis_alt.y, axis_alt.z };
 
-	if (m_composite) {
+	if (composite_) {
 		CreateComposite(b1.dBody);
 		dBody = b1.dBody;
 		dGeomSetOffsetWorldPosition(dGeom, m_position.x, m_position.y, m_position.z);
@@ -538,7 +545,7 @@ void Joint::Create(dWorldID world, dSpaceID space, Body b1, Body b2)
 	switch(type)
 	{
 	case HINGE:
-		dJoint = dJointCreateHinge(world, 0);
+		dJoint = dJointCreateHinge(world_, 0);
 		dJointAttach(dJoint, b1.dBody, b2.dBody);
 		dJointSetHingeAnchor(
 			dJoint,
@@ -574,7 +581,7 @@ void Joint::Create(dWorldID world, dSpaceID space, Body b1, Body b2)
 
 		break;
 	case dSLIDER:
-		dJoint = dJointCreateSlider(world, 0);
+		dJoint = dJointCreateSlider(world_, 0);
 		dJointAttach(dJoint, b1.dBody, b2.dBody);
 		dJointSetSliderAxis(
 			dJoint,
@@ -597,7 +604,7 @@ void Joint::Create(dWorldID world, dSpaceID space, Body b1, Body b2)
 
 		break;
 	case UNIVERSAL:
-		dJoint = dJointCreateUniversal(world, 0);
+		dJoint = dJointCreateUniversal(world_, 0);
 		dJointAttach(dJoint, b1.dBody, b2.dBody);
 		dJointSetUniversalAnchor(
 			dJoint,
@@ -652,7 +659,7 @@ void Joint::Create(dWorldID world, dSpaceID space, Body b1, Body b2)
 
 		break;
 	case HINGE2:
-		dJoint = dJointCreateHinge2(world, 0);
+		dJoint = dJointCreateHinge2(world_, 0);
 		dJointAttach(dJoint, b1.dBody, b2.dBody);
 		dJointSetHinge2Anchor(
 			dJoint,
@@ -695,12 +702,12 @@ void Joint::Create(dWorldID world, dSpaceID space, Body b1, Body b2)
 
 		break;
 	default:
-		dJoint = dJointCreateFixed(world, 0);
+		dJoint = dJointCreateFixed(world_, 0);
 		dJointAttach(dJoint, b1.dBody, b2.dBody);
 		dJointSetFixed(dJoint);
 	}
 
-	if (m_composite) {
+	if (composite_) {
 		SetCatBits();
 		SetColBits();
 	}

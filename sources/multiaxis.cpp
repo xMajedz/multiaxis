@@ -37,28 +37,25 @@ int main(int argc, char* argv[])
 
 	Window::Init();
 
-    Game::Init();
+    Game& GameInstance = Game::GetInstance();
+    GameInstance.Start();
 
 	Api::Init();
 	
     Api::Boot(bootfile);
 
-    bool running = true;
+	bool running = true;
 
     while (running)
     {
         Window::Update();
 
-        Game::Update(Game::GetFrameTime());
+        GameInstance.Update(GameInstance.GetFrameTime());
         
         Window::Draw();
 
-        running = Game::Running() && !raylib::WindowShouldClose();
-
-        //Console::Update();
+        running = GameInstance.Running() && !raylib::WindowShouldClose();
     }
-
-    Game::Quit();
 
     Window::Close();
 }

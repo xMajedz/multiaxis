@@ -111,7 +111,7 @@ void Gamecam::UpdateSpectatorcam(bool freeze, std::vector<Player> players)
 	float z = 0.00;
 
 	size_t p_count = players.size();
-
+	
 	if (p_count > 0) {
 		for (auto& p : players) {
 			auto offset = p.GetOffset(freeze);

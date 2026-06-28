@@ -13,11 +13,11 @@ enum PlayerPassiveStates
 
 struct Player
 {
-	dMass m_mass;
+	dMass mass_;
 
-	PlayerID m_id;
+	PlayerID id_;
 
-	std::string_view m_name;
+	std::string name_;
 	
 	std::vector<Body> body;
 	std::vector<Joint> joint;
@@ -33,8 +33,8 @@ struct Player
 	raylib::Vector3 frame_offset;
 	raylib::Vector3 freeze_offset;
 
-	vec3 engagepos;
-	vec3 engagerot;
+	vec3<dReal> engagepos;
+	vec3<dReal> engagerot;
 
 	bool use_engagepos;
 	bool use_engagerot;
@@ -58,12 +58,12 @@ struct Player
 	void Ready();
 	bool IsReady();
 
-	Player(PlayerID id, std::string_view name);
-	Player(std::string_view name);
+	Player(PlayerID id, std::string name);
+	Player(std::string name);
 	Player();
 
 	PlayerID GetID();
-	std::string_view GetName();
+	std::string GetName();
 
 	JointState GetJointState(JointID joint_id);
 	JointState GetJointStateAlt(JointID joint_id);

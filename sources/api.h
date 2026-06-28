@@ -11,6 +11,10 @@ namespace Api
 
 	static Gamerules rules;
 
+    static std::vector<EnvPlane> planes_vector;
+	static EnvPlane* current_plane  = nullptr;
+	static size_t planes_count = 0;
+	
 	static std::vector<Body>   o_vector;
 	static std::vector<Joint>   oj_vector;
 
@@ -55,9 +59,11 @@ namespace Api
 	
 	Gamerules GetRules();
 
+	std::vector<EnvPlane> GetEnvPlanes();
 	std::vector<Body> GetObjects();
 	std::vector<Player> GetPlayers();
 
+	size_t GetEnvPlanesCount();
 	size_t GetObjectsCount();
 	size_t GetPlayersCount();
 	
@@ -72,7 +78,8 @@ namespace Api
 
 	int FileDroppedCallback(raylib::FilePathList files);
 
-	int loadmod(lua_State* L, std::string modpath);
+	int loadmodstring(lua_State* L, std::string content);
+	int loadmodfile(lua_State* L, std::string modpath);
 
 	int loadscript(lua_State* L, std::string scriptpath);
 }

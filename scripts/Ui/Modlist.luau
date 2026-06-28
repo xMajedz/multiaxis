@@ -16,7 +16,7 @@ function Modlist.Toggle()
 	end
 end
 
-function Api.Draw.UiModlist()
+function Api.Draw.Modlist()
 if Modlist.Menu.showUi then
    if show then
         if RAYGUI.GuiWindowBox(10, 40, (screenWidth/4) - 20, screenHeight - 100, "Mods") then
@@ -32,21 +32,9 @@ if Modlist.Menu.showUi then
 			    RAYGUI.GuiLabel(20, 10 + 30 * (j + 1), 400, 20, mod)
 
 			    if RAYGUI.GuiButton(350, 10 + 30 * (j + 1), 25, 25, `#{RAYGUI["ICON_PLAYER_PLAY"]}#`) then
-				    if mod:match("^[%.%w%-_]+%.luau") then
-					    --Api.Reset()
-					    --loadmod(mod:match("^[%w%-_]+"))
-					    --Game.Reset()
-					    --Game.ImportMod()
-					    --Game.NewGame()
-				    end
-				
 				    if mod:match("^[%.%w%-_]+%.tbm") then
-					    --Api.Reset()
 					    --ms.portTBM(mod:match("^[%w%-_]+"))
-					    loadmod(`./mods/{mod}`)
-					    --Game.Reset()
-					    --Game.ImportMod()
-					    --Game.NewGame()
+					    loadmodfile(mod)
 				    end
 	
 				    show = false

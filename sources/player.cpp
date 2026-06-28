@@ -3,10 +3,10 @@
 using namespace raylib;
 #include "raymath.h"
 
-Player::Player(PlayerID id, std::string_view name)
+Player::Player(PlayerID id, std::string name)
 {
-	m_id = id;
-	m_name = name;
+	id_ = id;
+	name_ = name;
 	
 	m_color = WHITE;
 	m_b_color = WHITE;
@@ -60,7 +60,7 @@ void Player::Create(dWorldID world, dSpaceID space)
 		b.m_g_color = m_g_color;
 
 		b.ghost = true;
-		b.m_static = false;
+		b.static_ = false;
 
 		b.m_active_color = m_j_color;
 
@@ -92,18 +92,18 @@ void Player::Create(dWorldID world, dSpaceID space)
 		j.state_alt = RELAX;
 
 		j.ghost = true;
-		j.m_static = false;
+		j.static_ = false;
 	}
 }
 
 PlayerID Player::GetID()
 {
-	return m_id;
+	return id_;
 }
 
-std::string_view Player::GetName()
+std::string Player::GetName()
 {
-	return m_name;
+	return name_;
 }
 
 void Player::Ready()

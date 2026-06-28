@@ -1,19 +1,7 @@
 #include "api.h"
 
 using namespace raylib;
-
-enum Context
-{
-	NoContext = 0,
-
-	ObjectContext,
-	ObjectJointContext,
-
-	PlayerContext,
-	BodyContext,
-	JointContext,
-
-} DataContext = NoContext;
+#include "raymath.h"
 
 static void log(std::string message)
 {
@@ -90,36 +78,6 @@ void Api::UpdateHotKeys()
     }
 }
 
-void Api::Reset()
-{
-	DataContext = NoContext;
-
-	o_vector.clear();
-
-	oj_vector.clear();
-
-	p_vector.clear();
-	
-	o = nullptr;
-	oj = nullptr;
-
-	p = nullptr;
-
-	o_count = 0;
-	oj_count = 0;
-
-	p_count = 0;
-
-	b_vector.clear();
-	j_vector.clear();
-
-	b = nullptr;
-	j = nullptr;
-
-	b_count = 0;
-	j_count = 0;
-}
-
 void Api::Close()
 {
 	lua_close(ML);
@@ -128,6 +86,11 @@ void Api::Close()
 Gamerules Api::GetRules()
 {
 	return rules;
+}
+
+std::vector<EnvPlane> Api::GetEnvPlanes()
+{
+	return planes_vector;
 }
 
 std::vector<Body> Api::GetObjects()
@@ -143,6 +106,11 @@ std::vector<Joint> Api::GetJointObjects()
 std::vector<Player> Api::GetPlayers()
 {
 	return p_vector;
+}
+
+size_t Api::GetEnvPlanesCount()
+{
+	return planes_count;
 }
 
 size_t Api::GetObjectsCount()
@@ -249,106 +217,273 @@ int Api::loadscript(lua_State* L, std::string scriptpath)
 	return 0;
 }
 
-static void parseTBM(std::string filename)
+enum Context
 {
-    std::ifstream file(filename);
+	NoContext = 0,
+
+	ObjectContext,
+	ObjectJointContext,
+
+	PlayerContext,
+	BodyContext,
+	JointContext,
+
+} DataContext = NoContext;
+
+template<typename T>
+static void parsemod(T& data)
+{
+	int version = 0;
+	int context = 0;
+
+	int env_obj_id = 0;
+	int env_obj_plane_id = 0;
+	int env_obj_joint_id = 0;
+
+	int player_id = 0;
+    int body_id = 0;
+	int joint_id = 0;
+
+	std::string body_name;
+	std::string joint_name;
+
+	std::string line;
 	
-	if (file.is_open()) {
-	    std::string line;
-
-		int version = 0;
-		int context = 0;
-
-		int env_obj_id = 0;
-		int env_obj_joint_id = 0;
-
-		int player_id = 0;
-        int body_id = 0;
-		int joint_id = 0;
-
-		std::string body_name;
-		std::string joint_name;
-		
-		Gamerules gamerules;
-		
-        size_t i;
-		while (std::getline(file, line)) {
-		    std::stringstream datastream(line);
-		    std::string data;
-		    datastream >> data;
+	while (std::getline(data, line)) {
+		std::stringstream datastream(line);
+		std::string dataname;
+	    		
+		datastream >> dataname;
 		    
-			if (data == "version") {
-			    if (datastream >> version) std::cout << version << std::endl;
-			  	
-				continue;
-			}
-			
-			if (data == "gamerule") {
-			    context = 1;
+		if (dataname == "version") {
+		    datastream >> version;
 				
-				continue;
+            continue;
+		} else if (dataname == "gamerule") {
+			continue;
+		} else if (dataname == "env_obj") {
+			context = 1;
+				
+			if (datastream >> env_obj_id) {
+				std::string name = "object_" + std::to_string(env_obj_id);
+  				Body o(Api::o_count, name.data());
+	            Api::o_map[name] = Api::o_count;
+	            Api::o_vector.push_back(o);
+	            Api::o = &Api::o_vector[Api::o_count];
+	            Api::o_count += 1;
+			}
+				
+			continue;
+		} else if (dataname == "env_obj_plane") {
+			context = 2;
+
+			if (datastream >> env_obj_plane_id) {
+				std::string name = "environment_plane_" + std::to_string(env_obj_plane_id);
+				EnvPlane plane;
+	            Api::planes_vector.push_back(plane);
+				Api::current_plane = &Api::planes_vector[Api::planes_count];
+				Api::planes_count += 1;
+            }
+				
+			continue;
+		 } else if (dataname == "env_obj_joint") {
+			context = 2;
+
+			if (datastream >> env_obj_joint_id) {
+				std::string name = "object_joint_" + std::to_string(env_obj_joint_id);
+				Joint oj(Api::oj_count, name.data());
+	            Api::oj_vector.push_back(oj);
+	            Api::oj = &Api::oj_vector[Api::oj_count];
+	            Api::oj_count += 1;
+            }
+				
+			continue;
+		 } else if (dataname == "player") {
+			context = 3;
+
+			if (datastream >> player_id) {
+			    std::string name = "player_" + player_id;
+	            if (Api::p_count < Api::rules.numplayers) {
+		            Api::b_count = 0;
+		            Api::j_count = 0;
+
+		            Player p(Api::p_count, name.data());
+		            Api::p_vector.push_back(p);
+		            Api::p = &Api::p_vector[Api::p_count];
+		            Api::p_count += 1;
+				}
+			}
+				
+			continue;
+	     } else if (dataname == "body") {
+			context = 4;
+
+			if (datastream >> body_name) {	                
+	            Body b(Api::b_count, body_name.data());
+	            Api::b_map[body_name] = Api::b_count;
+	            Api::p->body.push_back(b);
+	            Api::b = &Api::p->body[Api::b_count];
+  	            Api::b_count += 1;
 			}
 
-			if (data == "env_obj") {
-			    context = 2;
+			continue;
+		 } else if (dataname == "joint") {
+			context = 5;
+
+			if (datastream >> joint_name) {
+				Joint j(Api::j_count, joint_name.data());
+	            Api::p->joint.push_back(j);
+	            Api::j = &Api::p->joint[Api::j_count];
+	            Api::j_count += 1;
+			}
 				
-				if (datastream >> env_obj_id) std::cout << env_obj_id << std::endl;
-				
-				continue;
+			continue;
+		 }
+
+		 switch(context)
+		 {
+		 case 0:
+			if (dataname == "turnframes") {
+				datastream >> Api::rules.turnframes;
+			} else if (dataname == "engagedistance") {
+				datastream >> Api::rules.engagedistance;
+			} else if (dataname == "engageheight") {
+				datastream >> Api::rules.engageheight;
+			} else if (dataname == "gravity") {
+				datastream >> Api::rules.gravity.x;
+				datastream >> Api::rules.gravity.y;
+				datastream >> Api::rules.gravity.z;
+			} else if (dataname == "numplayers") {
+				datastream >> Api::rules.numplayers;
+			}
+			    
+			break;
+		  case 1:
+			if (dataname == "shape") {
+			     if (datastream >> dataname) {
+				   	 if (dataname == "box") Api::o->shape = BOX;
+				     else if (dataname == "sphere") Api::o->shape = SPHERE;
+				     else if (dataname == "capsule") Api::o->shape = CAPSULE;
+					 else if (dataname == "cylinder") Api::o->shape = CYLINDER;
+					 else if (dataname == "composite") Api::o->shape = COMPOSITE;
+			     }
+			} else if (dataname == "pos") {
+			   	 datastream >> Api::o->m_position.x;
+				 datastream >> Api::o->m_position.y;
+				 datastream >> Api::o->m_position.z;
+			} else if (dataname == "mass") {
+			     datastream >> Api::o->density;
+			} else if (dataname == "color") {
+			     float r;
+			     datastream >> r;
+				 Api::o->m_color.r = 255 * r;
+				 float g;
+				 datastream >> g;
+				 Api::o->m_color.g = 255 * g;
+				 float b;
+				 datastream >> b;
+				 Api::o->m_color.b = 255 * b;
+				 float a;
+				 datastream >> a;
+				 Api::o->m_color.a = 255 * a;
+			} else if (dataname == "rot") {
+			     Vector3 rot;
+				 datastream >> rot.x;
+			     datastream >> rot.y;
+				 datastream >> rot.z;
+			   	 Quaternion q = QuaternionFromMatrix(MatrixRotateXYZ(rot));
+			     Api::o->m_orientation.x = q.x;
+				 Api::o->m_orientation.y = q.y;
+				 Api::o->m_orientation.z = q.z;
+				 Api::o->m_orientation.w = q.w;
+			} else if (dataname == "sides") {
+			     datastream >> Api::o->m_sides.x;
+				 datastream >> Api::o->m_sides.y;
+				 datastream >> Api::o->m_sides.z;
+			} else if (dataname == "radius") {
+			     datastream >> Api::o->radius;
+			} else if (dataname == "length") {
+			     datastream >> Api::o->length;
+			} else if (dataname == "force") {
+			     //datastream >> Api::o->force.x;
+				 //datastream >> Api::o->force.y;
+				 //datastream >> Api::o->force.z;
+			} else if (dataname == "flag") {
+			     datastream >> Api::o->flag_;
+				 Api::o->static_ = Api::o->flag_ & 1;
+				 Api::o->composite_ = Api::o->flag_ & 2;
+				 Api::o->interactive_ = Api::o->flag_ & 4;
+			} else if (dataname == "bounce") {
+			     datastream >> Api::o->bounce;
+			} else if (dataname == "friction") {
+			     datastream >> Api::o->friction;
+			}	
+			break;
+		case 2:
+			if (dataname == "param") {
+			   	 datastream >> Api::current_plane->param.x;
+				 datastream >> Api::current_plane->param.y;
+				 datastream >> Api::current_plane->param.z;
+				 datastream >> Api::current_plane->param.w;
+			} else if (dataname == "bounce") {
+			     datastream >> Api::current_plane->bounce;
+			} else if (dataname == "friction") {
+			     datastream >> Api::current_plane->friction;
 			}
 
-			if (data == "env_obj_joint") {
-			    context = 3;
-				
-				if (datastream >> env_obj_joint_id) std::cout << env_obj_joint_id << std::endl;
-				
-				continue;
-			}
-			
-			if (data == "player") {
-			    context = 4;
-				
-				if (datastream >> player_id) std::cout << player_id << std::endl;
-				
-				continue;
-			}
-
-			if (data == "body") {
-				context = 5;
-				
-				if (datastream >> body_name) std::cout << body_name << std::endl;
-				
-				continue;
-			}
-
-			if (data == "joint") {
-				context = 6;
-
-				if (datastream >> joint_name) std::cout << joint_name << std::endl;
-				
-				continue;
-			}
-
-			switch(context)
-			{
-			case 1: break;
-
-			}
+			break;
 		}
-
-		file.close();
 	}
 }
 
-int Api::loadmod(lua_State* L, std::string modpath)
+static void parsemodstring(std::string content)
 {
-    Luau::loadfile(
-        L,
-	    TextFormat("./mods/%s", modpath.data()),
-	    TextFormat("%s:%s", "loadmod", modpath.data())
-    );
+    std::stringstream s(content);
+	Api::rules.mod = "parsemodstring";
+
+	parsemod(s);
+}
+
+static void parsemodfile(std::string filename)
+{
+    std::ifstream file(filename);
+	Api::rules.mod = "parsemodfile";
+
+	if (!file.is_open()) return;
+
+	parsemod(file);
+
+	file.close();
+}
+
+void Api::Reset()
+{
+	DataContext = NoContext;
+
+	o_vector.clear();
+
+	oj_vector.clear();
+
+	p_vector.clear();
 	
-	return 0;
+	o = nullptr;
+	oj = nullptr;
+
+	p = nullptr;
+
+	o_count = 0;
+	oj_count = 0;
+
+	p_count = 0;
+
+	b_vector.clear();
+	j_vector.clear();
+
+	b = nullptr;
+	j = nullptr;
+
+	b_count = 0;
+	j_count = 0;
 }
 
 void Api::SetHotKey(int key, int ref)
@@ -356,12 +491,41 @@ void Api::SetHotKey(int key, int ref)
     HotKeys[key] = ref;
 }
 
-static int Api_loadmod(lua_State* L)
+int Api::loadmodstring(lua_State* L, std::string content)
 {
-    std::string modpath = lua_tostring(L, 1);
-    parseTBM(modpath);
+    Reset();
+    parsemodstring(content);
+	Game& Game_ = Game::GetInstance();
+	Game_.Reset();
+	Game_.ImportMod();
+	Game_.NewGame();
 	return 0;
 }
+
+int Api::loadmodfile(lua_State* L, std::string modpath)
+{
+    Reset();
+    parsemodfile("./mods/" + modpath);
+	Game& Game_ = Game::GetInstance();
+	Game_.Reset();
+	Game_.ImportMod();
+	Game_.NewGame();
+	return 0;
+}
+
+
+static int Api_loadmodstring(lua_State* L)
+{
+	Api::loadmodstring(L, lua_tostring(L, 1));
+	return 0;
+}
+
+static int Api_loadmodfile(lua_State* L)
+{
+	Api::loadmodfile(L, lua_tostring(L, 1));
+	return 0;
+}
+
 
 static int Api_loadmod_t(lua_State* L)
 {
@@ -532,7 +696,7 @@ static int Api_engageheight(lua_State* L)
 
 static int Api_engagepos(lua_State* L)
 {
-	vec3 pos;
+    vec3<dReal> pos;
 	lua_rawgeti(L, -1, 1);
 	pos.x = lua_tonumber(L, -1);
 	lua_rawgeti(L, -2, 2);
@@ -566,7 +730,7 @@ static int Api_engagepos(lua_State* L)
 
 static int Api_engagerot(lua_State* L)
 {
-	vec3 rot;
+    vec3<dReal> rot;
 	lua_rawgeti(L, -1, 1);
 	rot.x = lua_tonumber(L, -1);
 	lua_rawgeti(L, -2, 2);
@@ -636,7 +800,7 @@ static int Api_color(lua_State* L)
 
 static int Api_gravity(lua_State* L)
 {
-	vec3 gravity;
+    vec3<dReal> gravity;
 	lua_rawgeti(L, -1, 1);
 	gravity.x = lua_tonumber(L, -1); 
 	lua_rawgeti(L, -2, 2);
@@ -772,7 +936,7 @@ static int Api_shape(lua_State* L)
 
 static int Api_position(lua_State* L)
 {
-	vec3 position;
+    vec3<dReal> position;
 	lua_rawgeti(L, -1, 1);
 	position.x = lua_tonumber(L, -1); 
 	lua_rawgeti(L, -2, 2);
@@ -805,7 +969,7 @@ static int Api_position(lua_State* L)
 
 static int Api_orientation(lua_State* L)
 {
-	vec4 orientation;
+    vec4<dReal> orientation;
 	lua_rawgeti(L, -1, 1);
 	orientation.w = lua_tonumber(L, -1); 
 	lua_rawgeti(L, -2, 2);
@@ -838,7 +1002,7 @@ static int Api_orientation(lua_State* L)
 
 static int Api_sides(lua_State* L)
 {
-	vec3 sides;
+    vec3<dReal> sides;
 	lua_rawgeti(L, -1, 1);
 	sides.x = lua_tonumber(L, -1); 
 	lua_rawgeti(L, -2, 2);
@@ -901,13 +1065,13 @@ static int Api_static(lua_State* L)
 			// Error Handling
 		} break;
 		case ObjectContext: {
-			Api::o->m_static = true;
+			Api::o->static_ = true;
 		} break;
 		case BodyContext: {
-			Api::b->m_static = true;
+			Api::b->static_ = true;
 		} break;
 		case JointContext: {
-			Api::j->m_static = true;
+			Api::j->static_ = true;
 		} break;
 	}
 
@@ -928,24 +1092,24 @@ static int Api_flag(lua_State* L)
 	switch(DataContext)
 	{
 	case ObjectContext: {
-		Api::o->m_static = flag_static;
-		Api::o->m_composite = flag_composite;
-		Api::o->m_interactive = flag_interactive;
+		Api::o->static_ = flag_static;
+		Api::o->composite_ = flag_composite;
+		Api::o->interactive_ = flag_interactive;
 	} break;
 	case ObjectJointContext: {
-		Api::oj->m_static = flag_static;
-		Api::oj->m_composite = flag_composite;
-		Api::oj->m_interactive = flag_interactive;
+		Api::oj->static_ = flag_static;
+		Api::oj->composite_ = flag_composite;
+		Api::oj->interactive_ = flag_interactive;
 	} break;
 	case BodyContext: {
-		Api::b->m_static = flag_static;
-		Api::b->m_composite = flag_composite;
-		Api::b->m_interactive = flag_interactive;
+		Api::b->static_ = flag_static;
+		Api::b->composite_ = flag_composite;
+		Api::b->interactive_ = flag_interactive;
 	} break;
 	case JointContext: {
-		Api::j->m_static = flag_static;
-		Api::j->m_composite = flag_composite;
-		Api::j->m_interactive = flag_interactive;
+		Api::j->static_ = flag_static;
+		Api::j->composite_ = flag_composite;
+		Api::j->interactive_ = flag_interactive;
 	} break;
 	}
 
@@ -1090,7 +1254,7 @@ static int Api_velocity_alt(lua_State* L)
 
 static int Api_axis(lua_State* L)
 {
-	vec3 axis;
+    vec3<dReal> axis;
 	lua_rawgeti(L, -1, 1);
 	axis.x = lua_tonumber(L, -1); 
 	lua_rawgeti(L, -2, 2);
@@ -1114,7 +1278,7 @@ static int Api_axis(lua_State* L)
 
 static int Api_axis_alt(lua_State* L)
 {
-	vec3 axis_alt;
+    vec3<dReal> axis_alt;
 	lua_rawgeti(L, -1, 1);
 	axis_alt.x = lua_tonumber(L, -1); 
 	lua_rawgeti(L, -2, 2);
@@ -1230,7 +1394,7 @@ static int Api_connection_type(lua_State* L)
 static int Api_require(lua_State* L)
 {
     int nargs = lua_gettop(L);
-    
+	
 	if (nargs > 0 && !lua_isnil(L, 1)) {
 	    const char* filename = lua_tostring(L, -1);
 		lua_pop(L, 1);
@@ -1323,7 +1487,9 @@ static const luaL_Reg ApiBase[] = {
 	{"require", Api_require},
 	{"loadscript", Api_loadscript},
 	
-	{"loadmod", Api_loadmod},
+	{"loadmodstring", Api_loadmodstring},
+	{"loadmodfile", Api_loadmodfile},
+
 	{"loadmod_t", Api_loadmod_t},
 	
 	{NULL, NULL},

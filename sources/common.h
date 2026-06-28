@@ -15,17 +15,19 @@
 #include <string_view>
 #include <sstream>
 
+template<typename T>
 struct vec3
 {
-	double x;
-	double y;
-	double z;
+	T x;
+	T y;
+	T z;
 };
 
+template<typename T>
 struct vec4
 {
-	double x;
-	double y;
-	double z;
-	double w;
+	T x;
+	T y;
+    T z;
+	T w;
 };
