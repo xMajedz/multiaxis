@@ -9,6 +9,7 @@ using namespace raylib;
 
 Game::Game()
 {
+  	cache = new Arena(cache_size);
 }
 
 Game::~Game()
@@ -27,8 +28,6 @@ void Game::Start()
     GetSettings();
 
 	dInitODE();
-
-	cache = new Arena(cache_size);
 
 	Replay::Init();
 	
@@ -72,30 +71,31 @@ void Game::GetSettings()
 
 void Game::Reset()
 {
-    if (space != nullptr) {
-        dSpaceDestroy(space);
-        space = nullptr;
-    }
-    if (world != nullptr) {
-	    dWorldDestroy(world);
-		world = nullptr;
-    }
-    if (contactgroup != nullptr) {
+    if (space_ != nullptr)
+        dSpaceDestroy(space_);
+
+	space_ = nullptr;
+    
+    if (world_ != nullptr)
+	    dWorldDestroy(world_);
+
+	world_ = nullptr;
+
+	if (contactgroup != nullptr)
         dJointGroupDestroy(contactgroup);
-        contactgroup = nullptr;
-    }
-    if (objects.size() > 0) {
-        objects.clear();
-        o_count = 0;
-    }
-    if (joint_objects.size() > 0) {
-        joint_objects.clear();
-        jo_count = 0;
-    }
-    if (players.size() > 0) {
-        players.clear();
-        p_count = 0;
-    }
+
+	contactgroup = nullptr;
+	
+    planes.clear();
+    
+    objects.clear();
+    o_count = 0;
+	
+    joint_objects.clear();
+	jo_count = 0;
+	
+    players.clear();
+	p_count = 0;
 }
 
 void Game::ImportMod()
@@ -112,9 +112,6 @@ void Game::ImportMod()
 		  dynamic_objects.push_back(object);
 		}
 	}
-	
-	Console::log(std::to_string(static_objects.size()));
-	Console::log(std::to_string(dynamic_objects.size()));
 	*/
     o_count = Api::GetObjectsCount();
 	objects.reserve(o_count);
@@ -133,15 +130,78 @@ void Game::ImportMod()
 
 void Game::CreateDynamicObject(EnvObject& object)
 {
+    switch(object.shape)
+	{
+	case BOX:
+		object.geom_ = dCreateBox(space_, object.sides.x, object.sides.y, object.sides.z);
+		dMassSetBox(&object.mass_, object.density, object.sides.x, object.sides.y, object.sides.z);
+	    break;
+	case SPHERE:
+		object.geom_ = dCreateSphere(space_, object.radius);
+		dMassSetSphere(&object.mass_, object.density, object.radius);
+	    break;
+	case CAPSULE:
+		object.geom_ = dCreateCapsule(space_, object.radius, object.length);
+		dMassSetCapsule(&object.mass_, object.density, 1, object.length, object.radius);
+	    break;
+	case CYLINDER:
+		object.geom_ = dCreateCylinder(space_, object.radius, object.length);
+		dMassSetCylinder(&object.mass_, object.density, 1, object.length, object.radius);
+	    break;
+	}
+		
+	if (object.mass != 0.00) {
+	    dMassAdjust(&object.mass_, object.mass);
+	}
+	
+	object.body_ = dBodyCreate(world_);
+
+	dBodySetPosition(object.body_, object.position.x, object.position.y, object.position.z);
+
+	dQuaternion q = { object.orientation.w, object.orientation.x, object.orientation.y, object.orientation.z };
+
+	dBodySetQuaternion(object.body_, q);
+
+	dBodySetMass(object.body_, &object.mass_);
+	
+    dGeomSetBody(object.geom_, object.body_);
+	dGeomSetData(object.geom_, &object.data_);
+	//dGeomSetCategoryBits(object.geom_, 1);
+	//dGeomSetCollideBits(object.geom_,  0);
 }
 
 void Game::CreateStaticObject(EnvObject& object)
 {
+    switch(object.shape)
+	{
+	case BOX:
+	    object.geom_ = dCreateBox(space_, object.sides.x, object.sides.y, object.sides.z);
+        break;
+	case SPHERE:
+	    object.geom_ = dCreateSphere(space_, object.radius);
+	    break;
+	case CAPSULE:
+	    object.geom_ = dCreateCapsule(space_, object.radius, object.length);
+	    break;
+	case CYLINDER:
+		object.geom_ = dCreateCylinder(space_, object.radius, object.length);
+	    break;
+	}
+		
+	dGeomSetPosition(object.geom_, object.position.x, object.position.y, object.position.z);
+
+	dQuaternion q = { object.orientation.w, object.orientation.x, object.orientation.y, object.orientation.z };
+	
+	dGeomSetQuaternion(object.geom_, q);
+    dGeomSetBody(object.geom_, 0);
+	dGeomSetData(object.geom_, &object.data_);
+	//dGeomSetCategoryBits(object.geom_, 1);
+	//dGeomSetCollideBits(object.geom_,  0);
 }
 
 void Game::CreatePlane(EnvPlane& plane)
 {
-    plane.geom_ = dCreatePlane(space, plane.param.x, plane.param.y, plane.param.z, plane.param.w);
+    plane.geom_ = dCreatePlane(space_, plane.param.x, plane.param.y, plane.param.z, plane.param.w);
     dGeomSetData(plane.geom_, &plane.data_);
 	dGeomSetCategoryBits(plane.geom_, 1);
 	dGeomSetCollideBits(plane.geom_,  0);
@@ -159,14 +219,14 @@ void Game::NewGame()
 
     ghost_cache_frames = 0;
 
-	world = dWorldCreate();
-    dWorldSetERP(world, 0.45);
-    dWorldSetCFM(world, 10E-2);
-    dWorldSetGravity(world, rules.gravity.x, rules.gravity.y, rules.gravity.z);
+	world_ = dWorldCreate();
+    dWorldSetERP(world_, 0.45);
+    dWorldSetCFM(world_, 10E-2);
+    dWorldSetGravity(world_, rules.gravity.x, rules.gravity.y, rules.gravity.z);
 
 	step = 1.0f / 60.0f;
 
-    space = dHashSpaceCreate(0);
+    space_ = dHashSpaceCreate(0);
     contactgroup = dJointGroupCreate(0);
 	
     for (auto& plane : planes) {
@@ -174,7 +234,7 @@ void Game::NewGame()
 	}
 	
     for (auto& object : objects) {
-        object.Create(world, space);
+	    object.Create(world_, space_);
     }
 	
 	/*
@@ -222,7 +282,7 @@ void Game::NewGame()
 void Game::attachContact(dUserData* data, dBodyID b1, dBodyID b2)
 {    
 	if (data != nullptr && data->contact_joint == nullptr && data->active) {
-		data->contact_joint = dJointCreateFixed(world, 0);
+		data->contact_joint = dJointCreateFixed(world_, 0);
 		dJointAttach(data->contact_joint, b1, b2);
 		dJointSetFixed(data->contact_joint);
 	}
@@ -279,7 +339,7 @@ static void nearCallback(void*, dGeomID o1, dGeomID o2)
 	int numc = dCollide(o1, o2, rules.max_contacts, &contacts->geom, sizeof(dContact));
 
 	for (int i = 0; i < numc; i += 1) {
-		dJointID c = dJointCreateContact(Game_.world, Game_.contactgroup, &contacts[i]);
+		dJointID c = dJointCreateContact(Game_.world_, Game_.contactgroup, &contacts[i]);
 		dJointAttach(c, b1, b2);
 	}
 	
@@ -405,9 +465,9 @@ static void DrawObject(T o, Quaternion q, Vector3 p, Color color)
 	{
 	case BOX:
 		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f },
-			 o.m_sides.x,
-			 o.m_sides.y,
-			 o.m_sides.z,
+			 o.sides.x,
+			 o.sides.y,
+			 o.sides.z,
 			 color);
 		break;
 	case SPHERE:
@@ -475,7 +535,7 @@ static void DrawObjectModel(T o, Quaternion q, Vector3 p, dReal s, Model model, 
 				  (Vector3){ 0.0f, 0.0f, 0.0f },
                   (Vector3){ 0.0f, 0.0f, 0.0f },
 				  0.0f,
-				  (Vector3){ s * o.m_sides.x, s * o.m_sides.y, s * o.m_sides.z },
+				  (Vector3){ s * o.sides.x, s * o.sides.y, s * o.sides.z },
 				  color
 		  );
 		  break;
@@ -682,21 +742,21 @@ void Game::Update(dReal dt)
 			state.freeze_count += 1;
 		}
 
-        if (space != nullptr) {
+        if (space_ != nullptr) {
 		  	numcollisions = 0;
 
 			switch (state.mode)
 			{
 			case REPLAY_PLAY:
 			    if (!(ReplayCacheEnabled() && ReplayCacheIsReady())) {
-  				    dSpaceCollide(space, 0, nearCallback);
-                    dWorldStep(world, step);
+  				    dSpaceCollide(space_, 0, nearCallback);
+                    dWorldStep(world_, step);
                     dJointGroupEmpty(contactgroup);
 				}
 			case REPLAY_EDIT: case FREE_PLAY: case SELF_PLAY:
 			    if (!(GhostCacheEnabled() && GhostCacheIsReady())) {
-			        dSpaceCollide(space, 0, nearCallback);
-                    dWorldStep(world, step);
+			        dSpaceCollide(space_, 0, nearCallback);
+                    dWorldStep(world_, step);
                     dJointGroupEmpty(contactgroup);
 				}
             }
@@ -790,7 +850,19 @@ static PlayerFrameBody* GetPlayerBodyFromReplayCache(uint32_t frame, PlayerID pI
  * Draw
  */
 
-void Game::DrawPlane(EnvPlane& plane)
+void Game::DrawFloor()
+{
+    float angle;
+    Vector3 axis;
+    QuaternionToAxisAngle(QuaternionFromMatrix(MatrixRotateX(DEG2RAD*90)), &axis, &angle);
+
+    rlPushMatrix();
+    rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
+    DrawGrid(2, 10);
+    rlPopMatrix();
+}
+
+void Game::DrawEnvPlane(const EnvPlane& plane)
 {
     float angle;
     Vector3 axis;
@@ -807,11 +879,54 @@ void Game::DrawPlane(EnvPlane& plane)
     rlPopMatrix();
 }
 
-void Game::DrawPlayerJoint(Joint j, vec4<dReal> j_q, vec3<dReal> j_p, Color color, bool draw_state)
+void Game::DrawEnvObject(const EnvObject& object, vec4<dReal> Q, vec3<dReal> P, Color color)
 {
-    Quaternion q = { j_q.x, j_q.y, j_q.z, j_q.w };
+    Quaternion q = { Q.x, Q.y, Q.z, Q.w };
+    Vector3 p = { P.x, P.y, P.z };
+	
+	switch (object.shape)
+	{
+	case BOX:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), color);
+	    break;
+	case SPHERE:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), color);
+	    break;
+	case CYLINDER:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), color);
+	    break;
+	case CAPSULE:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), color);
+	    break;
+	}
+}
 
-	Vector3 p = { j_p.x, j_p.y, j_p.z };
+void Game::DrawObject(const Body& object, vec4<dReal> Q, vec3<dReal> P, Color color)
+{
+    Quaternion q = { Q.x, Q.y, Q.z, Q.w };
+    Vector3 p = { P.x, P.y, P.z };
+	
+	switch (object.shape)
+	{
+	case BOX:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), color);
+	    break;
+	case SPHERE:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), color);
+	    break;
+	case CYLINDER:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), color);
+	    break;
+	case CAPSULE:
+	    DrawObjectModel(object, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), color);
+	    break;
+	}
+}
+
+void Game::DrawPlayerJoint(Joint j, vec4<dReal> Q, vec3<dReal> P, Color color, bool draw_state)
+{
+    Quaternion q = { Q.x, Q.y, Q.z, Q.w };
+	Vector3 p = { P.x, P.y, P.z };
 
 	Vector3 dir = { 1.00, 0.00, 0.00 };
 	
@@ -850,11 +965,10 @@ void Game::DrawPlayerJoint(Joint j, vec4<dReal> j_q, vec3<dReal> j_p, Color colo
     }
 }
 
-void Game::DrawPlayerBody(Body b, vec4<dReal> b_q, vec3<dReal> b_p, Color color)
+void Game::DrawPlayerBody(Body b, vec4<dReal> Q, vec3<dReal> P, Color color)
 {
-    Quaternion q = { b_q.x, b_q.y, b_q.z, b_q.w };
-
-	Vector3 p = { b_p.x, b_p.y, b_p.z };
+    Quaternion q = { Q.x, Q.y, Q.z, Q.w };
+	Vector3 p = { P.x, P.y, P.z };
 
 	switch (b.shape)
 	{
@@ -873,125 +987,32 @@ void Game::DrawPlayerBody(Body b, vec4<dReal> b_q, vec3<dReal> b_p, Color color)
 	}
 }
 
-void Game::DrawFloor()
-{
-    float angle;
-    Vector3 axis;
-    QuaternionToAxisAngle(QuaternionFromMatrix(MatrixRotateX(DEG2RAD*90)), &axis, &angle);
-
-    rlPushMatrix();
-    rlRotatef(RAD2DEG * angle, axis.x, axis.y, axis.z);
-    DrawGrid(2, 10);
-    rlPopMatrix();
-}
-
 void Game::Draw(Camera3D camera)
 {
     BeginMode3D(camera);
-
-	for (auto& plane : planes) {
-	    DrawPlane(plane);
+	for (const auto& plane : planes) {
+	    DrawEnvPlane(plane);	
 	}
-	
 	EndMode3D();
 	
     BeginMode3D(camera);
-	for (int oID = 0; oID < o_count; oID += 1) {
-	    auto& o = objects[oID];
-		
-		Quaternion q = { 0 };
-		Vector3 p = { 0 };
-        
-		if (state.freeze) {
-		    q.x = o.freeze_orientation.x;
-			q.y = o.freeze_orientation.y;
-			q.z = o.freeze_orientation.z;
-		    q.w = o.freeze_orientation.w;
-
-            p.x = o.freeze_position.x;
-            p.y = o.freeze_position.y;
-
-			p.z = o.freeze_position.z;
-
-			switch (o.shape)
-	        {
-	        case BOX:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
-	            break;
-	        case SPHERE:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
-	            break;
-	        case CYLINDER:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	            break;
-	        case CAPSULE:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	            break;
-	        }
-			
-		    q.x = o.frame_orientation.x;
-			q.y = o.frame_orientation.y;
-			q.z = o.frame_orientation.z;
-		    q.w = o.frame_orientation.w;
-
-            p.x = o.frame_position.x;
-            p.y = o.frame_position.y;
-            p.z = o.frame_position.z;
-
-			switch (o.shape)
-	        {
-	        case BOX:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_g_color);
-	            break;
-	        case SPHERE:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_g_color);
-	            break;
-	        case CYLINDER:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
-	            break;
-	        case CAPSULE:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_g_color);
-	            break;
-	        }
+	for (const auto& object : objects) {
+	    if (state.freeze) {
+		    DrawObject(object, object.freeze_orientation, object.freeze_position, object.m_color);
+		    DrawObject(object, object.frame_orientation, object.frame_position, object.m_g_color);
 	    } else {
-		    Quaternion q = {
-                o.frame_orientation.x,
-                o.frame_orientation.y,
-                o.frame_orientation.z,
-                o.frame_orientation.w,
-            };
-
-            Vector3 p = {
-                o.frame_position.x,
-                o.frame_position.y,
-                o.frame_position.z,
-            };
-			
-            switch (o.shape)
-	        {
-	        case BOX:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::BOX), o.m_color);
-	            break;
-	        case SPHERE:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::SPHERE), o.m_color);
-	            break;
-	        case CYLINDER:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	            break;
-	        case CAPSULE:
-	            DrawObjectModel(o, q, p, 1.00, ResourceManager::GetModel(ResourceManager::CAPSULE), o.m_color);
-	            break;
-	        }
+		    DrawObject(object, object.frame_orientation, object.frame_position, object.m_color);
 	    }
     }
 	EndMode3D();
 	
+	//BeginMode3D(camera);
 	/*for (PlayerID pID = 0; pID < players.size(); pID += 1) {
 	    auto& p = players[pID];
-	    BeginMode3D(camera);
+	    
 	    for (JointID jID = 0; jID < p.j_count; jID += 1) {
 		    auto& j = p.joint[jID];
-            //BeginMode3D(camera);
+            
 			if (state.freeze) {
 			    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, p.m_j_color, true);
 
@@ -1016,13 +1037,12 @@ void Game::Draw(Camera3D camera)
 			    } else {
 				    DrawPlayerJoint(j, j.frame_orientation, j.frame_position, p.m_j_color, true);
 			    }
-			}
-			//EndMode3D();
+			}	
 	    }
-	  
+		
 	    for (BodyID bID = 0; bID < p.b_count; bID += 1) {
 		    auto& b = p.body[bID];
-			//BeginMode3D(camera);
+			
 		    if (state.freeze) {
 			    if (b.active) { 
 			        DrawPlayerBody(b, b.freeze_orientation, b.freeze_position, p.m_j_color);
@@ -1051,17 +1071,18 @@ void Game::Draw(Camera3D camera)
 			        DrawPlayerBody(b, b.frame_orientation, b.frame_position, p.m_b_color);
 				}
 			}
-			//EndMode3D();
+			
 	    }
-		EndMode3D();
-	}
+		
+	}*/
+	//EndMode3D();
 	
-    BeginMode3D(camera);
+    /*BeginMode3D(camera);
 	
     if (state.freeze && state.selected_player != -1 && state.selected_joint != -1) {
 	    auto& j = players[state.selected_player].joint[state.selected_joint];
 	    DrawPlayerJoint(j, j.freeze_orientation, j.freeze_position, j.m_select_color, false);
-		}*/
+	}*/
 	
     BeginMode3D(camera);
     
@@ -1088,7 +1109,7 @@ void Game::SetGameFrame(uint32_t frame)
 void Game::SetGravity(dReal x, dReal y, dReal z)
 {
     rules.gravity = {x, y , z};
-  	dWorldSetGravity(world, x, y, z);
+  	dWorldSetGravity(world_, x, y, z);
 }
 
 void Game::SetMaxContacts(size_t count)
@@ -1776,14 +1797,14 @@ static RayCollision CollideObject(Ray ray, T o)
 		collision = GetRayCollisionBox(ray,
 			(BoundingBox) {
 				(Vector3){
-					o.freeze_position.x - 0.5f * o.m_sides.x,
-					o.freeze_position.y - 0.5f * o.m_sides.y,
-					o.freeze_position.z - 0.5f * o.m_sides.z,
+					o.freeze_position.x - 0.5f * o.sides.x,
+					o.freeze_position.y - 0.5f * o.sides.y,
+					o.freeze_position.z - 0.5f * o.sides.z,
 				},
 				(Vector3){
-					o.freeze_position.x + 0.5f * o.m_sides.x,
-					o.freeze_position.y + 0.5f * o.m_sides.y,
-					o.freeze_position.z + 0.5f * o.m_sides.z,
+					o.freeze_position.x + 0.5f * o.sides.x,
+					o.freeze_position.y + 0.5f * o.sides.y,
+					o.freeze_position.z + 0.5f * o.sides.z,
 				},
 			}
 		);
@@ -1804,14 +1825,14 @@ static RayCollision CollideObject(Ray ray, T o)
 		collision = GetRayCollisionBox(ray,
 			(BoundingBox) {
 				(Vector3){
-					o.freeze_position.x - 0.5f * o.m_sides.x,
-					o.freeze_position.y - 0.5f * o.m_sides.y,
-					o.freeze_position.z - 0.5f * o.m_sides.z,
+					o.freeze_position.x - 0.5f * o.sides.x,
+					o.freeze_position.y - 0.5f * o.sides.y,
+					o.freeze_position.z - 0.5f * o.sides.z,
 				},
 				(Vector3){
-					o.freeze_position.x + 0.5f * o.m_sides.x,
-					o.freeze_position.y + 0.5f * o.m_sides.y,
-					o.freeze_position.z + 0.5f * o.m_sides.z,
+					o.freeze_position.x + 0.5f * o.sides.x,
+					o.freeze_position.y + 0.5f * o.sides.y,
+					o.freeze_position.z + 0.5f * o.sides.z,
 				},
 			}
 		);
@@ -1821,14 +1842,14 @@ static RayCollision CollideObject(Ray ray, T o)
 		collision = GetRayCollisionBox(ray,
 			(BoundingBox) {
 				(Vector3){
-					o.freeze_position.x - 0.5f * o.m_sides.x,
-					o.freeze_position.y - 0.5f * o.m_sides.y,
-					o.freeze_position.z - 0.5f * o.m_sides.z,
+					o.freeze_position.x - 0.5f * o.sides.x,
+					o.freeze_position.y - 0.5f * o.sides.y,
+					o.freeze_position.z - 0.5f * o.sides.z,
 				},
 				(Vector3){
-					o.freeze_position.x + 0.5f * o.m_sides.x,
-					o.freeze_position.y + 0.5f * o.m_sides.y,
-					o.freeze_position.z + 0.5f * o.m_sides.z,
+					o.freeze_position.x + 0.5f * o.sides.x,
+					o.freeze_position.y + 0.5f * o.sides.y,
+					o.freeze_position.z + 0.5f * o.sides.z,
 				},
 			}
 		);

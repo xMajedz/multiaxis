@@ -43,7 +43,7 @@ struct Body
 	dReal radius;
 	dReal length;
 	dReal density;
-    dReal mass;
+    dReal mass = 0;
   
     dReal friction;
     dReal bounce;
@@ -51,7 +51,7 @@ struct Body
     vec4<dReal> m_orientation;
 	vec3<dReal> m_position;
 	vec3<dReal> m_offset;
-	vec3<dReal> m_sides;
+	vec3<dReal> sides;
 
 	vec3<dReal> frame_linear_vel;
 	vec3<dReal> frame_angular_vel;
@@ -87,8 +87,8 @@ struct Body
     uint32_t m_cat_bits;
 	uint32_t m_col_bits;
 
-	Body() {};
-    Body(BodyID id, std::string name);
+    Body();
+  //Body(BodyID id, std::string name);
 
     void SetOffset(vec3<dReal> offset);
 	void SetColor(raylib::Color color);
@@ -181,7 +181,7 @@ struct Joint : public Body
 	dReal frame_vel;
 	dReal frame_vel_alt;
 
-    Joint(JointID id, std::string name);
+    Joint();
 
 	void Create(dWorldID world, dSpaceID space, Body b1, Body b2);
 

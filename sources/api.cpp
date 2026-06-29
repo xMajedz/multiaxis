@@ -95,37 +95,37 @@ std::vector<EnvPlane> Api::GetEnvPlanes()
 
 std::vector<Body> Api::GetObjects()
 {
-	return o_vector;
+	return objects_vector;
 }
 
 std::vector<Joint> Api::GetJointObjects()
 {
-	return oj_vector;
+	return object_joints_vector;
 }
 
 std::vector<Player> Api::GetPlayers()
 {
-	return p_vector;
+	return players_vector;
 }
 
 size_t Api::GetEnvPlanesCount()
 {
-	return planes_count;
+    return planes_vector.size();
 }
 
 size_t Api::GetObjectsCount()
 {
-	return o_count;
+    return objects_vector.size();
 }
 
 size_t Api::GetJointObjectsCount()
 {
-	return oj_count;
+    return object_joints_vector.size();
 }
 
 size_t Api::GetPlayersCount()
 {
-	return p_count;
+    return players_vector.size();
 }
 
 enum CallbackEvent {
@@ -248,6 +248,24 @@ static void parsemod(T& data)
 	std::string joint_name;
 
 	std::string line;
+
+    EnvPlane* current_plane = nullptr;
+    size_t plane_count = 0;
+	
+    Body* current_object = nullptr;
+    size_t object_count = 0;
+
+	Joint* current_object_joint = nullptr;
+    size_t object_joint_count = 0;
+
+	Player* current_player = nullptr;
+	size_t player_count = 0;
+
+	Body* current_body = nullptr;
+	size_t b_count = 0;
+
+	Joint* current_joint = nullptr;
+	size_t j_count = 0;
 	
 	while (std::getline(data, line)) {
 		std::stringstream datastream(line);
@@ -265,12 +283,13 @@ static void parsemod(T& data)
 			context = 1;
 				
 			if (datastream >> env_obj_id) {
-				std::string name = "object_" + std::to_string(env_obj_id);
-  				Body o(Api::o_count, name.data());
-	            Api::o_map[name] = Api::o_count;
-	            Api::o_vector.push_back(o);
-	            Api::o = &Api::o_vector[Api::o_count];
-	            Api::o_count += 1;
+			    std::string name = "object_" + std::to_string(env_obj_plane_id);	
+				Body object;
+				Api::o_map[name] = object_count;
+	            Api::objects_vector.push_back(object);
+				current_object = &Api::objects_vector[object_count];
+
+				object_count += 1;
 			}
 				
 			continue;
@@ -278,11 +297,12 @@ static void parsemod(T& data)
 			context = 2;
 
 			if (datastream >> env_obj_plane_id) {
-				std::string name = "environment_plane_" + std::to_string(env_obj_plane_id);
+				std::string name = "plane_" + std::to_string(env_obj_plane_id);
 				EnvPlane plane;
 	            Api::planes_vector.push_back(plane);
-				Api::current_plane = &Api::planes_vector[Api::planes_count];
-				Api::planes_count += 1;
+				current_plane = &Api::planes_vector[plane_count];
+
+				plane_count += 1;
             }
 				
 			continue;
@@ -290,11 +310,12 @@ static void parsemod(T& data)
 			context = 2;
 
 			if (datastream >> env_obj_joint_id) {
-				std::string name = "object_joint_" + std::to_string(env_obj_joint_id);
-				Joint oj(Api::oj_count, name.data());
-	            Api::oj_vector.push_back(oj);
-	            Api::oj = &Api::oj_vector[Api::oj_count];
-	            Api::oj_count += 1;
+			  std::string name = "object_joint_" + std::to_string(env_obj_joint_id);
+              Joint object_joint;
+			  Api::object_joints_vector.push_back(object_joint);
+			  current_object_joint = &Api::object_joints_vector[object_joint_count];
+
+			  object_joint_count += 1;
             }
 				
 			continue;
@@ -303,14 +324,15 @@ static void parsemod(T& data)
 
 			if (datastream >> player_id) {
 			    std::string name = "player_" + player_id;
-	            if (Api::p_count < Api::rules.numplayers) {
-		            Api::b_count = 0;
-		            Api::j_count = 0;
+	            if (player_count < Api::rules.numplayers) {
+		            b_count = 0;
+		            j_count = 0;
 
-		            Player p(Api::p_count, name.data());
-		            Api::p_vector.push_back(p);
-		            Api::p = &Api::p_vector[Api::p_count];
-		            Api::p_count += 1;
+		            Player player(player_count, name.data());
+		            Api::players_vector.push_back(player);
+		            current_player = &Api::players_vector[player_count];
+
+					player_count += 1;
 				}
 			}
 				
@@ -318,12 +340,16 @@ static void parsemod(T& data)
 	     } else if (dataname == "body") {
 			context = 4;
 
-			if (datastream >> body_name) {	                
-	            Body b(Api::b_count, body_name.data());
-	            Api::b_map[body_name] = Api::b_count;
-	            Api::p->body.push_back(b);
-	            Api::b = &Api::p->body[Api::b_count];
-  	            Api::b_count += 1;
+			if (datastream >> body_name) {
+			    Body body;
+				body.id_ = b_count;
+				body.name_ = body_name;
+			    
+	            Api::b_map[body_name] = b_count;
+				current_player->body.push_back(body);
+				current_body = &current_player->body[b_count];
+
+				b_count += 1;
 			}
 
 			continue;
@@ -331,10 +357,14 @@ static void parsemod(T& data)
 			context = 5;
 
 			if (datastream >> joint_name) {
-				Joint j(Api::j_count, joint_name.data());
-	            Api::p->joint.push_back(j);
-	            Api::j = &Api::p->joint[Api::j_count];
-	            Api::j_count += 1;
+			    Joint joint;
+				joint.id_ = j_count;
+				joint.name_ = joint_name;
+			    
+	            current_player->joint.push_back(joint);
+	            current_joint = &current_player->joint[j_count];
+
+				j_count += 1;
 			}
 				
 			continue;
@@ -344,91 +374,91 @@ static void parsemod(T& data)
 		 {
 		 case 0:
 			if (dataname == "turnframes") {
-				datastream >> Api::rules.turnframes;
+			  datastream >> Api::rules.turnframes;
 			} else if (dataname == "engagedistance") {
-				datastream >> Api::rules.engagedistance;
+			  datastream >> Api::rules.engagedistance;
 			} else if (dataname == "engageheight") {
-				datastream >> Api::rules.engageheight;
+			  datastream >> Api::rules.engageheight;
 			} else if (dataname == "gravity") {
-				datastream >> Api::rules.gravity.x;
-				datastream >> Api::rules.gravity.y;
-				datastream >> Api::rules.gravity.z;
+			  datastream >> Api::rules.gravity.x;
+			  datastream >> Api::rules.gravity.y;
+			  datastream >> Api::rules.gravity.z;
 			} else if (dataname == "numplayers") {
-				datastream >> Api::rules.numplayers;
+			  datastream >> Api::rules.numplayers;
 			}
 			    
 			break;
 		  case 1:
 			if (dataname == "shape") {
 			     if (datastream >> dataname) {
-				   	 if (dataname == "box") Api::o->shape = BOX;
-				     else if (dataname == "sphere") Api::o->shape = SPHERE;
-				     else if (dataname == "capsule") Api::o->shape = CAPSULE;
-					 else if (dataname == "cylinder") Api::o->shape = CYLINDER;
-					 else if (dataname == "composite") Api::o->shape = COMPOSITE;
+				   	 if (dataname == "box") current_object->shape = BOX;
+				     else if (dataname == "sphere") current_object->shape = SPHERE;
+				     else if (dataname == "capsule") current_object->shape = CAPSULE;
+					 else if (dataname == "cylinder") current_object->shape = CYLINDER;
+					 else if (dataname == "composite") current_object->shape = COMPOSITE;
 			     }
 			} else if (dataname == "pos") {
-			   	 datastream >> Api::o->m_position.x;
-				 datastream >> Api::o->m_position.y;
-				 datastream >> Api::o->m_position.z;
+			   	 datastream >> current_object->m_position.x;
+				 datastream >> current_object->m_position.y;
+				 datastream >> current_object->m_position.z;
 			} else if (dataname == "mass") {
-			     datastream >> Api::o->density;
+			     datastream >> current_object->mass;
+			} else if (dataname == "density") {
+			     datastream >> current_object->density;
 			} else if (dataname == "color") {
-			     float r;
+			     float r, g, b, a;
 			     datastream >> r;
-				 Api::o->m_color.r = 255 * r;
-				 float g;
 				 datastream >> g;
-				 Api::o->m_color.g = 255 * g;
-				 float b;
 				 datastream >> b;
-				 Api::o->m_color.b = 255 * b;
-				 float a;
 				 datastream >> a;
-				 Api::o->m_color.a = 255 * a;
+				 current_object->m_color.r = 255 * r;
+				 current_object->m_color.g = 255 * g;
+				 current_object->m_color.b = 255 * b;
+				 current_object->m_color.a = 255 * a;
 			} else if (dataname == "rot") {
 			     Vector3 rot;
 				 datastream >> rot.x;
 			     datastream >> rot.y;
 				 datastream >> rot.z;
 			   	 Quaternion q = QuaternionFromMatrix(MatrixRotateXYZ(rot));
-			     Api::o->m_orientation.x = q.x;
-				 Api::o->m_orientation.y = q.y;
-				 Api::o->m_orientation.z = q.z;
-				 Api::o->m_orientation.w = q.w;
+			     current_object->m_orientation.x = q.x;
+				 current_object->m_orientation.y = q.y;
+				 current_object->m_orientation.z = q.z;
+				 current_object->m_orientation.w = q.w;
 			} else if (dataname == "sides") {
-			     datastream >> Api::o->m_sides.x;
-				 datastream >> Api::o->m_sides.y;
-				 datastream >> Api::o->m_sides.z;
+			     datastream >> current_object->sides.x;
+				 datastream >> current_object->sides.y;
+				 datastream >> current_object->sides.z;
 			} else if (dataname == "radius") {
-			     datastream >> Api::o->radius;
+			     datastream >> current_object->radius;
 			} else if (dataname == "length") {
-			     datastream >> Api::o->length;
+			     datastream >> current_object->length;
 			} else if (dataname == "force") {
 			     //datastream >> Api::o->force.x;
 				 //datastream >> Api::o->force.y;
 				 //datastream >> Api::o->force.z;
 			} else if (dataname == "flag") {
-			     datastream >> Api::o->flag_;
-				 Api::o->static_ = Api::o->flag_ & 1;
-				 Api::o->composite_ = Api::o->flag_ & 2;
-				 Api::o->interactive_ = Api::o->flag_ & 4;
+			     datastream >> current_object->flag_;
+
+				 current_object->static_ = current_object->flag_ & 1;
+				 current_object->composite_ = current_object->flag_ & 2;
+				 current_object->interactive_ = current_object->flag_ & 4;
 			} else if (dataname == "bounce") {
-			     datastream >> Api::o->bounce;
+			     datastream >> current_object->bounce;
 			} else if (dataname == "friction") {
-			     datastream >> Api::o->friction;
+			     datastream >> current_object->friction;
 			}	
 			break;
 		case 2:
 			if (dataname == "param") {
-			   	 datastream >> Api::current_plane->param.x;
-				 datastream >> Api::current_plane->param.y;
-				 datastream >> Api::current_plane->param.z;
-				 datastream >> Api::current_plane->param.w;
+			   	 datastream >> current_plane->param.x;
+				 datastream >> current_plane->param.y;
+				 datastream >> current_plane->param.z;
+				 datastream >> current_plane->param.w;
 			} else if (dataname == "bounce") {
-			     datastream >> Api::current_plane->bounce;
+			     datastream >> current_plane->bounce;
 			} else if (dataname == "friction") {
-			     datastream >> Api::current_plane->friction;
+			     datastream >> current_plane->friction;
 			}
 
 			break;
@@ -460,30 +490,13 @@ void Api::Reset()
 {
 	DataContext = NoContext;
 
-	o_vector.clear();
-
-	oj_vector.clear();
-
-	p_vector.clear();
-	
-	o = nullptr;
-	oj = nullptr;
-
-	p = nullptr;
-
-	o_count = 0;
-	oj_count = 0;
-
-	p_count = 0;
-
+	planes_vector.clear();
+	objects_vector.clear();
+	object_joints_vector.clear();
+	players_vector.clear();
+  
 	b_vector.clear();
 	j_vector.clear();
-
-	b = nullptr;
-	j = nullptr;
-
-	b_count = 0;
-	j_count = 0;
 }
 
 void Api::SetHotKey(int key, int ref)
@@ -544,7 +557,7 @@ static int Api_loadmod_t(lua_State* L)
 
 	return 0;
 }
-
+/*
 static int Api_reactiontime(lua_State* L)
 {
 	lua_rawgeti(L, -1, 1);
@@ -1390,7 +1403,7 @@ static int Api_connection_type(lua_State* L)
 	lua_pushnumber(L, result);
 	return 1;
 }
-
+*/
 static int Api_require(lua_State* L)
 {
     int nargs = lua_gettop(L);
@@ -1499,7 +1512,7 @@ static const luaL_Reg ApiMain[] = {
     {"SetHotKey", Api_SetHotKey},
 
 	{"Reset", Api_Reset},
-	
+	/*	
 	{"reactiontime", Api_reactiontime},
 	{"turnframes", Api_turnframes},
 	{"numplayers", Api_numplayers},
@@ -1540,7 +1553,7 @@ static const luaL_Reg ApiMain[] = {
 	{"range_alt", Api_range_alt},
 	{"connections", Api_connections},
 	{"connection_type", Api_connection_type},
-
+	*/
 	{NULL, NULL},
 };
 

@@ -2,7 +2,10 @@
 #include "common.h"
 #include "player.h"
 #include "mem.h"
+
 #include "game_version.h"
+
+#include "object.h"
 
 enum Gamemode
 {
@@ -56,83 +59,6 @@ struct Gamestate
 	bool pause = false;
 };
 
-struct EnvPhysicsObject
-{
-    dReal friction;
-    dReal bounce;
-  
-    dGeomID geom_ = nullptr;
-    dUserData data_;
-
-};
-  
-struct EnvPlane : EnvPhysicsObject
-{
-    vec4<dReal> param;
-};
-
-struct EnvObject : EnvPhysicsObject
-{
-  	raylib::Color color;
-	raylib::Color g_color;
-
-    BodyShape shape;
-	
-    vec4<dReal> orientation;
-	vec3<dReal> position;
-	vec3<dReal> offset;
-	vec3<dReal> sides;
-
-    dReal radius;
-	dReal length;
-	dReal mass;
-  
-   	uint32_t flag_;
-	bool static_;
-	bool interactive_;
-    bool composite_;
-
-    dMass mass_;
-
-    dBodyID body_ = nullptr;
-};
-
-struct EnvJoint : public EnvObject
-{
-    JointType type;
-	JointState state;
-	JointState state_alt;
-
-	BodyID connections[2];
-
-    vec3<dReal> axis;
-    vec3<dReal> axis_alt;
-
-	dReal range[2];
-	dReal range_alt[2];
-	dReal strength;
-	dReal strength_alt;
-	dReal velocity;
-	dReal velocity_alt;
-
-	dReal frame_vel;
-	dReal frame_vel_alt;
-
-    dJointID joint_ = nullptr;
-};
-
-struct StaticEnv
-{
-    std::vector<EnvPlane> planes;
-    std::vector<EnvObject> objects;
-};
-
-struct DynamicEnv
-{
-    std::vector<EnvObject> objects;
-    std::vector<EnvJoint> joints;
-};
-
 struct ModData
 {
     Gamerules rules;
@@ -142,14 +68,14 @@ struct ModData
 
 struct PlayerFrameJoint
 {
-    vec3<dReal> position;
     vec4<dReal> orientation;
+    vec3<dReal> position;
 };
 
 struct PlayerFrameBody
 {
-    vec3<dReal> position;
     vec4<dReal> orientation;
+    vec3<dReal> position;
 };
 
 class Game {
@@ -170,8 +96,8 @@ public:
  	Gamestate state;
 	Gamerules rules;
 
-	dWorldID world = nullptr;
-	dSpaceID space = nullptr;
+	dWorldID world_ = nullptr;
+	dSpaceID space_ = nullptr;
 	dJointGroupID contactgroup = nullptr;
 
 	dMass mass;
@@ -183,7 +109,8 @@ public:
 	dUserData floor_data;
 
     std::vector<EnvPlane> planes;
-	std::vector<Body> objects;
+  //std::vector<EnvObject> objects;
+    std::vector<Body> objects;
 
 	std::vector<Body> dynamic_objects;
 	std::vector<Body> static_objects;
@@ -256,9 +183,9 @@ public:
 
 	Gamemode GetGamemode();
 	Gamerules& GetGamerules();
-
+  
+    std::vector<Body>& GetObjects();
 	std::vector<Player>& GetPlayers();
-	std::vector<Body>& GetObjects();
 	
 	void NearCallback(dGeomID o1, dGeomID o2);
 
@@ -335,9 +262,11 @@ public:
 
 	void Update(dReal dt);
 
-	void DrawContacts(bool freeze);
-	void DrawFloor();
-    void DrawPlane(EnvPlane& plane);
+    void DrawFloor();
+    void DrawEnvPlane(const EnvPlane& plane);
+    void DrawEnvObject(const EnvObject& object, vec4<dReal> q, vec3<dReal> p, raylib::Color color);
+
+    void DrawObject(const Body& object, vec4<dReal> q, vec3<dReal> p, raylib::Color color);
 
     void DrawPlayerJoint(Joint j, vec4<dReal> q, vec3<dReal> p, raylib::Color color, bool draw_state);
 	void DrawPlayerBody(Body b, vec4<dReal> q, vec3<dReal> p, raylib::Color color);

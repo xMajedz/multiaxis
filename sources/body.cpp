@@ -4,10 +4,10 @@ using namespace raylib;
 #include "raymath.h"
 #include "rlgl.h"
 
-Body::Body(BodyID id, std::string name)
+Body::Body()
 {
-	id_ = id;
-	name_ = name;
+  //id_ = id;
+  //name_ = name;
 
 	dBody = nullptr;
 	dGeom = nullptr;
@@ -47,7 +47,7 @@ Body::Body(BodyID id, std::string name)
 	composite_ = false;
 	interactive_ = false;
 
-	data_.id = id;
+	//data_.id = id;
 }
 
 void Body::Create(dWorldID world, dSpaceID space)
@@ -86,17 +86,15 @@ void Body::CreateBody()
 {
 	dBody = dBodyCreate(world_);
 
-	dBodySetPosition(
-		dBody,
-		m_position.x,
-		m_position.y,
-		m_position.z
-	);
+	dBodySetPosition(dBody, m_position.x, m_position.y, m_position.z);
 
 	dQuaternion q = { m_orientation.w, m_orientation.x, m_orientation.y, m_orientation.z };
 
 	dBodySetQuaternion(dBody, q);
 
+	if (mass != 0)
+	    dMassAdjust(&mass_, mass);
+	
 	dBodySetMass(dBody, &mass_);
 }
 
@@ -104,8 +102,8 @@ void Body::CreateGeom()
 {
 	switch(shape) {
 	case BOX: {
-		dGeom = dCreateBox(space_, m_sides.x, m_sides.y, m_sides.z);
-		dMassSetBox(&mass_, density, m_sides.x, m_sides.y, m_sides.z);
+		dGeom = dCreateBox(space_, sides.x, sides.y, sides.z);
+		dMassSetBox(&mass_, density, sides.x, sides.y, sides.z);
 	} break;
 	case SPHERE: {
 		dGeom = dCreateSphere(space_, radius);
@@ -342,7 +340,7 @@ void Body::DrawObject(Color color)
 	switch(shape)
 	{
 	case BOX:
-		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f }, m_sides.x, m_sides.y, m_sides.z, color);
+		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f }, sides.x, sides.y, sides.z, color);
 		break;
 	case SPHERE:
 		DrawSphere((Vector3){ 0.0f, 0.0f, 0.0f }, radius, color);
@@ -375,7 +373,7 @@ void Body::DrawObjectWires(Color color)
 	switch(shape)
 	{
 	case BOX:
-		DrawCubeWires((Vector3){ 0.0f, 0.0f, 0.0f }, m_sides.x, m_sides.y, m_sides.z, color);
+		DrawCubeWires((Vector3){ 0.0f, 0.0f, 0.0f }, sides.x, sides.y, sides.z, color);
 		break;
 	case SPHERE:
 		DrawSphereWires((Vector3){ 0.0f, 0.0f, 0.0f }, radius, 16, 16, color);
@@ -492,11 +490,8 @@ std::string Body::GetName()
 	return name_;
 }
 
-Joint::Joint(JointID id, std::string name)
+Joint::Joint()
 {
-	id_ = id;
-	name_ = name;
-	
 	state = RELAX;
 	state_alt = RELAX;
 
@@ -801,7 +796,7 @@ void Joint::DrawSelect()
 	switch(shape)
 	{
 	case BOX:
-		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f }, m_sides.x, m_sides.y, m_sides.z, m_select_color);
+		DrawCube((Vector3){ 0.0f, 0.0f, 0.0f }, sides.x, sides.y, sides.z, m_select_color);
 		break;
 	case SPHERE:
 		DrawSphere((Vector3){ 0.0f, 0.0f, 0.0f }, radius * 1.2, m_select_color);
