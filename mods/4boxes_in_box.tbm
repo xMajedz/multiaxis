@@ -1,0 +1,75 @@
+version 15
+gamerule
+turnframes 10
+engagedistance 2.36
+engageheight 3.4
+gravity 0.00 0.00 -10.00
+numplayers 2
+env_obj_plane 1
+  param 0.00 0.00 1.00 0.00
+  friction 0.00
+  bounce 0.00
+env_obj_plane 2
+  param 0.00 0.00 -1.00 -10.00
+  friction 0.00
+  bounce 0.00
+env_obj_plane 3
+  param 0.00 1.00 0.00 -10.00
+  friction 0.00
+  bounce 0.00
+env_obj_plane 4
+  param 0.00 -1.00 0.00 -10.00
+  friction 0.00
+  bounce 0.00
+env_obj_plane 5
+  param 1.00 0.00 0.00 -10.00
+  friction 0.00
+  bounce 0.00
+env_obj_plane 6
+  param -1.00 0.00 0.00 -10.00
+  friction 0.00
+  bounce 0.00
+env_obj 1
+  shape box
+  pos 0.00 10.00 0.50
+  mass 0.0001
+  color 1.00 1.00 1.00 1.00
+  rot 0.00 0.00 0.00
+  sides 1.00 1.00 1.00
+  force 0.00 0.00 0.00
+  flag 0
+  friction 0.00
+  bounce 0.00
+env_obj 2
+  shape box
+  pos 0.00 -10.00 0.50
+  mass 0.0001
+  color 1.00 1.00 1.00 1.00
+  rot 0.00 0.00 0.00
+  sides 1.00 1.00 1.00
+  force 0.00 0.00 0.00
+  flag 0
+  friction 0.00
+  bounce 0.00
+env_obj 3
+  shape box
+  pos 10.00 0.00 0.50
+  mass 0.0001
+  color 1.00 1.00 1.00 1.00
+  rot 0.00 0.00 0.00
+  sides 1.00 1.00 1.00
+  force 0.00 0.00 0.00
+  flag 0
+  friction 0.00
+  bounce 0.00
+env_obj 4
+  shape box
+  pos -10.00 0.00 0.50
+  mass 0.0001
+  color 1.00 1.00 1.00 1.00
+  rot 0.00 0.00 0.00
+  sides 1.00 1.00 1.00
+  force 0.00 0.00 0.00
+  flag 0
+  friction 0.00
+  bounce 0.00
