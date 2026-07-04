@@ -11,7 +11,7 @@ namespace Api
 
 	static Gamerules rules;
 
-    static std::vector<EnvPlane> planes_vector;	
+    static std::vector<EnvPlane> planes;	
 	static std::vector<Body> objects_vector;
 	static std::vector<Joint> object_joints_vector;
 	static std::vector<Player> players_vector;

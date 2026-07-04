@@ -1,4 +1,5 @@
 #pragma once
+
 #include "common.h"
 
 typedef int BodyID;
@@ -42,7 +43,7 @@ struct Body
 
 	dReal radius;
 	dReal length;
-	dReal density;
+	dReal density = 0;
     dReal mass = 0;
   
     dReal friction;

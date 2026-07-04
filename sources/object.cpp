@@ -1,0 +1,85 @@
+#include "object.h"
+
+void EnvPlane::Create(dSpaceID space)
+{
+    std::cout << param.x << std::endl;
+	std::cout << param.y << std::endl;
+	std::cout << param.z << std::endl;
+	std::cout << param.w << std::endl;
+    geom_ = dCreatePlane(space, param.x, param.y, param.z, param.w);
+    dGeomSetData(geom_, &data_);
+	dGeomSetCategoryBits(geom_, 1);
+	dGeomSetCollideBits(geom_,  0);
+}
+
+static void CreateDynamicObject(EnvObject& object, dWorldID world_, dSpaceID space_)
+{
+    switch(object.shape)
+	{
+	case BOX:
+		object.geom_ = dCreateBox(space_, object.sides.x, object.sides.y, object.sides.z);
+		dMassSetBox(&object.mass_, object.density, object.sides.x, object.sides.y, object.sides.z);
+	    break;
+	case SPHERE:
+		object.geom_ = dCreateSphere(space_, object.radius);
+		dMassSetSphere(&object.mass_, object.density, object.radius);
+	    break;
+	case CAPSULE:
+		object.geom_ = dCreateCapsule(space_, object.radius, object.length);
+		dMassSetCapsule(&object.mass_, object.density, 1, object.length, object.radius);
+	    break;
+	case CYLINDER:
+		object.geom_ = dCreateCylinder(space_, object.radius, object.length);
+		dMassSetCylinder(&object.mass_, object.density, 1, object.length, object.radius);
+	    break;
+	}
+		
+	if (object.mass != 0.00) {
+	    dMassAdjust(&object.mass_, object.mass);
+	}
+	
+	object.body_ = dBodyCreate(world_);
+
+	dBodySetPosition(object.body_, object.position.x, object.position.y, object.position.z);
+
+	dQuaternion q = { object.orientation.w, object.orientation.x, object.orientation.y, object.orientation.z };
+
+	dBodySetQuaternion(object.body_, q);
+
+	dBodySetMass(object.body_, &object.mass_);
+	
+    dGeomSetBody(object.geom_, object.body_);
+	dGeomSetData(object.geom_, &object.data_);
+	//dGeomSetCategoryBits(object.geom_, 1);
+	//dGeomSetCollideBits(object.geom_,  0);
+}
+
+static void CreateStaticObject(EnvObject& object, dSpaceID space_)
+{
+    switch(object.shape)
+	{
+	case BOX:
+	    object.geom_ = dCreateBox(space_, object.sides.x, object.sides.y, object.sides.z);
+        break;
+	case SPHERE:
+	    object.geom_ = dCreateSphere(space_, object.radius);
+	    break;
+	case CAPSULE:
+	    object.geom_ = dCreateCapsule(space_, object.radius, object.length);
+	    break;
+	case CYLINDER:
+		object.geom_ = dCreateCylinder(space_, object.radius, object.length);
+	    break;
+	}
+		
+	dGeomSetPosition(object.geom_, object.position.x, object.position.y, object.position.z);
+
+	dQuaternion q = { object.orientation.w, object.orientation.x, object.orientation.y, object.orientation.z };
+	
+	dGeomSetQuaternion(object.geom_, q);
+    dGeomSetBody(object.geom_, 0);
+	dGeomSetData(object.geom_, &object.data_);
+	//dGeomSetCategoryBits(object.geom_, 1);
+	//dGeomSetCollideBits(object.geom_,  0);
+}
+

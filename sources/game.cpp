@@ -102,19 +102,11 @@ void Game::ImportMod()
 {
     rules = Api::GetRules();
 
-    planes.reserve(Api::GetEnvPlanesCount());
+    //planes.reserve(Api::GetEnvPlanesCount());
 	planes = Api::GetEnvPlanes();
-	/*
-	for (auto& object : Api::GetObjects()) {
-	    if (object.static_) {
-		  static_objects.push_back(object);
-	    } else {
-		  dynamic_objects.push_back(object);
-		}
-	}
-	*/
-    o_count = Api::GetObjectsCount();
-	objects.reserve(o_count);
+
+	//o_count = Api::GetObjectsCount();
+	//objects.reserve(o_count);
     objects = Api::GetObjects();
 	
     //jo_count = Api::GetJointObjectsCount();
@@ -126,85 +118,6 @@ void Game::ImportMod()
 
     //players.reserve(p_count);
     //players = Api::GetPlayers();
-}
-
-void Game::CreateDynamicObject(EnvObject& object)
-{
-    switch(object.shape)
-	{
-	case BOX:
-		object.geom_ = dCreateBox(space_, object.sides.x, object.sides.y, object.sides.z);
-		dMassSetBox(&object.mass_, object.density, object.sides.x, object.sides.y, object.sides.z);
-	    break;
-	case SPHERE:
-		object.geom_ = dCreateSphere(space_, object.radius);
-		dMassSetSphere(&object.mass_, object.density, object.radius);
-	    break;
-	case CAPSULE:
-		object.geom_ = dCreateCapsule(space_, object.radius, object.length);
-		dMassSetCapsule(&object.mass_, object.density, 1, object.length, object.radius);
-	    break;
-	case CYLINDER:
-		object.geom_ = dCreateCylinder(space_, object.radius, object.length);
-		dMassSetCylinder(&object.mass_, object.density, 1, object.length, object.radius);
-	    break;
-	}
-		
-	if (object.mass != 0.00) {
-	    dMassAdjust(&object.mass_, object.mass);
-	}
-	
-	object.body_ = dBodyCreate(world_);
-
-	dBodySetPosition(object.body_, object.position.x, object.position.y, object.position.z);
-
-	dQuaternion q = { object.orientation.w, object.orientation.x, object.orientation.y, object.orientation.z };
-
-	dBodySetQuaternion(object.body_, q);
-
-	dBodySetMass(object.body_, &object.mass_);
-	
-    dGeomSetBody(object.geom_, object.body_);
-	dGeomSetData(object.geom_, &object.data_);
-	//dGeomSetCategoryBits(object.geom_, 1);
-	//dGeomSetCollideBits(object.geom_,  0);
-}
-
-void Game::CreateStaticObject(EnvObject& object)
-{
-    switch(object.shape)
-	{
-	case BOX:
-	    object.geom_ = dCreateBox(space_, object.sides.x, object.sides.y, object.sides.z);
-        break;
-	case SPHERE:
-	    object.geom_ = dCreateSphere(space_, object.radius);
-	    break;
-	case CAPSULE:
-	    object.geom_ = dCreateCapsule(space_, object.radius, object.length);
-	    break;
-	case CYLINDER:
-		object.geom_ = dCreateCylinder(space_, object.radius, object.length);
-	    break;
-	}
-		
-	dGeomSetPosition(object.geom_, object.position.x, object.position.y, object.position.z);
-
-	dQuaternion q = { object.orientation.w, object.orientation.x, object.orientation.y, object.orientation.z };
-	
-	dGeomSetQuaternion(object.geom_, q);
-    dGeomSetBody(object.geom_, 0);
-	dGeomSetData(object.geom_, &object.data_);
-	//dGeomSetCategoryBits(object.geom_, 1);
-	//dGeomSetCollideBits(object.geom_,  0);
-}
-
-void Game::CreatePlane(EnvPlane& plane)
-{
-    plane.geom_ = dCreatePlane(space_, plane.param.x, plane.param.y, plane.param.z, plane.param.w);
-    dGeomSetData(plane.geom_, &plane.data_);
-	dGeomSetCategoryBits(plane.geom_, 1);
-	dGeomSetCollideBits(plane.geom_,  0);
 }
 
 void Game::NewGame()
@@ -230,11 +143,11 @@ void Game::NewGame()
     contactgroup = dJointGroupCreate(0);
 	
     for (auto& plane : planes) {
-	    CreatePlane(plane);
+	  //plane.Create(space_);
 	}
 	
     for (auto& object : objects) {
-	    object.Create(world_, space_);
+	  //object.Create(world_, space_);
     }
 	
 	/*
@@ -310,19 +223,16 @@ static void nearCallback(void*, dGeomID o1, dGeomID o2)
     uint32_t col2 = dGeomGetCollideBits(o2);
 
 	if (!(cat1 & col2 || cat2 & col1)) return;
-
+	
     dUserData* data1 = static_cast<dUserData*>(dGeomGetData(o1));
 	dUserData* data2 = static_cast<dUserData*>(dGeomGetData(o2));
-
-	//std::cout << "o1: " << data1 << std::endl;
-	//std::cout << "o2: " << data2 << std::endl;
 
 	Game& Game_ = Game::GetInstance();
 
 	auto rules = Game_.GetGamerules();
 
 	dContact contacts[rules.max_contacts];
-
+	
 	dReal mu = 0;
 	dReal rho = 0;
 	dReal bounce = 0;
@@ -335,7 +245,7 @@ static void nearCallback(void*, dGeomID o1, dGeomID o2)
 			.bounce = bounce,
 		};
 	}
-
+	
 	int numc = dCollide(o1, o2, rules.max_contacts, &contacts->geom, sizeof(dContact));
 
 	for (int i = 0; i < numc; i += 1) {

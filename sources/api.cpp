@@ -37,9 +37,9 @@ void Api::Init()
 	
 	Luau::setLogCallback(log_luau);
     
-	dSetErrorHandler(log_ode);
-	dSetDebugHandler(log_ode);
-	dSetMessageHandler(log_ode);
+	//dSetErrorHandler(log_ode);
+	//dSetDebugHandler(log_ode);
+	//dSetMessageHandler(log_ode);
 	
 	SetTraceLogCallback(log_raylib);
 }
@@ -90,7 +90,7 @@ Gamerules Api::GetRules()
 
 std::vector<EnvPlane> Api::GetEnvPlanes()
 {
-	return planes_vector;
+	return planes;
 }
 
 std::vector<Body> Api::GetObjects()
@@ -110,7 +110,7 @@ std::vector<Player> Api::GetPlayers()
 
 size_t Api::GetEnvPlanesCount()
 {
-    return planes_vector.size();
+    return planes.size();
 }
 
 size_t Api::GetObjectsCount()
@@ -283,10 +283,10 @@ static void parsemod(T& data)
 			context = 1;
 				
 			if (datastream >> env_obj_id) {
-			    std::string name = "object_" + std::to_string(env_obj_plane_id);	
-				Body object;
+			    std::string name = "object_" + std::to_string(env_obj_id);
+				//Body object;
+	            Api::objects_vector.push_back(Body());
 				Api::o_map[name] = object_count;
-	            Api::objects_vector.push_back(object);
 				current_object = &Api::objects_vector[object_count];
 
 				object_count += 1;
@@ -298,16 +298,16 @@ static void parsemod(T& data)
 
 			if (datastream >> env_obj_plane_id) {
 				std::string name = "plane_" + std::to_string(env_obj_plane_id);
-				EnvPlane plane;
-	            Api::planes_vector.push_back(plane);
-				current_plane = &Api::planes_vector[plane_count];
+				//EnvPlane plane;
+	            Api::planes.push_back(EnvPlane());
+				current_plane = &Api::planes[plane_count];
 
 				plane_count += 1;
             }
-				
+			
 			continue;
 		 } else if (dataname == "env_obj_joint") {
-			context = 2;
+			context = 3;
 
 			if (datastream >> env_obj_joint_id) {
 			  std::string name = "object_joint_" + std::to_string(env_obj_joint_id);
@@ -490,7 +490,7 @@ void Api::Reset()
 {
 	DataContext = NoContext;
 
-	planes_vector.clear();
+	planes.clear();
 	objects_vector.clear();
 	object_joints_vector.clear();
 	players_vector.clear();

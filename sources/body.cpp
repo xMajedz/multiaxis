@@ -6,9 +6,6 @@ using namespace raylib;
 
 Body::Body()
 {
-  //id_ = id;
-  //name_ = name;
-
 	dBody = nullptr;
 	dGeom = nullptr;
 
@@ -63,21 +60,17 @@ void Body::Create(dWorldID world, dSpaceID space)
 
 	if (static_) {
 		CreateStatic();
-		data_.group = 1;
 	} else {
-		CreateDynamic();
-        data_.group = 2;
-		
-		m_col_bits = 0b0001;
+		CreateDynamic();		
+		m_col_bits = 1;
 	}
 
 	SetCatBits();
 	SetColBits();
 	
 	if (!interactive_) {
-		dGeomSetData(dGeom, nullptr);
+	    dGeomSetData(dGeom, nullptr);
 	} else {
-		data_.active = false;
 		dGeomSetData(dGeom, &data_);
 	}
 }
@@ -94,7 +87,7 @@ void Body::CreateBody()
 
 	if (mass != 0)
 	    dMassAdjust(&mass_, mass);
-	
+		
 	dBodySetMass(dBody, &mass_);
 }
 
@@ -103,21 +96,23 @@ void Body::CreateGeom()
 	switch(shape) {
 	case BOX: {
 		dGeom = dCreateBox(space_, sides.x, sides.y, sides.z);
-		dMassSetBox(&mass_, density, sides.x, sides.y, sides.z);
+		if (density != 0) dMassSetBox(&mass_, density, sides.x, sides.y, sides.z);
 	} break;
 	case SPHERE: {
 		dGeom = dCreateSphere(space_, radius);
-		dMassSetSphere(&mass_, density, radius);
+		if (density != 0) dMassSetSphere(&mass_, density, radius);
 	} break;
 	case CAPSULE: {
 		dGeom = dCreateCapsule(space_, radius, length);
-		dMassSetCapsule(&mass_, density, 1, length, radius);
+		if (density != 0) dMassSetCapsule(&mass_, density, 1, length, radius);
 	} break;
 	case CYLINDER: {
 		dGeom = dCreateCylinder(space_, radius, length);
-		dMassSetCylinder(&mass_, density, 1, length, radius);
+		if (density != 0) dMassSetCylinder(&mass_, density, 1, length, radius);
 	} break;
 	}
+
+	if (mass != 0) dMassAdjust(&mass_, mass);
 	
 	dGeomSetPosition(
 		dGeom,

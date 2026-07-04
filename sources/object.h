@@ -1,3 +1,5 @@
+#pragma once
+#include "body.h"
 
 struct EnvPhysicsObject
 {
@@ -6,12 +8,13 @@ struct EnvPhysicsObject
   
     dGeomID geom_ = nullptr;
     dUserData data_;
-
 };
   
 struct EnvPlane : EnvPhysicsObject
 {
     vec4<dReal> param;
+
+    void Create(dSpaceID space);
 };
 
 struct EnvObject : EnvPhysicsObject
