@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(box3d-example LANGUAGES CXX)
+project(multiaxis LANGUAGES CXX)
 
 add_subdirectory(vendor/luau)
 add_subdirectory(vendor/raylib)
