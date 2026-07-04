@@ -62,6 +62,7 @@ workspace "mulitaxis"
 		"sources/camera.h", "sources/camera.cpp",
 		"sources/player.h", "sources/player.cpp",
 		"sources/body.h", "sources/body.cpp",
+		"sources/object.h", "sources/object.cpp",
 
 		"sources/mem.h", "sources/mem.cpp",
 	}
