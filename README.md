@@ -1,36 +1,4 @@
 # Depends on
 * Luau ([luau-lang/luau](https://github.com/luau-lang/luau))
 * Raylib ([raysan5/raylib](https://github.com/raysan5/raylib))
-* Open Dynamics Engine ([odedevs/ode](https://bitbucket.org/odedevs/ode)) 
-# Building
-clone this repo
-```
-git clone https://github.com/xMajedz/multiaxis.git
-cd multiaxis
-```
-update submodules
-```
-git submodule init
-git submodule update
-```
-build luau
-```
-make -C vendor/luau config=release luau
-```
-build raylib
-```
-make -C vendor/raylib/src
-```
-clone ODE
-```
-git clone https://bitbucket.org/odedevs/ode.git
-```
-build ODE
-```
-cd ode
-./bootstrap
-./configure
-make
-```
-# Downloads
-check the [releases](https://github.com/xMajedz/multiaxis/releases) page for updates 
+* Box3d ([erincatto/box3d](https://github.com/erincatto/box3d)) 
