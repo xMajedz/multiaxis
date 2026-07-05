@@ -5,6 +5,15 @@ add_subdirectory(vendor/luau)
 add_subdirectory(vendor/raylib)
 add_subdirectory(vendor/box3d)
 
-add_executable(multiaxis sources/Game.cpp sources/multiaxis.cpp)
+add_executable(multiaxis
+sources/ApiRaylib.cpp
+sources/ApiRaygui.cpp
+sources/ApiRaymath.cpp
+sources/Api.cpp
+sources/Game.cpp
+sources/Renderer.cpp
+sources/multiaxis.cpp)
+
+target_include_directories(multiaxis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/raygui/src)
 
 target_link_libraries(multiaxis PRIVATE Luau.Compiler Luau.VM raylib box3d::box3d)
