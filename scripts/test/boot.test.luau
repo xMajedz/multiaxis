@@ -1,6 +1,6 @@
 log("--- boot.test ---")
 
-loadscript("test/args.test", "first", "second", "third")
-loadscript("test/log.test")
-loadscript("test/require.test")
-loadscript("test/Api.test")
+runscript("test/args.test", "first", "second", "third")
+runscript("test/log.test")
+runscript("test/require.test")
+runscript("test/Api.test")

@@ -1,0 +1,46 @@
+#pragma once
+
+#include "lua.h"
+#include "luacode.h"
+#include "lualib.h"
+#include <cstdlib>
+
+#include <string>
+
+class Api {
+public:
+    static Api& GetInstance()
+    {
+        static Api ApiInstance;
+        return ApiInstance;
+    }
+  
+    void Boot(const std::string& bootfile);
+
+    void Update();
+private:
+    lua_State* ML;
+
+    Api();
+    ~Api();
+};
+
+enum Hook {
+  PROTOTYPE = 0,
+  
+  /*
+  NEW_GAME,
+  FREEZE,
+  STEP,
+  UPDATE,
+  DRAW,
+  DRAW3D,
+  NEAR_CALLBACK,
+  FILE_DROPPED,
+  CONSOLE,
+  */
+  HOOK_COUNT,
+};
+
+static Hook HookList[HOOK_COUNT];
+

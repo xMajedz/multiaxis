@@ -1,18 +1,19 @@
 #include "Game.h"
 
-void Game::Draw()
+void Game::Update()
 {
-    BeginDrawing();
-        ClearBackground(BLACK);
-	EndDrawing();
+    if (ApiInstance_ != nullptr) ApiInstance_->Update();
 }
 
 Game::Game()
 {
-    InitWindow(800, 450, "MultiAxis");
 }
 
 Game::~Game()
 {
-    CloseWindow();
+}
+
+void Game::SetApiInstance(Api* ApiInstance)
+{
+    ApiInstance_ = ApiInstance;
 }

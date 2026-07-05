@@ -1,18 +1,23 @@
-#include "raylib.h"
+#pragma once
+
+#include "Api.h"
+
+#define GAME_VERSION "git-box3d"
 
 class Game {
 public:	
     static Game& GetInstance()
     {
-        static Game instance;
-        return instance;
+        static Game GameInstance;
+        return GameInstance;
     }
+    
+    void Update();
 
-    void Draw();
-	
-	Game(const Game&) = delete;
-    Game& operator=(const Game&) = delete;
+    void SetApiInstance(Api* ApiInstance);
 private:
-	Game();
-	~Game();
+    Api* ApiInstance_ = nullptr;
+
+    Game();
+    ~Game();
 };

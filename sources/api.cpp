@@ -205,7 +205,6 @@ int Api::FileDroppedCallback(FilePathList files)
     return 0;
 }
 
-
 int Api::loadscript(lua_State* L, std::string scriptpath)
 {
     Luau::loadfile(
@@ -482,8 +481,6 @@ static void parsemodfile(std::string filename)
 	if (!file.is_open()) return;
 
 	parsemod(file);
-
-	file.close();
 }
 
 void Api::Reset()
