@@ -5,3 +5,6 @@ lib-*
 dist
 replays
 settings.txt
+data/settings.txt
+*~
+*/*~
