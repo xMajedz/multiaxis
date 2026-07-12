@@ -5,32 +5,31 @@
 #include <fstream>
 #include <sstream>
 
+#include <utility>
+
 class Bytecode {
 public:  
     int load(lua_State* L, const std::string& chunkname)
     {
-	    return luau_load(L, chunkname.data(), data(), size(), 0);
+	return luau_load(L, chunkname.data(), data(), size(), 0);
     };
 
-	char* data()
-	{
-		return data_;
-	};
+    char* data()
+    {
+        return data_;
+    };
 
-	size_t size()
-	{
-		return size_;
-	};
+    size_t size()
+    {
+	return size_;
+    };
 
-    Bytecode(const std::string& string)
-	{
-		data_ = luau_compile(string.data(), string.size(), NULL, &size_);
-	};
+    Bytecode(const std::string& string) : data_(luau_compile(string.data(), string.size(), NULL, &size_)) {};
 
-	~Bytecode()
-	{
-	    std::free(data_);
-	};
+    ~Bytecode()
+    {
+        std::free(data_);
+    };
 private:
     char* data_;
     size_t size_;
@@ -111,25 +110,33 @@ int luaopenApiRaylib(lua_State* L);
 int luaopenApiRaygui(lua_State* L);
 int luaopenApiRaymath(lua_State* L);
 
+std::tuple<int, int(*)(lua_State*), std::string> builtinlibs[] = {
+    {0, luaopenApiRaylib, "@Raylib"},
+    {0, luaopenApiRaygui, "@Raygui"},
+    {0, luaopenApiRaymath, "@Raymath"},
+};
+
+static int require_builtin(lua_State* L, const std::string& filename)
+{
+    for (auto& [ref, luaopen_lib, name] : builtinlibs) {
+        if (filename == name) {
+            if (ref == 0) {
+	        lua_pushcfunction(L, luaopen_lib, NULL);
+	        lua_call(L, 0, 1);
+	        ref = lua_ref(L, -1);
+	    } else {
+	        lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+	    }
+	    return 0;
+	}
+    }
+    
+    return 1;
+}
+
 static int require(lua_State* L, const std::string& filename)
 {
-    if (filename == "@Raylib") {
-        lua_pushcfunction(L, luaopenApiRaylib, NULL);
-	lua_call(L, 0, 1);
-        return 0;
-    }
-
-    if (filename == "@Raygui") {
-        lua_pushcfunction(L, luaopenApiRaygui, NULL);
-	lua_call(L, 0, 1);
-        return 0;
-    }
-      
-    if (filename == "@Raymath") {
-        lua_pushcfunction(L, luaopenApiRaymath, NULL);
-	lua_call(L, 0, 1);
-        return 0;
-    }
+    if (require_builtin(L, filename) == LUA_OK) return 0;
       
     std::string requirestring = "./scripts/?.luau;./scripts/?/?.luau";
     std::string chunkname = "=require:" + filename;

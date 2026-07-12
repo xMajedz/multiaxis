@@ -1,16 +1,49 @@
-local Console = { Menu = { showUi = true }, textColor = RAYGUI.ColorToInt(RAYLIB["RAYWHITE"]) }
+local Console = { Menu = { showUi = true }, textColor = table.create(4, 0) }
 
-local csize = require "csize"
+local Ray, Gui = require "@Raylib", require "@Raygui"
 
-RAYGUI.GuiSetStyle(0, 16, 20)
+Gui.GuiSetStyle(0, 16, 20)
 
-local showConsole, showMessages = false, false
+Console.textColor = Gui.ColorToInt(Ray["RAYWHITE"])
+
+local showConsole, showMessages = true, false
+
+local sizeof = require "csize"
+
+local text, edit = buffer.create(sizeof.u8[256]), false
+
+local screenWidth, screenHeight = Ray.GetScreenWidth(), Ray.GetScreenHeight()
+
+function Api.RenderForeground.Console()
+if Console.Menu.showUi then	
+    if showConsole and Gui.GuiTextBox(10, screenHeight - 25, screenWidth - 20, 20, text, edit) then end
+--[[	
+	if showMessages then
+	    local i = 1
+        local max = #messages
+		local diff = #messages - maxMessages
+		if 0 < diff then
+		    max = maxMessages
+		else
+			diff = 0
+		end
+		local textColor = RAYGUI.GuiGetStyle(0, 2)
+		RAYGUI.GuiSetStyle(0, 2, Console["textColor"])
+        while i <= #messages - diff do
+		    RAYGUI.GuiLabel(10, offset - 25 * (max - i + 1), screenWidth - 20, 25, messages[i + diff])
+			i += 1
+		end
+		RAYGUI.GuiSetStyle(0, 2, textColor)
+   end
+]]
+end
+end
+
+--[[
 
 local maxMessages = 32
 
 local messages, commands = {}, {}
-
-local text, edit = buffer.create(csize.u8[256]), false
 
 function commands.loadscript(script_path) 
 	loadscript(script_path)
@@ -29,12 +62,12 @@ function commands.quit()
 end
 
 function commands.clear() 
-	table.clear(messages)
+    table.clear(messages)
 end
 
 function commands.log(arg)
     arg = arg:split(" ")
-	arg = (arg[1] == "") or log(unpack(arg))
+    arg = (arg[1] == "") or log(unpack(arg))
 end
 
 function commands.whisper(arg) 
@@ -147,5 +180,5 @@ function Api.Console.Console(msg)
 		showMessages = true
 	end
 end
-
+]]
 return Console
