@@ -161,7 +161,7 @@ static int require(lua_State* L, const std::string& filename)
 static int loadscript(lua_State* L, const std::string& scriptpath)
 {
     std::string chunkname = "=loadscript:" + scriptpath;
-    std::string filepath = "./scripts/" + scriptpath + ".luau";
+    std::string filepath = "./scripts/" + scriptpath;
     return loadfile(L, filepath, chunkname);
 }
 

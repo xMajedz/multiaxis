@@ -19,41 +19,41 @@ void help(void)
 
 int main(int argc, char* argv[])
 {
-    const char* bootfile = "boot";
+    const char* bootfile = "boot.luau";
 
-	for (int i = 0; i < argc; i += 1) {
-	    const char* arg = argv[i];
+    for (int i = 0; i < argc; i += 1) {
+	const char* arg = argv[i];
 
-		if ((strcmp(arg, "--bootfile") == 0) || strcmp(arg, "-b") == 0) {
+	if ((strcmp(arg, "--bootfile") == 0) || strcmp(arg, "-b") == 0) {
             i += 1;
-		    bootfile = argv[i];
-	    } else if ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0)) {
+	    bootfile = argv[i];
+	} else if ((strcmp(arg, "--help") == 0) || (strcmp(arg, "-h") == 0)) {
             i += 1;
-		    help();
-			return 0;
-	    } else if ((strcmp(arg, "--version") == 0) || (strcmp(arg, "-v") == 0)) {
+	    help();
+	    return 0;
+	} else if ((strcmp(arg, "--version") == 0) || (strcmp(arg, "-v") == 0)) {
             i += 1;
-			std::cout << GAME_VERSION << std::endl;
-			return 0;
+	    std::cout << GAME_VERSION << std::endl;
+	    return 0;
         }
-	}
+    }
 
-	Api& ApiInstance = Api::GetInstance();
+    Api& ApiInstance = Api::GetInstance();
 
-	Game& GameInstance = Game::GetInstance();
-	GameInstance.SetApiInstance(&ApiInstance);
+    Game& GameInstance = Game::GetInstance();
+    GameInstance.SetApiInstance(&ApiInstance);
 	
-	Renderer& RendererInstance = Renderer::GetInstance();
-        RendererInstance.SetApiInstance(&ApiInstance);
-	RendererInstance.SetGameInstance(&GameInstance);
+    Renderer& RendererInstance = Renderer::GetInstance();
+    RendererInstance.SetApiInstance(&ApiInstance);
+    RendererInstance.SetGameInstance(&GameInstance);
 
-	ApiInstance.Boot(bootfile);
+    ApiInstance.Boot(bootfile);
 
-	bool running = true;
-	while (running) {
-	    GameInstance.Update();
-	    RendererInstance.Render();
+    bool running = true;
+    while (running) {
+	GameInstance.Update();
+	RendererInstance.Render();
 		
-	    running = !WindowShouldClose();
-	}
+	running = !WindowShouldClose();
+    }
 }

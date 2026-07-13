@@ -9,12 +9,17 @@
 class UIElement
 {
 public:
+    UIElement* parent = nullptr;
+
+    std::vector<UIElement*> child;
+
     int posX = 0;
     int posY = 0;
-    int width  = 10;
-    int height = 10;
+    int width  = 1;
+    int height = 1;
 
-    bool visible = true;
+    bool displayed = true;
+    bool destroyed = false;
   
     Color bgColor = WHITE;
     
@@ -23,24 +28,35 @@ public:
     void hide();
     void reload();
     void kill();
+
+    ~UIElement();
 };
 
-static std::vector<UIElement*> UIElements;
+static std::vector<UIElement*> UIVisualManager;
 
 void UIElement::display()
 {
-    if (visible)
-        DrawRectangle(posX, posY, width, height, bgColor);
+    if (destroyed || !displayed) return;
+  
+    DrawRectangle(posX, posY, width, height, bgColor);
 }
 
 void UIElement::show()
 {
-    visible = true;
+    for (UIElement* elem : UIVisualManager) {
+        elem->show();
+    }
+    
+    displayed = true;
 }
 
 void UIElement::hide()
 {
-    visible = false;
+    for (UIElement* elem : UIVisualManager) {
+        elem->hide();
+    }
+    
+    displayed = false;
 }
 
 void UIElement::reload()
@@ -51,10 +67,19 @@ void UIElement::reload()
 
 void UIElement::kill()
 {
-    return;
+    for (UIElement* elem : UIVisualManager) {
+        elem->kill();
+    }
+    
+    destroyed = true;
 }
 
-static void UIElement_destructor(void* ud)
+UIElement::~UIElement()
+{
+    std::cout << "~UIElement:" << this << std::endl;
+}
+
+static void UIElement_destructor(lua_State* L, void* ud)
 {
     static_cast<UIElement*>(ud)->~UIElement();
 }
@@ -99,20 +124,29 @@ static int UIElement_new(lua_State* L)
     UIElement o;
 
     lua_getfield(L, -1, "pos");
+    if (lua_istable(L, -1)) {
     lua_rawgeti(L, -1, 1);
     o.posX = lua_tointeger(L, -1);
     lua_rawgeti(L, -2, 2);
     o.posY = lua_tointeger(L, -1);
     lua_pop(L, 3);
+    } else {
+    lua_pop(L, 1);
+    }
 
     lua_getfield(L, -1, "size");
+    if (lua_istable(L, -1)) {
     lua_rawgeti(L, -1, 1);
     o.width = lua_tointeger(L, -1);
     lua_rawgeti(L, -2, 2);
     o.height = lua_tointeger(L, -1);
     lua_pop(L, 3);
+    } else {
+    lua_pop(L, 1);
+    }
 
     lua_getfield(L, -1, "bgColor");
+    if (lua_istable(L, -1)) {
     lua_rawgeti(L, -1, 1);
     o.bgColor.r = lua_tointeger(L, -1);
     lua_rawgeti(L, -2, 2);
@@ -122,25 +156,21 @@ static int UIElement_new(lua_State* L)
     lua_rawgeti(L, -4, 4);
     o.bgColor.a = lua_tointeger(L, -1);
     lua_pop(L, 5);
-
+    } else {
     lua_pop(L, 1);
+    }
 
-    UIElement* e = static_cast<UIElement*>(lua_newuserdatadtor(L, sizeof(UIElement), UIElement_destructor));
+    UIElement* elem = static_cast<UIElement*>(lua_newuserdatataggedwithmetatable(L, sizeof(UIElement), 1));
 
-    new (e) UIElement(o);
+    UIVisualManager.push_back(new (elem) UIElement(o));
 
-    UIElements.push_back(e);
-    
-    luaL_getmetatable(L, "UIElement");
-    lua_setmetatable(L, -2);
-    
     return 1;
 }
 
 static int UIElement_drawVisuals(lua_State* L)
 {
-    for (UIElement* e : UIElements) {
-        e->display();
+    for (UIElement* elem : UIVisualManager) {
+        elem->display();
     }
     
     return 0;
@@ -172,7 +202,21 @@ int luaopen_UIElement(lua_State* L)
 {
     luaL_newmetatable(L, "UIElement");
     luaL_getmetatable(L, "UIElement");
-    lua_setfield(L, -1, "__index");
+    lua_setfield(L, -2, "__index");
+    lua_pushstring(L, "uielement");
+    lua_setfield(L, -2, "__type");
+
+    lua_setuserdatametatable(L, 1);
+    lua_setuserdatadtor(L, 1, UIElement_destructor);
+
+    lua_pushstring(L, "RenderForeground");
+    lua_pushstring(L, "uielement");
+    lua_pushcfunction(L, UIElement_drawVisuals, "UIElement.drawVisuals");
+
+    Api_SetHook(L);    
+    
+    lua_newtable(L);
+
     luaL_register(L, NULL, ApiUIElement);
 
     for (const auto& [name, color] : UIColors) {
@@ -187,16 +231,6 @@ int luaopen_UIElement(lua_State* L)
 	lua_rawseti(L, -2, 4);
 	lua_setfield(L, -2, name);
     }
-
-    lua_pop(L, 1);
-    
-    lua_pushstring(L, "RenderForeground");
-    lua_pushstring(L, "UIElement");
-    lua_pushcfunction(L, UIElement_drawVisuals, "UIElement.drawVisuals");
-
-    Api_SetHook(L);    
-
-    luaL_getmetatable(L, "UIElement");
 
     return 1;
 }

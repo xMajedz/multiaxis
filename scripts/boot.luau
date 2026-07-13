@@ -1,9 +1,6 @@
-local UIElement = require "@UIElement"
-
-local red  = UIElement.new({ pos = {10, 10}, size = {90, 90}, bgColor = UIElement["UICOLORRED"] })
-local blue = UIElement.new({ pos = {15, 15}, size = {90, 90}, bgColor = UIElement["UICOLORBLUE"] })
-
 local Console = require "Ui/Console" -- load console first so i can get errors logged
+
+runscript("redpixel.luau")
 
 --[[
 for i, message in require("intro") do -- insert the intro message into the chat
