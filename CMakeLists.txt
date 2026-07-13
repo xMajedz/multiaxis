@@ -9,6 +9,7 @@ add_executable(multiaxis
 sources/ApiRaylib.cpp
 sources/ApiRaygui.cpp
 sources/ApiRaymath.cpp
+sources/ApiUIElement.cpp
 sources/Api.cpp
 sources/Game.cpp
 sources/Renderer.cpp
