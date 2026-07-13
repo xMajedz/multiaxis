@@ -110,10 +110,14 @@ int luaopenApiRaylib(lua_State* L);
 int luaopenApiRaygui(lua_State* L);
 int luaopenApiRaymath(lua_State* L);
 
+int luaopen_UIElement(lua_State* L);
+
 std::tuple<int, int(*)(lua_State*), std::string> builtinlibs[] = {
     {0, luaopenApiRaylib, "@Raylib"},
     {0, luaopenApiRaygui, "@Raygui"},
     {0, luaopenApiRaymath, "@Raymath"},
+
+    {0, luaopen_UIElement, "@UIElement"},
 };
 
 static int require_builtin(lua_State* L, const std::string& filename)
