@@ -1,17 +1,7 @@
 local UIElement = require "@UIElement"
 
-local viewElement = UIElement.new({ pos = {10, 10}, size = {90, 90}, bgColor = UIElement["UICOLORRED"] })
-
---viewElement:hide()
---[[
-function Api.RenderForeground.UIElement()
-    viewElement:display()
-end
-]]
-
-function Api.RenderForeground.UIElement()
-    UIElement.drawVisuals()
-end
+local red  = UIElement.new({ pos = {10, 10}, size = {90, 90}, bgColor = UIElement["UICOLORRED"] })
+local blue = UIElement.new({ pos = {15, 15}, size = {90, 90}, bgColor = UIElement["UICOLORBLUE"] })
 
 local Console = require "Ui/Console" -- load console first so i can get errors logged
 

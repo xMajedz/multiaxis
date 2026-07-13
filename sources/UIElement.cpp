@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#include <vector>
+
 class UIElement
 {
 public:
@@ -19,8 +21,11 @@ public:
     void display();
     void show();
     void hide();
+    void reload();
     void kill();
 };
+
+static std::vector<UIElement*> UIElements;
 
 void UIElement::display()
 {
@@ -38,9 +43,20 @@ void UIElement::hide()
     visible = false;
 }
 
+void UIElement::reload()
+{
+    hide();
+    show();
+}
+
 void UIElement::kill()
 {
     return;
+}
+
+static void UIElement_destructor(void* ud)
+{
+    static_cast<UIElement*>(ud)->~UIElement();
 }
 
 static int UIElement_display(lua_State* L)
@@ -61,13 +77,17 @@ static int UIElement_hide(lua_State* L)
     return 0;
 }
 
+static int UIElement_reload(lua_State* L)
+{
+    static_cast<UIElement*>(lua_touserdata(L, 1))->reload();
+    return 0;
+}
+
 static int UIElement_kill(lua_State* L)
 {
     static_cast<UIElement*>(lua_touserdata(L, 1))->kill();
     return 0;
 }
-
-static int elements;
 
 static int UIElement_new(lua_State* L)
 {
@@ -105,12 +125,12 @@ static int UIElement_new(lua_State* L)
 
     lua_pop(L, 1);
 
-    lua_rawgeti(L, LUA_REGISTRYINDEX, elements);
-    int index = lua_objlen(L, -1);
-    *static_cast<UIElement*>(lua_newuserdata(L, sizeof(UIElement))) = o;
-    lua_rawseti(L, -2, index + 1);
-    lua_rawgeti(L, -1, index + 1);
-    std::cout << lua_gettop(L) << std::endl;
+    UIElement* e = static_cast<UIElement*>(lua_newuserdatadtor(L, sizeof(UIElement), UIElement_destructor));
+
+    new (e) UIElement(o);
+
+    UIElements.push_back(e);
+    
     luaL_getmetatable(L, "UIElement");
     lua_setmetatable(L, -2);
     
@@ -119,30 +139,10 @@ static int UIElement_new(lua_State* L)
 
 static int UIElement_drawVisuals(lua_State* L)
 {
-    lua_rawgeti(L, LUA_REGISTRYINDEX, elements);
-    lua_pushnil(L);
-	
-    while (lua_next(L, -2) != 0) {
-        //const char* key = lua_tostring(L, -2);
-	//static_cast<UIElement*>(lua_touserdata(L, -1))->display();
-	//std::cout << lua_gettop(L) << std::endl;
-        //lua_pop(L, 2);
-	/*if (lua_isfunction(L, -1)) {
-	    for (int i = 2; i <= nargs; i += 1) {
-	        lua_pushvalue(L, i);
-	    }
-
-	    int status = lua_pcall(L, nargs - 1, 0, 0);
-
-	    if (status != LUA_OK) {
-	        log(lua_tostring(L, -1));
-	        lua_pop(L, nargs - 3);
-	    }
-	    }*/
+    for (UIElement* e : UIElements) {
+        e->display();
     }
-	
-    lua_pop(L, 1);
-
+    
     return 0;
 }
 
@@ -166,12 +166,10 @@ static const struct UIColor { const char* name; Color color; } UIColors[] {
     {"UICOLORBLUE",  {0,   0,   255, 255}},
 };
 
+int Api_SetHook(lua_State* L);
+
 int luaopen_UIElement(lua_State* L)
 {
-    lua_newtable(L);
-    elements = lua_ref(L, -1);
-    lua_pop(L, 1);
-    
     luaL_newmetatable(L, "UIElement");
     luaL_getmetatable(L, "UIElement");
     lua_setfield(L, -1, "__index");
@@ -189,6 +187,16 @@ int luaopen_UIElement(lua_State* L)
 	lua_rawseti(L, -2, 4);
 	lua_setfield(L, -2, name);
     }
+
+    lua_pop(L, 1);
+    
+    lua_pushstring(L, "RenderForeground");
+    lua_pushstring(L, "UIElement");
+    lua_pushcfunction(L, UIElement_drawVisuals, "UIElement.drawVisuals");
+
+    Api_SetHook(L);    
+
+    luaL_getmetatable(L, "UIElement");
 
     return 1;
 }

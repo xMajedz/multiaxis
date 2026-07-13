@@ -627,8 +627,16 @@ static int metamethod_newindex(lua_State* L)
     return 0;
 }
 
-static int Api_SetHook(lua_State* L)
+int Api_SetHook(lua_State* L)
 {
+    const char* callback = lua_tostring(L, 1);
+    const char* name =  lua_tostring(L, 2);
+
+    lua_getglobal(L, "Api");
+    lua_getfield(L, -1, callback);
+    lua_pushvalue(L, -3);
+    lua_setfield(L, -2, name);
+
     return 0;
 }
 
