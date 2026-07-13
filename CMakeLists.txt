@@ -9,10 +9,10 @@ add_executable(multiaxis
 sources/ApiRaylib.cpp
 sources/ApiRaygui.cpp
 sources/ApiRaymath.cpp
-sources/ApiUIElement.cpp
 sources/Api.cpp
 sources/Game.cpp
 sources/Renderer.cpp
+sources/UIElement.cpp
 sources/multiaxis.cpp)
 
 target_include_directories(multiaxis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/raygui/src)
