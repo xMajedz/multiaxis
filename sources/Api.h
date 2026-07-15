@@ -58,8 +58,8 @@ static const char* Hooks[HOOK_COUNT] = {
    "Console",
    "Update",
 
-   "RenderBackground",
-   "RenderForeground",
+   "OnRenderBackground",
+   "OnRenderForeground",
 
     /*	"NewGame",
 	"Freeze",

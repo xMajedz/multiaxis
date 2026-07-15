@@ -14,7 +14,7 @@ local text, edit = buffer.create(sizeof.u8[256]), false
 
 local screenWidth, screenHeight = Ray.GetScreenWidth(), Ray.GetScreenHeight()
 
-function Api.RenderForeground.Console()
+function Api.OnRenderForeground.Console()
 if Console.Menu.showUi then	
     if showConsole and Gui.GuiTextBox(10, screenHeight - 25, screenWidth - 20, 20, text, edit) then end
 --[[	
