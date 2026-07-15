@@ -117,13 +117,24 @@ std::tuple<int, int(*)(lua_State*), std::string> builtinlibs[] = {
     {0, luaopenApiRaygui, "@Raygui"},
     {0, luaopenApiRaymath, "@Raymath"},
 
-    {0, luaopen_UIElement, "@UIElement"},
+    {0, luaopen_UIElement, "@uielement"},
 };
+
+static bool compare_case_insenstive(const std::string s1, const std::string s2)
+{
+    bool match = true;
+    
+    for (int i = 0; match && i < s1.size() && i < s2.size(); i += 1) {
+        match = std::tolower(s1[i]) == std::tolower(s2[i]);
+    }
+
+    return match;
+}
 
 static int require_builtin(lua_State* L, const std::string& filename)
 {
     for (auto& [ref, luaopen_lib, name] : builtinlibs) {
-        if (filename == name) {
+        if (compare_case_insenstive(filename, name)) {
             if (ref == 0) {
 	        lua_pushcfunction(L, luaopen_lib, NULL);
 	        lua_call(L, 0, 1);
@@ -140,7 +151,7 @@ static int require_builtin(lua_State* L, const std::string& filename)
 
 static int require(lua_State* L, const std::string& filename)
 {
-    if (require_builtin(L, filename) == LUA_OK) return 0;
+    if (filename.at(0) == '@' && require_builtin(L, filename) == LUA_OK) return 0;
       
     std::string requirestring = "./scripts/?.luau;./scripts/?/?.luau";
     std::string chunkname = "=require:" + filename;

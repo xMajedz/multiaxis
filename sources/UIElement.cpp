@@ -8,26 +8,31 @@
 
 #include <vector>
 
-enum UIElementShape { SQUARE, ROUNDED };
+#include <memory>
+
+#define RENDER_FOREGROUND_GLOBALID 1
+#define RENDER_BACKGROUND_GLOBALID 2
+
+enum UIShapeType { SQUARE, ROUNDED };
 
 class UIElement
 {
 public:
-    UIElement* parent = nullptr;
+    std::shared_ptr<UIElement> parent;
 
-    std::vector<UIElement*> child;
+    std::vector<std::shared_ptr<UIElement>> child;
 
-    uint32_t globalId = 1;
+    uint32_t globalId = RENDER_FOREGROUND_GLOBALID;
 
-    int posX = 0;
-    int posY = 0;
-    int width  = 1;
-    int height = 1;
+    Rectangle rec = {0, 0, 1, 1};
+
+    UIShapeType shapeType = ROUNDED;
+    float rounded = 0.1;
+
+    Color bgColor = WHITE;
 
     bool displayed = true;
     bool destroyed = false;
-  
-    Color bgColor = WHITE;
     
     void display();
     void show();
@@ -44,20 +49,26 @@ using u_map = std::unordered_map<T, U>;
 template<typename T>
 using vec = std::vector<T>;
 
-static u_map<uint32_t, vec<UIElement*>> UIVisualManager;
+using UIElementResource = std::shared_ptr<UIElement>;
 
-//static std::vector<UIElement*> UIVisualManager;
+static u_map<uint32_t, vec<std::shared_ptr<UIElement>>> UIVisualManager;
+
+static vec<std::shared_ptr<UIElement>> UIElementManager;
 
 void UIElement::display()
 {
     if (destroyed || !displayed) return;
-  
-    DrawRectangle(posX, posY, width, height, bgColor);
+
+    if (shapeType == SQUARE)
+        DrawRectangleRec(rec, bgColor);
+
+    if (shapeType == ROUNDED)
+        DrawRectangleRounded(rec, rounded, 8, bgColor);
 }
 
 void UIElement::show()
 {
-    for (UIElement* elem : child) {
+    for (std::shared_ptr<UIElement> elem : child) {
         elem->show();
     }
     
@@ -66,7 +77,7 @@ void UIElement::show()
 
 void UIElement::hide()
 {
-    for (UIElement* elem : child) {
+    for (std::shared_ptr<UIElement> elem : child) {
         elem->hide();
     }
     
@@ -81,7 +92,7 @@ void UIElement::reload()
 
 void UIElement::kill()
 {
-    for (UIElement* elem : child) {
+    for (std::shared_ptr<UIElement> elem : child) {
         elem->kill();
     }
     
@@ -90,42 +101,43 @@ void UIElement::kill()
 
 UIElement::~UIElement()
 {
+    std::cout << "~UIElement: " << this << std::endl;
 }
 
 static void UIElement_destructor(lua_State* L, void* ud)
 {
-    UIElement* elem = static_cast<UIElement*>(ud);
-    elem->~UIElement();
-    if (!elem->destroyed) elem->kill(); // destroy elements that has zero refrences but are still alive to avoid undefined behaviour
+    std::shared_ptr<UIElement>* elem = static_cast<std::shared_ptr<UIElement>*>(ud);
+    elem->~UIElementResource();
+    std::cout << "~uielement: " << *elem << " count: " << elem->use_count() << std::endl;
 }
 
 static int UIElement_display(lua_State* L)
 {
-    static_cast<UIElement*>(lua_touserdata(L, 1))->display();
+    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->display();
     return 0;
 }
 
 static int UIElement_show(lua_State* L)
 {
-    static_cast<UIElement*>(lua_touserdata(L, 1))->show();
+    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->show();
     return 0;
 }
 
 static int UIElement_hide(lua_State* L)
 {
-    static_cast<UIElement*>(lua_touserdata(L, 1))->hide();
+    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->hide();
     return 0;
 }
 
 static int UIElement_reload(lua_State* L)
 {
-    static_cast<UIElement*>(lua_touserdata(L, 1))->reload();
+    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->reload();
     return 0;
 }
 
 static int UIElement_kill(lua_State* L)
 {
-    static_cast<UIElement*>(lua_touserdata(L, 1))->kill();
+    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->kill();
     return 0;
 }
 
@@ -136,30 +148,31 @@ static int UIElement_new(lua_State* L)
         return 1;
     }
 
-    UIElement* elem = static_cast<UIElement*>(lua_newuserdatataggedwithmetatable(L, sizeof(UIElement), 1));
+    std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_newuserdatataggedwithmetatable(L, sizeof(std::shared_ptr<UIElement>), 1));
+    std::shared_ptr<UIElement>& elem = *(new (ud) std::shared_ptr<UIElement>(std::make_shared<UIElement>()));
 
-    new (elem) UIElement;
+    //std::cout << elem.use_count() << std::endl;
 
+    lua_getfield(L, -2, "parent");
+    if (lua_isuserdata(L, -1)) {
+        elem->parent = *static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, -1));
+	lua_pop(L, 2);
+    } else {
+        lua_pop(L, 1);
+    }
+    
     lua_getfield(L, -2, "globalId");
     if (lua_isnumber(L, -1)) {
         elem->globalId = lua_tounsigned(L, -1);	
     }
     lua_pop(L, 1);
     
-    lua_getfield(L, -2, "parent");
-    if (lua_isuserdata(L, -1)) {
-        elem->parent = static_cast<UIElement*>(lua_touserdata(L, -1));
-	lua_pop(L, 2);
-    } else {
-        lua_pop(L, 1);
-    }
-    
     lua_getfield(L, -2, "pos");
     if (lua_istable(L, -1)) {
         lua_rawgeti(L, -1, 1);
-        elem->posX = lua_tointeger(L, -1);
+        elem->rec.x = lua_tointeger(L, -1);
         lua_rawgeti(L, -2, 2);
-        elem->posY = lua_tointeger(L, -1);
+        elem->rec.y = lua_tointeger(L, -1);
         lua_pop(L, 3);
     } else {
         lua_pop(L, 1);
@@ -168,9 +181,9 @@ static int UIElement_new(lua_State* L)
     lua_getfield(L, -2, "size");
     if (lua_istable(L, -1)) {
         lua_rawgeti(L, -1, 1);
-        elem->width = lua_tointeger(L, -1);
+        elem->rec.width = lua_tointeger(L, -1);
         lua_rawgeti(L, -2, 2);
-        elem->height = lua_tointeger(L, -1);
+        elem->rec.height = lua_tointeger(L, -1);
         lua_pop(L, 3);
     } else {
         lua_pop(L, 1);
@@ -192,6 +205,7 @@ static int UIElement_new(lua_State* L)
     }
 
     UIVisualManager[elem->globalId].push_back(elem);
+    //std::cout << "uielement: " << elem << " count: " << elem.use_count() << std::endl;
 
     return 1;
 }
@@ -216,7 +230,7 @@ static int UIElement_drawVisuals(lua_State* L)
         globalId = lua_tounsigned(L, -1);
     }
     
-    for (UIElement* elem : UIVisualManager[globalId]) {
+    for (auto elem : UIVisualManager[globalId]) {
         elem->display();
     }
     
@@ -231,39 +245,10 @@ static int UIElement_drawVisualsClosure(lua_State* L)
     return 0;
 }
 
-static const luaL_Reg ApiUIElement[]
-{
-    {"new", UIElement_new},
-    {"display", UIElement_display},
-    {"show", UIElement_show},
-    {"hide", UIElement_hide},
-    {"kill", UIElement_kill},
-    {"drawVisuals", UIElement_drawVisuals},
-
-    {NULL, NULL},
-};
-
-static const struct UIColor { const char* name; Color color; } UIColors[] {
-    {"UICOLORWHITE", {255, 255, 255, 255}},
-    {"UICOLORBLACK", {0,   0,   0,   255}},
-    {"UICOLORRED",   {255, 0,   0,   255}},
-    {"UICOLORGREEN", {0,   255, 0,   255}},
-    {"UICOLORBLUE",  {0,   0,   255, 255}},
-};
-
 int Api_SetHook(lua_State* L);
 
-int luaopen_UIElement(lua_State* L)
+static int UIElement_renderHooks(lua_State* L)
 {
-    luaL_newmetatable(L, "UIElement");
-    luaL_getmetatable(L, "UIElement");
-    lua_setfield(L, -2, "__index");
-    lua_pushstring(L, "uielement");
-    lua_setfield(L, -2, "__type");
-
-    lua_setuserdatametatable(L, 1);
-    lua_setuserdatadtor(L, 1, UIElement_destructor);
-
     lua_pushcfunction(L, Api_SetHook, NULL);
     lua_pushstring(L, "OnRenderForeground");
     lua_pushstring(L, "uielement");
@@ -277,10 +262,77 @@ int luaopen_UIElement(lua_State* L)
     lua_pushunsigned(L, 2);
     lua_pushcclosure(L, UIElement_drawVisualsClosure, "UIElement.drawVisualsClosure", 1);
     lua_call(L, 3, 0);
+    return 0;
+}
 
-    lua_newtable(L);
+static int UIElement__index(lua_State* L)
+{
+    std::string k = lua_tostring(L, -1);
+
+    luaL_getmetatable(L, "uielement");
+    lua_getfield(L, -1, k.data());
+    if (lua_isfunction(L, -1)) {
+        return 1;
+    } else {
+        lua_pop(L, 1);
+    }
+    
+    if (k == "clock") {
+        lua_pushnumber(L, GetTime());
+        return 1;
+    }
+
+    if (k == "deltaClock") {
+        lua_pushnumber(L, GetFrameTime());
+        return 1;
+    }
+
+    return 0;
+}
+
+static const luaL_Reg ApiUIElement[]
+{
+    {"new", UIElement_new},
+    
+    {"display", UIElement_display},
+    {"show", UIElement_show},
+    {"hide", UIElement_hide},
+    {"kill", UIElement_kill},
+    
+    {"drawVisuals", UIElement_drawVisuals},
+
+    {NULL, NULL},
+};
+
+static const struct UIColor { const char* name; Color color; } UIColors[] {
+    {"UICOLORWHITE", {255, 255, 255, 255}},
+    {"UICOLORBLACK", {0,   0,   0,   255}},
+    {"UICOLORRED",   {255, 0,   0,   255}},
+    {"UICOLORGREEN", {0,   255, 0,   255}},
+    {"UICOLORBLUE",  {0,   0,   255, 255}},
+};
+
+int luaopen_UIElement(lua_State* L)
+{
+    luaL_newmetatable(L, "uielement");
 
     luaL_register(L, NULL, ApiUIElement);
+    
+    lua_pushcfunction(L, UIElement__index, NULL);
+    lua_setfield(L, -2, "__index");
+    lua_pushstring(L, "uielement");
+    lua_setfield(L, -2, "__type");
+
+    std::cout << lua_gettop(L) << std::endl;
+    
+    lua_setuserdatametatable(L, 1);
+    lua_setuserdatadtor(L, 1, UIElement_destructor);
+
+    UIElement_renderHooks(L);
+    
+    lua_newtable(L);
+    luaL_getmetatable(L, "uielement");
+    lua_setmetatable(L, -2);
 
     for (const auto& [name, color] : UIColors) {
         lua_newtable(L);
