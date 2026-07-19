@@ -66,17 +66,26 @@ void Renderer::RenderForeground()
     EndTextureMode();
 }
 
-
+Vector2 previousMousePosition = {0};
+    
 void Renderer::Render()
 {
+    /* Input Handling*/
+    Vector2 mousePosition = GetMousePosition();
+    if (previousMousePosition.x != mousePosition.x || previousMousePosition.y != mousePosition.y) {
+        ApiInstance_->MouseMoved(mousePosition.x, mousePosition.y);
+	previousMousePosition = mousePosition;
+    }
+    
     SetWindowTitle(TextFormat("MultiAxis %dFPS", GetFPS()));
 
+    RenderBackground();
+    RenderForeground();
+    
     BeginDrawing();
-        ClearBackground(bg_color);
+    //ClearBackground(bg_color);
 	DrawTextureRec(bg.texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);
 	DrawTextureRec(fg.texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);	
-	RenderBackground();
- 	RenderForeground();
     EndDrawing();
 }
 

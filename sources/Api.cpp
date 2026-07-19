@@ -248,6 +248,14 @@ void Api::RenderForeground()
     lua_pcall(ML, 0, 0, 0);
 }
 
+void Api::MouseMoved(float x, float y)
+{
+    lua_rawgeti(ML, LUA_REGISTRYINDEX, HookList[MOUSE_MOVED]);
+    lua_pushnumber(ML, x);
+    lua_pushnumber(ML, y);
+    lua_pcall(ML, 2, 0, 0);
+}
+
 static int Api_log(lua_State* L)
 {
     std::stringstream ss;

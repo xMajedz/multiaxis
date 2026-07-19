@@ -23,6 +23,9 @@ public:
 
     void RenderBackground();
     void RenderForeground();
+
+    void MouseMoved(float x, float y);
+
 private:
     lua_State* ML;
 
@@ -38,7 +41,8 @@ enum Hook {
 
     RENDER_BG,
     RENDER_FG,
-    
+
+    MOUSE_MOVED,
   /*
   NEW_GAME,
   FREEZE,
@@ -60,6 +64,8 @@ static const char* Hooks[HOOK_COUNT] = {
 
    "OnRenderBackground",
    "OnRenderForeground",
+
+   "OnMouseMoved",
 
     /*	"NewGame",
 	"Freeze",
