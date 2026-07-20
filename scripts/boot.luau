@@ -4,20 +4,44 @@
 
 local ui = require "@uielement"
 
-do
+if true then
 local viewElement = ui.new{
-   rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20 },
-   bgColor = ui.UICOLORRED,
-   borderColor = ui.UICOLORBLUE,
-   hoverColor = ui.UICOLORBLUE,
-   pressedColor = ui.UICOLORBLUE,
-   interactive = true,
+    rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20 },
+
+    bgColor = ui.UICOLORBLANK,
+    hoverColor = ui.UICOLORBLANK,
+    pressedColor = ui.UICOLORBLUE,
+    
+    borderColor = ui.UICOLORWHITE,
+    borderHoverColor = ui.UICOLORBLUE,
+    
+    interactive = true,
 }
+
+viewElement:hide()
+
+--viewElement:makeTextfield()
+
+local text = "textfield"
+
+function viewElement.customDisplay()
+    viewElement:uiText(text, 5, 0, (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE)
+end
+
+function viewElement.enterAction()
+    if viewElement.displayed then viewElement:hide() else viewElement:show() end
+end
+
+function Api.OnKeyPressed.textfield(key)
+    -- TODO: safely convert key to char in c api
+    if key ~= 257 then text = text .. string.char(key) end
+end
 
 ui.mouseHooks()
 ui.keyboardHooks()
 ui.renderHooks()
 end
+
 -- uielement.new() no arguments default constructor behaviour and throw an error
 -- uielement.new{} table argument default constructor behaviour
 -- uielement:new() self(table) argument default constructor behaviour

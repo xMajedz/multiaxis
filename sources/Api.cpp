@@ -51,59 +51,59 @@ static int loadfile(lua_State* L, const std::string& filepath, const std::string
 {
     std::ifstream file(filepath);
 
-	if (!file) {
-	    log(filepath + " no such file");
-	    return 1;
-	}
+    if (!file) {
+        log(filepath + " no such file");
+        return 1;
+    }
 	
     std::stringstream text;
 
-	text << file.rdbuf();
+    text << file.rdbuf();
 	
-	Bytecode bytecode(text.str());
+    Bytecode bytecode(text.str());
 
-	return bytecode.load(L, chunkname);
+    return bytecode.load(L, chunkname);
 }
 
 static void query_replace(std::string& source, const std::string& from, const std::string& to)
 {
     size_t start = 0;
     while ((start = source.find(from, start)) != std::string::npos) {
-		source.replace(start, from.length(), to);
-	    start += to.length();
-	}
+	source.replace(start, from.length(), to);
+	start += to.length();
+    }
 }
 
 static int requirefile(lua_State* L, std::string requirename, std::string chunkname, std::string requirestring)
 {  
      query_replace(requirestring, ";", " ");
 
-	 std::stringstream requirestream(requirestring);
+     std::stringstream requirestream(requirestring);
 	
-	 std::string path;
-	 std::stringstream text;
+     std::string path;
+     std::stringstream text;
 
-	 bool found = false;	 
+     bool found = false;	 
 
-	 while (!found && (requirestream >> path)) {	
-		query_replace(path, "?", requirename);
+     while (!found && (requirestream >> path)) {	
+	 query_replace(path, "?", requirename);
 
-		std::ifstream file(path);
+	 std::ifstream file(path);
 
-	    if (file) {
-	        text << file.rdbuf();
-	        found = true;
-	    }
-	}
+	 if (file) {
+	     text << file.rdbuf();
+	     found = true;
+	 }
+    }
 	
-	if (!found) {
-	    log("failed to require " + requirename);
-	    return 1;
-	}
+    if (!found) {
+	log("failed to require " + requirename);
+	return 1;
+    }
 
-	Bytecode bytecode(text.str());
+    Bytecode bytecode(text.str());
 
-	return bytecode.load(L, chunkname);
+    return bytecode.load(L, chunkname);
 }
 
 int luaopenApiRaylib(lua_State* L);
@@ -225,35 +225,67 @@ void Api::Boot(const std::string& bootfile)
 
 void Api::Console(const std::string& message)
 {
-    lua_rawgeti(ML, LUA_REGISTRYINDEX, HookList[CONSOLE]);
+    lua_getref(ML, Hooks[CONSOLE].key);
     lua_pushlstring(ML, message.data(), message.size());
     lua_pcall(ML, 1, 0, 0);
 }
 
 void Api::Update()
 {
-    lua_rawgeti(ML, LUA_REGISTRYINDEX, HookList[UPDATE]);
+    lua_getref(ML, Hooks[UPDATE].key);
     lua_pcall(ML, 0, 0, 0);
 }
 
 void Api::RenderBackground()
 {
-    lua_rawgeti(ML, LUA_REGISTRYINDEX, HookList[RENDER_BG]);
+    lua_getref(ML, Hooks[RENDER_BG].key);
     lua_pcall(ML, 0, 0, 0);
 }
 
 void Api::RenderForeground()
 {
-    lua_rawgeti(ML, LUA_REGISTRYINDEX, HookList[RENDER_FG]);
+    lua_getref(ML, Hooks[RENDER_FG].key);
     lua_pcall(ML, 0, 0, 0);
 }
 
 void Api::MouseMoved(float x, float y)
 {
-    lua_rawgeti(ML, LUA_REGISTRYINDEX, HookList[MOUSE_MOVED]);
+    lua_getref(ML, Hooks[MOUSE_MOVED].key);
     lua_pushnumber(ML, x);
     lua_pushnumber(ML, y);
     lua_pcall(ML, 2, 0, 0);
+}
+
+void Api::MouseButtonPressed(int btn, float x, float y)
+{
+    lua_getref(ML, Hooks[MOUSE_PRESSED].key);
+    lua_pushinteger(ML, btn);
+    lua_pushnumber(ML, x);
+    lua_pushnumber(ML, y);
+    lua_pcall(ML, 3, 0, 0);
+}
+
+void Api::MouseButtonReleased(int btn, float x, float y)
+{
+    lua_getref(ML, Hooks[MOUSE_RELEASED].key);
+    lua_pushinteger(ML, btn);
+    lua_pushnumber(ML, x);
+    lua_pushnumber(ML, y);
+    lua_pcall(ML, 3, 0, 0);
+}
+
+void Api::KeyPressed(int key)
+{
+    lua_getref(ML, Hooks[KEY_PRESSED].key);
+    lua_pushinteger(ML, key);
+    lua_pcall(ML, 1, 0, 0);
+}
+
+void Api::KeyReleased(int key)
+{
+    lua_getref(ML, Hooks[KEY_RELEASED].key);
+    lua_pushinteger(ML, key);
+    lua_pcall(ML, 1, 0, 0);
 }
 
 static int Api_log(lua_State* L)
@@ -669,9 +701,7 @@ int luaopenApiMain(lua_State* L)
 {
     luaL_register(L, "Api", ApiMain);
 
-    for (int i = 0; i < HOOK_COUNT; i += 1) {
-        auto Event = Hooks[i];
-		
+    for (auto& hook : Hooks) {		
         lua_newtable(L);
         lua_newtable(L);
 
@@ -683,36 +713,36 @@ int luaopenApiMain(lua_State* L)
         lua_remove(L, -1);
 
 	std::string chunknames = "Api.?.__call Api.?.__index Api.?.__newindex";
-	query_replace(chunknames, "?", Event);
+	query_replace(chunknames, "?", hook.name);
 
 	std::string chunkname;
 	std::stringstream chunkstream(chunknames);
 
 	chunkstream >> chunkname;
 	
-        lua_pushstring(L, Event);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, closure_table);
+        lua_pushstring(L, hook.name);
+        lua_getref(L, closure_table);
         lua_pushcclosure(L, metamethod_call, chunkname.data(), 2);
         lua_setfield(L, -2, "__call");
 
 	chunkstream >> chunkname;
 
-	lua_pushstring(L, Event);
-        lua_rawgeti(L, LUA_REGISTRYINDEX, closure_table);
+	lua_pushstring(L, hook.name);
+        lua_getref(L, closure_table);
 	lua_pushcclosure(L, metamethod_index, chunkname.data(), 2);
 	lua_setfield(L, -2, "__index");
 
 	chunkstream >> chunkname;
 
-	lua_pushstring(L, Event);
-	lua_rawgeti(L, LUA_REGISTRYINDEX, closure_table);
+	lua_pushstring(L, hook.name);
+	lua_getref(L, closure_table);
 	lua_pushcclosure(L, metamethod_newindex, chunkname.data(), 2);
         lua_setfield(L, -2, "__newindex");
       
-	HookList[i] = (Hook)lua_ref(L, -2);
+	hook.key = lua_ref(L, -2);
 
 	lua_setmetatable(L, -2);
-	lua_setfield(L, -2, Event);
+	lua_setfield(L, -2, hook.name);
     }
 	
     return 1;

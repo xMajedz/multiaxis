@@ -12,6 +12,8 @@ local sizeof = require "csize"
 
 local text, edit = buffer.create(sizeof.u8[256]), false
 
+buffer.writestring(text, 0, "text", 4)
+
 local screenWidth, screenHeight = Ray.GetScreenWidth(), Ray.GetScreenHeight()
 
 function Api.OnRenderForeground.Console()

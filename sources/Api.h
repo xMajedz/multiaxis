@@ -25,7 +25,12 @@ public:
     void RenderForeground();
 
     void MouseMoved(float x, float y);
+    void MouseButtonPressed(int btn, float x, float y);
+    void MouseButtonReleased(int btn, float x, float y);
 
+    void KeyPressed(int key);
+    void KeyReleased(int key);
+  
 private:
     lua_State* ML;
 
@@ -33,7 +38,7 @@ private:
     ~Api();
 };
 
-enum Hook {
+enum HookType {
     PROTOTYPE = 0,
 
     CONSOLE,
@@ -43,6 +48,12 @@ enum Hook {
     RENDER_FG,
 
     MOUSE_MOVED,
+    MOUSE_PRESSED,
+    MOUSE_RELEASED,
+
+    KEY_PRESSED,
+    KEY_RELEASED,
+
   /*
   NEW_GAME,
   FREEZE,
@@ -54,18 +65,21 @@ enum Hook {
     HOOK_COUNT,
 };
 
-static Hook HookList[HOOK_COUNT];
+static struct { int key; const char * name; } Hooks[HOOK_COUNT] {
+    {0, "prototype"},
 
-static const char* Hooks[HOOK_COUNT] = {
-   "prototype",
+    {0, "Console"},
+    {0, "Update"},
 
-   "Console",
-   "Update",
+    {0, "OnRenderBackground"},
+    {0, "OnRenderForeground"},
 
-   "OnRenderBackground",
-   "OnRenderForeground",
+    {0, "OnMouseMoved"},
+    {0, "OnMouseButtonPressed"},
+    {0, "OnMouseButtonReleased"},
 
-   "OnMouseMoved",
+    {0, "OnKeyPressed"},
+    {0, "OnKeyReleased"},
 
     /*	"NewGame",
 	"Freeze",

@@ -33,18 +33,20 @@ public:
   
     float rounded = 0.1;
 
-    Color uiColor = BLACK;
+    Color uiColor = WHITE;
 
     Color bgColor = WHITE;
     Color hoverColor = WHITE;
     Color pressedColor = WHITE;
 
     Color borderColor = WHITE;
+    Color borderHoverColor = WHITE;
     
     Image bgImage;
     Texture bgImageTexture;
     Color bgImageColor = WHITE;
 
+    bool hoverState = false;
     bool interactive = false;
   
     bool customDisplayOnly = false;
@@ -60,7 +62,7 @@ public:
     void reload();
     void kill();
 
-    void uiText(const char* str, uint32_t x, uint32_t y);
+    void uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2);
 
     ~UIElement();
 };
@@ -83,9 +85,19 @@ static vec<std::shared_ptr<UIElement>> UIKeyboardHandler;
 void UIElement::display()
 {
     if (shapeType == SQUARE) {
-        DrawRectangleRec(rec, bgColor);
+        Color col = bgColor;
+        Color borderCol = borderColor;
+	
+	if (hoverState) {
+            col = hoverColor;
+	    borderCol = borderHoverColor;
+	}
+
+	if (col.a > 0)
+	    DrawRectangleRec(rec, col);
+
 	if (borderColor.a > 0)
-	    DrawRectangleLines(rec.x, rec.y, rec.width, rec.height, borderColor);
+	    DrawRectangleLines(rec.x, rec.y, rec.width, rec.height, borderCol);
     }
 
     if (shapeType == ROUNDED)
@@ -154,9 +166,9 @@ void UIElement::kill()
     destroyed = true;
 }
 
-void UIElement::uiText(const char* str, uint32_t x, uint32_t y)
+void UIElement::uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2)
 {
-    DrawText(str, rec.x + x, rec.y + y, 20, uiColor);
+    DrawText(str, rec.x + x, rec.y + y, 20, col1);
 }
 
 UIElement::~UIElement()
@@ -342,10 +354,13 @@ static int UIElement_new(lua_State* L)
     }
 
     parseColor(L, &elem->uiColor, "uiColor");
+
     parseColor(L, &elem->bgColor, "bgColor");
     parseColor(L, &elem->hoverColor, "hoverColor");
     parseColor(L, &elem->pressedColor, "pressedColor");
+
     parseColor(L, &elem->borderColor, "borderColor"); 
+    parseColor(L, &elem->borderHoverColor, "borderHoverColor"); 
 
     lua_getfield(L, -2, "bgImage");
     if (lua_isstring(L, -1)) {
@@ -415,10 +430,52 @@ static int UIElement_handleMouseHover(lua_State* L)
         auto& elem = UIMouseHandler[i - 1];
 	if((x >= elem->rec.x && x <= (elem->rec.x + elem->rec.width)) &&
 	   (y >= elem->rec.y && y <= (elem->rec.y + elem->rec.height))) {
-	    elem->bgColor = elem->hoverColor;
+	    elem->hoverState = true;
+	} else {
+	    elem->hoverState = false;
 	}
     }
     
+    return 0;
+}
+
+static int UIElement_handleMouseButtonPressed(lua_State* L)
+{
+    int btn = lua_tointeger(L, 1);
+    std::cout << "MouseButtonPressed" << std::endl;
+    return 0;
+}
+
+static int UIElement_handleMouseButtonReleased(lua_State* L)
+{
+    int btn = lua_tointeger(L, 1);
+    std::cout << "MouseButtonReleassed" << std::endl;
+    return 0;
+}
+
+static int UIElement_handleKeyPressed(lua_State* L)
+{
+    int key = lua_tointeger(L, 1);
+
+    if (key == KEY_ENTER) {
+       for (auto& elem : UIMouseHandler) {
+            lua_pushlightuserdata(L, elem.get());
+            lua_gettable(L, LUA_REGISTRYINDEX);
+            lua_getfield(L, -1, "enterAction");
+            if(lua_isfunction(L, -1)) {
+                lua_call(L, 0, 0);
+	    }
+        }
+    }
+    
+    std::cout << "KeyPressed" << std::endl;
+    return 0;
+}
+
+static int UIElement_handleKeyReleased(lua_State* L)
+{
+    int key = lua_tointeger(L, 1);
+    std::cout << "KeyReleassed" << std::endl;
     return 0;
 }
 
@@ -432,6 +489,18 @@ static int UIElement_mouseHooks(lua_State* L)
         lua_pushstring(L, "OnMouseMoved");
         lua_pushstring(L, "uielement");
         lua_pushcfunction(L, UIElement_handleMouseHover, NULL);
+        lua_call(L, 3, 0);
+
+	lua_pushcfunction(L, Api_SetHook, NULL);
+        lua_pushstring(L, "OnMouseButtonPressed");
+        lua_pushstring(L, "uielement");
+        lua_pushcfunction(L, UIElement_handleMouseButtonPressed, NULL);
+        lua_call(L, 3, 0);
+
+	lua_pushcfunction(L, Api_SetHook, NULL);
+        lua_pushstring(L, "OnMouseButtonReleased");
+        lua_pushstring(L, "uielement");
+        lua_pushcfunction(L, UIElement_handleMouseButtonReleased, NULL);
         lua_call(L, 3, 0);
     }
 
@@ -448,6 +517,17 @@ static int UIElement_keyboardHooks(lua_State* L)
     lua_getfield(L, -1, "__keyboardHooks");
 
     if (!lua_toboolean(L, -1)) {
+      	lua_pushcfunction(L, Api_SetHook, NULL);
+        lua_pushstring(L, "OnKeyPressed");
+        lua_pushstring(L, "uielement");
+        lua_pushcfunction(L, UIElement_handleKeyPressed, NULL);
+        lua_call(L, 3, 0);
+
+	lua_pushcfunction(L, Api_SetHook, NULL);
+        lua_pushstring(L, "OnKeyReleased");
+        lua_pushstring(L, "uielement");
+        lua_pushcfunction(L, UIElement_handleKeyReleased, NULL);
+        lua_call(L, 3, 0);
     }
 
     lua_pushvalue(L, 1);
@@ -501,7 +581,8 @@ static int UIElement__index(lua_State* L)
     if (lua_istable(L, -1)) {
       lua_getfield(L, -1, k);
 	if (lua_isfunction(L, -1)) {
-	    lua_call(L, 0, 1);
+	    lua_pushvalue(L, 1);
+	    lua_call(L, 1, 1);
 	    return 1;
 	}
     }
@@ -518,6 +599,20 @@ static int UIElement_get_clock(lua_State* L)
 static int UIElement_get_deltaClock(lua_State* L)
 {
     lua_pushnumber(L, GetFrameTime());
+    return 1;
+}
+
+static int UIElement_get_hoverState(lua_State* L)
+{
+    std::shared_ptr<UIElement>* elem = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+    lua_pushboolean(L, (*elem)->hoverState);
+    return 1;
+}
+
+static int UIElement_get_displayed(lua_State* L)
+{
+    std::shared_ptr<UIElement>* elem = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+    lua_pushboolean(L, (*elem)->displayed);
     return 1;
 }
 
@@ -557,14 +652,40 @@ static int UIElement__newindex(lua_State* L)
     return 0;
 }
 
+static int UIElement_set_enterAction(lua_State* L)
+{
+    if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
+        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud->get());
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, "enterAction");
+    }
+
+    return 0;
+}
+
+static int UIElement_set_onShow(lua_State* L)
+{
+    if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
+        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud->get());
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, "onShow");
+    }
+
+    return 0;
+}
+
 static int UIElement_set_customDisplay(lua_State* L)
 {
     if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
-      std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-      lua_pushlightuserdata(L, ud->get());
-      lua_gettable(L, LUA_REGISTRYINDEX);
-      lua_pushvalue(L, -2);
-      lua_setfield(L, -2, "customDisplay");
+        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud->get());
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, "customDisplay");
     }
 
     return 0;
@@ -573,11 +694,11 @@ static int UIElement_set_customDisplay(lua_State* L)
 static int UIElement_set_customDisplayBefore(lua_State* L)
 {
     if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
-      std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-      lua_pushlightuserdata(L, ud->get());
-      lua_gettable(L, LUA_REGISTRYINDEX);
-      lua_pushvalue(L, -2);
-      lua_setfield(L, -2, "customDisplayBefore");
+        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud->get());
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, "customDisplayBefore");
     }
 
     return 0;
@@ -623,16 +744,33 @@ static int UIElement_uiText(lua_State* L)
 
     int x = 0;
     int y = 0;
+    
+    Color col1 = (*ud)->uiColor;
+    Color col2 = (*ud)->uiColor;
 
-    if (lua_isstring(L, 3)) {
+    if (lua_isnumber(L, 3)) {
         x = lua_tounsigned(L, 3);
     }
 
-    if (lua_isstring(L, 4)) {
+    if (lua_isnumber(L, 4)) {
         y = lua_tounsigned(L, 4);
     }
     
-    (*ud)->uiText(string, x, y);
+    if (lua_istable(L, 5)) {
+        lua_pushvalue(L, 5);
+        lua_rawgeti(L, -1, 1);
+        col1.r = 255 * lua_tointeger(L, -1);
+        lua_rawgeti(L, -2, 2);
+        col1.g = 255 * lua_tointeger(L, -1);
+        lua_rawgeti(L, -3, 3);
+        col1.b = 255 * lua_tointeger(L, -1);
+        lua_rawgeti(L, -4, 4);
+	col1.a = 255 * lua_tointeger(L, -1);
+	lua_pop(L, 5);
+    }
+    
+    (*ud)->uiText(string, x, y, col1, col2);
+    
     return 0;
 }
 
@@ -707,6 +845,10 @@ int luaopen_UIElement(lua_State* L)
     lua_setfield(L, -2, "clock");
     lua_pushcfunction(L, UIElement_get_deltaClock, NULL);
     lua_setfield(L, -2, "deltaClock");
+    lua_pushcfunction(L, UIElement_get_displayed, NULL);
+    lua_setfield(L, -2, "displayed");
+    lua_pushcfunction(L, UIElement_get_hoverState, NULL);
+    lua_setfield(L, -2, "hoverState");
     lua_pushcfunction(L, UIElement_get_WIN_W, NULL);
     lua_setfield(L, -2, "WIN_W");
     lua_pushcfunction(L, UIElement_get_WIN_H, NULL);
@@ -718,6 +860,10 @@ int luaopen_UIElement(lua_State* L)
     lua_setfield(L, -2, "get");
 
     lua_newtable(L);
+    lua_pushcfunction(L, UIElement_set_onShow, NULL);
+    lua_setfield(L, -2, "onShow");
+    lua_pushcfunction(L, UIElement_set_enterAction, NULL);
+    lua_setfield(L, -2, "enterAction");
     lua_pushcfunction(L, UIElement_set_customDisplay, NULL);
     lua_setfield(L, -2, "customDisplay");
     lua_pushcfunction(L, UIElement_set_customDisplayBefore, NULL);

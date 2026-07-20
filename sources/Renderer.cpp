@@ -67,7 +67,8 @@ void Renderer::RenderForeground()
 }
 
 Vector2 previousMousePosition = {0};
-    
+int previousKey = 0;
+
 void Renderer::Render()
 {
     /* Input Handling*/
@@ -76,6 +77,26 @@ void Renderer::Render()
         ApiInstance_->MouseMoved(mousePosition.x, mousePosition.y);
 	previousMousePosition = mousePosition;
     }
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        ApiInstance_->MouseButtonPressed(MOUSE_BUTTON_LEFT, mousePosition.x, mousePosition.y);
+    }
+    
+    if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+        ApiInstance_->MouseButtonReleased(MOUSE_BUTTON_LEFT, mousePosition.x, mousePosition.y);
+    }
+
+    int key = GetKeyPressed();
+    if (IsKeyPressed(key)) {
+        ApiInstance_->KeyPressed(key);
+	previousKey = key;
+    }
+
+    if (IsKeyReleased(previousKey)) {
+        ApiInstance_->KeyReleased(previousKey);
+	previousKey = key;	
+    }
+
     
     SetWindowTitle(TextFormat("MultiAxis %dFPS", GetFPS()));
 
