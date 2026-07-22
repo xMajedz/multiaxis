@@ -20,7 +20,7 @@ local viewElement = ui.new{
 
 viewElement:hide()
 
---viewElement:makeTextfield()
+--viewElement:makeTextfield(textfieldString, textfieldSettings)
 
 local text = "textfield"
 
@@ -32,15 +32,19 @@ function viewElement.enterAction()
     if viewElement.displayed then viewElement:hide() else viewElement:show() end
 end
 
+--function viewElement.keyPressed(key) end
+
 function Api.OnKeyPressed.textfield(key)
     -- TODO: safely convert key to char in c api
-    if key ~= 257 then text = text .. string.char(key) end
+    --if key ~= 257 then text = text .. string.char(key) end
 end
 
 ui.mouseHooks()
 ui.keyboardHooks()
 ui.renderHooks()
 end
+
+local viewElement = ui.new {rec = {(ui.WIN_W - 100)/2, (ui.WIN_H - 100)/2, 100, 100}, shapeType = ui.SHAPE_ROUNDED}
 
 -- uielement.new() no arguments default constructor behaviour and throw an error
 -- uielement.new{} table argument default constructor behaviour

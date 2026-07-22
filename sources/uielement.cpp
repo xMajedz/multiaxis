@@ -15,7 +15,7 @@ enum UIRenderingContext {
     RENDER_BG_GLOBALID = 2,
 };
 
-enum UIShapeType { SQUARE, ROUNDED };
+enum UIShapeType { SQUARE = 1, ROUNDED = 2};
 
 class UIElement
 {
@@ -287,7 +287,7 @@ static int UIElement_new(lua_State* L)
     UIVisualManager[elem->globalId].push_back(elem);
     
     if (!nargs && !lua_istable(L, 1)) {
-        std::cout << "error: uielement.new(table)" << std::endl;
+        std::cout << "error: uielement.new(o: table)" << std::endl;
         return 1;
     }
 
@@ -372,6 +372,12 @@ static int UIElement_new(lua_State* L)
     } else {
         lua_pop(L, 1);
     }
+
+    lua_getfield(L, -2, "shapeType");
+    if (lua_isnumber(L, -1)) {
+        elem->shapeType = (UIShapeType)lua_tounsigned(L, -1);
+    }
+    lua_pop(L, 1);
 
     elem->displayed = true;
 
@@ -797,8 +803,11 @@ static int UIElement_addAdaptedText(lua_State* L)
     return 0;
 }
 
-static const luaL_Reg ApiUIElement[]
+static const luaL_Reg uielement_methods[]
 {
+    {"__index", UIElement__index},
+    {"__newindex", UIElement__newindex},
+
     {"new", UIElement_new},
     
     {"display", UIElement_display},
@@ -820,6 +829,30 @@ static const luaL_Reg ApiUIElement[]
     {NULL, NULL},
 };
 
+static const luaL_Reg uielement_getters[]
+{
+    {"clock",      UIElement_get_clock},
+    {"deltaClock", UIElement_get_deltaClock},
+    {"displayed",  UIElement_get_displayed},
+    {"hoverState", UIElement_get_hoverState},
+    {"WIN_W",      UIElement_get_WIN_W},
+    {"WIN_H",      UIElement_get_WIN_H},
+    {"MOUSE_X",    UIElement_get_MOUSE_X},
+    {"MOUSE_Y",    UIElement_get_MOUSE_Y},
+    
+    {NULL, NULL},
+};
+
+static const luaL_Reg uielement_setters[]
+{
+    {"onShow",              UIElement_set_onShow},
+    {"enterAction",         UIElement_set_enterAction},
+    {"customDisplay",       UIElement_set_customDisplay},
+    {"customDisplayBefore", UIElement_set_customDisplayBefore},
+    
+    {NULL, NULL},
+};
+
 static const struct { const char* name; float color[4]; } UIColors[] {
     {"UICOLORBLANK", {0.0, 0.0, 0.0, 0.0}},
     {"UICOLORBLACK", {0.0, 0.0, 0.0, 1.0}},
@@ -827,6 +860,11 @@ static const struct { const char* name; float color[4]; } UIColors[] {
     {"UICOLORRED",   {1.0, 0.0, 0.0, 1.0}},
     {"UICOLORGREEN", {0.0, 1.0, 0.0, 1.0}},
     {"UICOLORBLUE",  {0.0, 0.0, 1.0, 1.0}},
+};
+
+static const struct { const char* name; uint32_t shape; } UIShapeTypes[] {
+    {"SHAPE_SQUARE",  (uint32_t)SQUARE },
+    {"SHAPE_ROUNDED", (uint32_t)ROUNDED},
 };
 
 static const struct { const char* name; uint32_t context; } UIRenderingContexts[] {
@@ -837,43 +875,16 @@ static const struct { const char* name; uint32_t context; } UIRenderingContexts[
 int luaopen_UIElement(lua_State* L)
 {
     luaL_newmetatable(L, "uielement");
-
-    luaL_register(L, NULL, ApiUIElement);
+    luaL_register(L, NULL, uielement_methods);
 
     lua_newtable(L);
-    lua_pushcfunction(L, UIElement_get_clock, NULL);
-    lua_setfield(L, -2, "clock");
-    lua_pushcfunction(L, UIElement_get_deltaClock, NULL);
-    lua_setfield(L, -2, "deltaClock");
-    lua_pushcfunction(L, UIElement_get_displayed, NULL);
-    lua_setfield(L, -2, "displayed");
-    lua_pushcfunction(L, UIElement_get_hoverState, NULL);
-    lua_setfield(L, -2, "hoverState");
-    lua_pushcfunction(L, UIElement_get_WIN_W, NULL);
-    lua_setfield(L, -2, "WIN_W");
-    lua_pushcfunction(L, UIElement_get_WIN_H, NULL);
-    lua_setfield(L, -2, "WIN_H");
-    lua_pushcfunction(L, UIElement_get_MOUSE_X, NULL);
-    lua_setfield(L, -2, "MOUSE_X");
-    lua_pushcfunction(L, UIElement_get_MOUSE_Y, NULL);
-    lua_setfield(L, -2, "MOUSE_Y");
+    luaL_register(L, NULL, uielement_getters);
     lua_setfield(L, -2, "get");
 
     lua_newtable(L);
-    lua_pushcfunction(L, UIElement_set_onShow, NULL);
-    lua_setfield(L, -2, "onShow");
-    lua_pushcfunction(L, UIElement_set_enterAction, NULL);
-    lua_setfield(L, -2, "enterAction");
-    lua_pushcfunction(L, UIElement_set_customDisplay, NULL);
-    lua_setfield(L, -2, "customDisplay");
-    lua_pushcfunction(L, UIElement_set_customDisplayBefore, NULL);
-    lua_setfield(L, -2, "customDisplayBefore");
+    luaL_register(L, NULL, uielement_setters);
     lua_setfield(L, -2, "set");
     
-    lua_pushcfunction(L, UIElement__index, NULL);
-    lua_setfield(L, -2, "__index");
-    lua_pushcfunction(L, UIElement__newindex, NULL);
-    lua_setfield(L, -2, "__newindex");
     lua_pushstring(L, "uielement");
     lua_setfield(L, -2, "__type");
 
@@ -902,6 +913,11 @@ int luaopen_UIElement(lua_State* L)
 	lua_setfield(L, -2, name);
     }
 
+    for (const auto& [name, shape] : UIShapeTypes) {
+        lua_pushunsigned(L, shape);
+        lua_setfield(L, -2, name);
+    }
+    
     for (const auto& [name, context] : UIRenderingContexts) {
         lua_pushunsigned(L, context);
         lua_setfield(L, -2, name);
