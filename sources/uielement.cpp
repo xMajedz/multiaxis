@@ -4,26 +4,18 @@
 
 #include <iostream>
 
-#include <unordered_map>
-
 #include <vector>
 
-#include <memory>
+#include <cstring>
 
-enum UIRenderingContext {
-    RENDER_FG_GLOBALID = 1,
-    RENDER_BG_GLOBALID = 2,
-};
+enum UIRenderingContext { RENDER_FG_GLOBALID = 1000, RENDER_BG_GLOBALID = 1001 };
 
-enum UIShapeType { SQUARE = 1, ROUNDED = 2};
+enum UIShapeType { SQUARE = 1, ROUNDED = 2 };
 
-class UIElement
+class uielement
 {
 public:
-    // TODO:
-    std::shared_ptr<UIElement> parent;
-    // TODO:
-    std::vector<std::shared_ptr<UIElement>> child;
+    uielement* parent;
 
     uint32_t globalId = (uint32_t)RENDER_FG_GLOBALID;
 
@@ -39,15 +31,18 @@ public:
     Color hoverColor = WHITE;
     Color pressedColor = WHITE;
 
-    Color borderColor = WHITE;
-    Color borderHoverColor = WHITE;
+    Color borderColor = BLANK;
+    Color borderHoverColor = BLANK;
     
     Image bgImage;
     Texture bgImageTexture;
     Color bgImageColor = WHITE;
 
     bool hoverState = false;
+    bool pressedState = false;
+
     bool interactive = false;
+    bool keyboard = false;
   
     bool customDisplayOnly = false;
   
@@ -64,25 +59,10 @@ public:
 
     void uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2);
 
-    ~UIElement();
+    ~uielement();
 };
 
-//TODO:
-template<typename T, typename U>
-using u_map = std::unordered_map<T, U>;
-//TODO:
-template<typename T>
-using vec = std::vector<T>;
-
-static u_map<uint32_t, vec<std::shared_ptr<UIElement>>> UIVisualManager;
-
-static vec<std::shared_ptr<UIElement>> UIElementManager;
-
-static vec<std::shared_ptr<UIElement>> UIMouseHandler;
-
-static vec<std::shared_ptr<UIElement>> UIKeyboardHandler;
-
-void UIElement::display()
+void uielement::display()
 {
     if (shapeType == SQUARE) {
         Color col = bgColor;
@@ -92,6 +72,12 @@ void UIElement::display()
             col = hoverColor;
 	    borderCol = borderHoverColor;
 	}
+	
+	if (pressedState) {
+            col = pressedColor;
+	    //borderCol = borderHoverColor;
+	}
+
 
 	if (col.a > 0)
 	    DrawRectangleRec(rec, col);
@@ -107,104 +93,87 @@ void UIElement::display()
         DrawTexture(bgImageTexture, rec.x, rec.y, bgImageColor);
 }
 
-bool UIElement::show(bool forceReload)
+bool uielement::show(bool forceReload)
 {
     if (noReload && !forceReload) {
         return displayed;
     } else if (forceReload) {
         noReload = false;
     }
-    
-    /*
-    auto& v = UIVisualManager[globalId];
-
-    int num = -1;
-    
-    if (num == -1) {
-      if (interactive || keyboard)
-	activate()
-    }
-    */
-    
-    for (std::shared_ptr<UIElement> elem : child) {
-        elem->show(false);
-    }
-
-    // call onShow()
-    
+        
     displayed = true;
+    
     return displayed;
 }
 
-void UIElement::hide(bool noreload)
+void uielement::hide(bool noreload)
 {
-    for (std::shared_ptr<UIElement> elem : child) {
-        elem->hide(false);
-    }
-    
+  
     noReload = noreload;
 
     if (destroyed || !displayed) return;
-
-    //if (interactive || keyboard) deactivate();
-    
+  
     displayed = false;
 }
 
-void UIElement::reload()
+void uielement::reload()
 {
     hide(false);
     show(false);
 }
 
-void UIElement::kill()
+void uielement::kill()
 {
-    for (std::shared_ptr<UIElement> elem : child) {
-        elem->kill();
-    }
+  //for (uielement* elem : child) {
+  //    elem->kill();
+  //}
     
     destroyed = true;
 }
 
-void UIElement::uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2)
+void uielement::uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2)
 {
     DrawText(str, rec.x + x, rec.y + y, 20, col1);
 }
 
-UIElement::~UIElement()
+uielement::~uielement()
 {
-
     if (bgImage.data) {
         UnloadImage(bgImage);
         UnloadTexture(bgImageTexture);
     }
-
-    std::cout << "~UIElement: " << this << std::endl;
+    std::cout << "~uielement: " << this << std::endl;
 }
 
-static void UIElement_destructor(lua_State* L, void* ud)
+static bool lua_isuielement(lua_State* L, int idx)
 {
-    std::shared_ptr<UIElement>* elem = static_cast<std::shared_ptr<UIElement>*>(ud);
-    std::destroy_at(elem);
-    std::cout << "~uielement: " << *elem << " count: " << elem->use_count() << std::endl;
+    lua_getfield(L, -1, "__type");
+    bool res = lua_isuserdata(L, -2) && (strcmp(lua_tostring(L, -1), "uielement") == 0);
+    lua_pop(L, 1);
+    return res;
 }
 
-static int UIElement_display(lua_State* L)
+static void uielement_destructor(lua_State* L, void* ud)
 {
-    std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+    std::destroy_at(static_cast<uielement*>(ud));    
+}
 
-    if ((*ud)->destroyed || !(*ud)->displayed) return 0;
+static int uielement_display(lua_State* L)
+{
+    uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+
+    if (ud->destroyed || !ud->displayed) return 0;
     
-    lua_pushlightuserdata(L, ud->get());
+    lua_pushlightuserdata(L, ud);
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_getfield(L, -1, "customDisplayBefore");
     if(lua_isfunction(L, -1)) {
         lua_call(L, 0, 0);
     }
     
-    if (!(*ud)->customDisplayOnly) (*ud)->display();
+    if (!ud->customDisplayOnly) ud->display();
     
-    lua_pushlightuserdata(L, ud->get());
+    lua_pushlightuserdata(L, ud);
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_getfield(L, -1, "customDisplay");
     if(lua_isfunction(L, -1)) {
@@ -214,13 +183,24 @@ static int UIElement_display(lua_State* L)
     return 0;
 }
 
-static int UIElement_show(lua_State* L)
+static int uielement_show(lua_State* L)
 {
-    std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+    uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
 
-    bool res = (*ud)->show(false);
+    lua_pushlightuserdata(L, ud);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "child");
+    if (!lua_isnil(L, -1)) {
+        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+            lua_pushcfunction(L, uielement_show, NULL);
+            lua_rawgeti(L, -2, i);
+            lua_call(L, 1, 0);
+        }
+    }    
+    
+    bool res = ud->show(false);
 
-    lua_pushlightuserdata(L, ud->get());
+    lua_pushlightuserdata(L, ud);
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_getfield(L, -1, "onShow");
     if(lua_isfunction(L, -1)) {
@@ -232,26 +212,37 @@ static int UIElement_show(lua_State* L)
     return 1;
 }
 
-static int UIElement_hide(lua_State* L)
+static int uielement_hide(lua_State* L)
 {
-    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->hide(false);
+    static_cast<uielement*>(lua_touserdata(L, 1))->hide(false);
     return 0;
 }
 
-static int UIElement_reload(lua_State* L)
+static int uielement_reload(lua_State* L)
 {
-    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->reload();
+    static_cast<uielement*>(lua_touserdata(L, 1))->reload();
     return 0;
 }
 
-static int UIElement_kill(lua_State* L)
+static int uielement_kill(lua_State* L)
 {
-    (*static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1)))->kill();
+    uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+    
+    lua_pushlightuserdata(L, ud);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "child");
+    if (!lua_isnil(L, -1)) {
+        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+            lua_pushcfunction(L, uielement_kill, NULL);
+            lua_rawgeti(L, -2, i);
+            lua_call(L, 1, 0);
+        }
+    } 
+
+    ud->kill();
+    
     return 0;
 }
-
-#include <cstring>
-#define lua_isuielement(state, idx) (lua_isuserdata(state, idx) && strcmp(lua_tostring(L, -!(!lua_getfield(L, -1, "__type"))), "uielement") == 0)
 
 static void parseColor(lua_State* L, Color* color, const char* name)
 {
@@ -271,20 +262,17 @@ static void parseColor(lua_State* L, Color* color, const char* name)
     }
 }
 
-static int UIElement_new(lua_State* L)
+static int uielement_new(lua_State* L)
 {
     int nargs = lua_gettop(L);
 
-    std::shared_ptr<UIElement>& elem = *static_cast<std::shared_ptr<UIElement>*>(lua_newuserdatataggedwithmetatable(L, sizeof(std::shared_ptr<UIElement>), 1));
-    elem = std::make_shared<UIElement>();
+    uielement* elem = new (static_cast<uielement*>(lua_newuserdatataggedwithmetatable(L, sizeof(uielement), 1))) uielement();
     
-    lua_pushlightuserdata(L, elem.get());
+    lua_pushlightuserdata(L, elem);
     lua_newtable(L);
-    lua_pushvalue(L, -3);
-    lua_setfield(L, -2, "__self");
+    lua_newtable(L);
+    lua_setfield(L, -2, "child");
     lua_settable(L, LUA_REGISTRYINDEX);
-    
-    UIVisualManager[elem->globalId].push_back(elem);
     
     if (!nargs && !lua_istable(L, 1)) {
         std::cout << "error: uielement.new(o: table)" << std::endl;
@@ -293,26 +281,79 @@ static int UIElement_new(lua_State* L)
 
     lua_getfield(L, -2, "parent");
     if (lua_isuserdata(L, -1)) {
-        elem->parent = *static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, -1));
+        elem->parent = static_cast<uielement*>(lua_touserdata(L, -1));
+	
+	lua_pushlightuserdata(L, elem->parent);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_getfield(L, -1, "child");
+	lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
 	lua_pop(L, 2);
+    
+	lua_pop(L, 1);
     } else {
         if (!lua_isnil(L, -1)) std::cout << "error: field parent is not of type uielement" << std::endl;
-	UIElementManager.push_back(elem);
-        lua_pop(L, 1);
+
+	lua_pushstring(L, "UIElementManager");
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+        lua_pop(L, 2);
     }
 
-    lua_getfield(L, -2, "interactive");
-    if (lua_isboolean(L, -1)) {
-        elem->interactive = lua_toboolean(L, -1);
-	UIMouseHandler.push_back(elem);
-    }
-    lua_pop(L, 1);
-
-    std::cout << "uielement: " << elem << " count: " << elem.use_count() << std::endl;
+    std::cout << "uielement.new: " << elem << std::endl;
     
     lua_getfield(L, -2, "globalId");
     if (lua_isnumber(L, -1)) {
         elem->globalId = lua_tounsigned(L, -1);	
+    }
+    lua_pop(L, 1);
+
+    //
+    lua_pushstring(L, "UIVisualManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    lua_pushunsigned(L, elem->globalId);
+    lua_gettable(L, -2);
+    if (lua_isnil(L, -1)) {
+	lua_pop(L, 1);
+	lua_pushunsigned(L, elem->globalId);
+	lua_newtable(L);
+        lua_settable(L, -3);
+
+	lua_pushunsigned(L, elem->globalId);
+        lua_gettable(L, -2);
+    }
+    int n = lua_objlen(L, -1);
+    lua_pushvalue(L, 2);
+    lua_rawseti(L, -2, n + 1);
+    
+    lua_pop(L, 2);
+    //
+    
+    lua_getfield(L, -2, "interactive");
+    if (lua_isboolean(L, -1)) {
+        elem->interactive = lua_toboolean(L, -1);
+
+	lua_pushstring(L, "UIMouseHandler");
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        int n = lua_objlen(L, -1);
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, n + 1);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -2, "keyboard");
+    if (lua_isboolean(L, -1)) {
+        elem->interactive = lua_toboolean(L, -1);
+
+	lua_pushstring(L, "UIKeyboardHandler");
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        int n = lua_objlen(L, -1);
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, n + 1);
+        lua_pop(L, 1);
     }
     lua_pop(L, 1);
     
@@ -322,21 +363,19 @@ static int UIElement_new(lua_State* L)
         elem->rec.x = lua_tointeger(L, -1);
         lua_rawgeti(L, -2, 2);
         elem->rec.y = lua_tointeger(L, -1);
-        lua_pop(L, 3);
-    } else {
-        lua_pop(L, 1);
+        lua_pop(L, 2);
     }
-
+    lua_pop(L, 1);
+    
     lua_getfield(L, -2, "size");
     if (lua_istable(L, -1)) {
         lua_rawgeti(L, -1, 1);
         elem->rec.width = lua_tointeger(L, -1);
         lua_rawgeti(L, -2, 2);
         elem->rec.height = lua_tointeger(L, -1);
-        lua_pop(L, 3);
-    } else {
-        lua_pop(L, 1);
+        lua_pop(L, 2);
     }
+    lua_pop(L, 1);
 
     lua_getfield(L, -2, "rec");
     if (lua_istable(L, -1)) {
@@ -348,10 +387,9 @@ static int UIElement_new(lua_State* L)
         elem->rec.width = lua_tointeger(L, -1);
         lua_rawgeti(L, -4, 4);
         elem->rec.height = lua_tointeger(L, -1);
-        lua_pop(L, 5);
-    } else {
-        lua_pop(L, 1);
+        lua_pop(L, 4);
     }
+    lua_pop(L, 1);
 
     parseColor(L, &elem->uiColor, "uiColor");
 
@@ -364,14 +402,12 @@ static int UIElement_new(lua_State* L)
 
     lua_getfield(L, -2, "bgImage");
     if (lua_isstring(L, -1)) {
-        elem->bgImage = LoadImage("scripts/von/von.png");
+        elem->bgImage = LoadImage(lua_tostring(L, -1));
         elem->bgImageTexture = LoadTextureFromImage(elem->bgImage);
 	elem->rec.width  = elem->bgImage.width;
 	elem->rec.height = elem->bgImage.height;
-        lua_pop(L, 2);
-    } else {
-        lua_pop(L, 1);
     }
+    lua_pop(L, 1);
 
     lua_getfield(L, -2, "shapeType");
     if (lua_isnumber(L, -1)) {
@@ -384,129 +420,209 @@ static int UIElement_new(lua_State* L)
     return 1;
 }
 
-static int UIElement_drawVisuals(lua_State* L)
+static int uielement_drawVisuals(lua_State* L)
 {
     uint32_t globalId;
     
-    if (lua_gettop(L) == 0) return 0;
+    if (lua_gettop(L) == 0)
+        return 0;
 
     if (lua_istable(L, -1)) {
         lua_getfield(L, -1, "globalId");
 	if (lua_isnumber(L, -1)) {
 	    globalId = lua_tounsigned(L, -1);
-	    lua_pop(L, 2);
-	} else {
 	    lua_pop(L, 1);
 	}
+	lua_pop(L, 1);
     }
     
     if (lua_isnumber(L, -1)) {
         globalId = lua_tounsigned(L, -1);
     }
     
-    for (auto elem : UIVisualManager[globalId]) {
-        lua_pushlightuserdata(L, elem.get());
-	lua_gettable(L, LUA_REGISTRYINDEX);
-	lua_getfield(L, -1, "__self");
+    lua_pushstring(L, "UIVisualManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
 
-	lua_pushcfunction(L, UIElement_display, NULL);
-        lua_pushvalue(L, -2);
-	lua_call(L, 1, 0);
-    }
+    lua_pushunsigned(L, globalId);
+    lua_gettable(L, -2);
+    if (!lua_isnil(L, -1)) {
+        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+            lua_pushcfunction(L, uielement_display, NULL);
+            lua_rawgeti(L, -2, i);
+            lua_call(L, 1, 0);
+        }
+    }    
     
     return 0;
 }
 
-static int UIElement_drawVisualsClosure(lua_State* L)
+static int uielement_drawVisualsClosure(lua_State* L)
 {
-    lua_pushcfunction(L, UIElement_drawVisuals, "UIElement.drawVisuals");
+    lua_pushcfunction(L, uielement_drawVisuals, "uielement.drawVisuals");
     lua_pushvalue(L, lua_upvalueindex(1));
     lua_call(L, 1, 0);
     return 0;
 }
 
-int Api_SetHook(lua_State* L);
-
-static int UIElement_handleMouseHover(lua_State* L)
+static int uielement_handleMouseHover(lua_State* L)
 {
     float x = lua_tonumber(L, 1);
     float y = lua_tonumber(L, 2);
 
-    for (int i = UIMouseHandler.size(); i > 0; i -= 1) {
-        auto& elem = UIMouseHandler[i - 1];
+    lua_pushstring(L, "UIMouseHandler");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
+        lua_rawgeti(L, -1, i);
+	uielement* elem = static_cast<uielement*>(lua_touserdata(L, -1));
+
 	if((x >= elem->rec.x && x <= (elem->rec.x + elem->rec.width)) &&
 	   (y >= elem->rec.y && y <= (elem->rec.y + elem->rec.height))) {
 	    elem->hoverState = true;
 	} else {
 	    elem->hoverState = false;
 	}
+	lua_pop(L, 1);
     }
     
     return 0;
 }
 
-static int UIElement_handleMouseButtonPressed(lua_State* L)
+static int uielement_handleMouseButtonPressed(lua_State* L)
 {
     int btn = lua_tointeger(L, 1);
-    std::cout << "MouseButtonPressed" << std::endl;
+    float x = lua_tonumber(L, 2);
+    float y = lua_tonumber(L, 3);
+
+    lua_pushstring(L, "UIMouseHandler");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
+        lua_rawgeti(L, -1, i);
+	uielement* elem = static_cast<uielement*>(lua_touserdata(L, -1));
+	
+        if (elem->hoverState) {
+	    elem->pressedState = true;
+
+            lua_pushlightuserdata(L, elem);
+            lua_gettable(L, LUA_REGISTRYINDEX);
+       
+	    lua_getfield(L, -1, "mouseButtonPressed");
+            if(lua_isfunction(L, -1)) {
+	        lua_pushinteger(L, btn);
+                lua_call(L, 1, 0);
+            } else {
+	        lua_pop(L, 1);
+	    }
+	    lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+    }
+
     return 0;
 }
 
-static int UIElement_handleMouseButtonReleased(lua_State* L)
+static int uielement_handleMouseButtonReleased(lua_State* L)
 {
     int btn = lua_tointeger(L, 1);
-    std::cout << "MouseButtonReleassed" << std::endl;
+
+    lua_pushstring(L, "UIMouseHandler");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
+        lua_rawgeti(L, -1, i);
+	uielement* elem = static_cast<uielement*>(lua_touserdata(L, -1));
+	
+        if (elem->hoverState) elem->pressedState = false;
+	lua_pop(L, 1);
+    }
+
     return 0;
 }
 
-static int UIElement_handleKeyPressed(lua_State* L)
+static int uielement_handleKeyPressed(lua_State* L)
 {
     int key = lua_tointeger(L, 1);
 
-    if (key == KEY_ENTER) {
-       for (auto& elem : UIMouseHandler) {
-            lua_pushlightuserdata(L, elem.get());
-            lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_pushstring(L, "UIKeyboardHandler");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    
+    for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
+        lua_rawgeti(L, -1, i);
+	uielement* elem = static_cast<uielement*>(lua_touserdata(L, -1));
+      
+        lua_pushlightuserdata(L, elem);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+            
+        if (key == KEY_ENTER) {
             lua_getfield(L, -1, "enterAction");
             if(lua_isfunction(L, -1)) {
                 lua_call(L, 0, 0);
+	    } else {
+	        lua_pop(L, 1);
 	    }
         }
+	
+	lua_getfield(L, -1, "keyPressed");
+        if(lua_isfunction(L, -1)) {
+	    lua_pushinteger(L, key);
+            lua_call(L, 1, 0);
+        }
+	
+	lua_pop(L, 2);
     }
     
-    std::cout << "KeyPressed" << std::endl;
     return 0;
 }
 
-static int UIElement_handleKeyReleased(lua_State* L)
+static int uielement_handleKeyReleased(lua_State* L)
 {
     int key = lua_tointeger(L, 1);
-    std::cout << "KeyReleassed" << std::endl;
+
+    lua_pushstring(L, "UIKeyboardHandler");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    
+    for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
+        lua_rawgeti(L, -1, i);
+	uielement* elem = static_cast<uielement*>(lua_touserdata(L, -1));
+      
+        lua_pushlightuserdata(L, elem);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+
+	lua_getfield(L, -1, "keyReleased");
+        if(lua_isfunction(L, -1)) {
+	    lua_pushinteger(L, key);
+            lua_call(L, 1, 0);
+        }
+
+	lua_pop(L, 2);
+    }
+    
     return 0;
 }
 
-static int UIElement_mouseHooks(lua_State* L)
+static int uielement_mouseHooks(lua_State* L)
 {
     luaL_getmetatable(L, "uielement");
     lua_getfield(L, -1, "__mouseHooks");
 
     if (!lua_toboolean(L, -1)) {
-        lua_pushcfunction(L, Api_SetHook, NULL);
+        lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnMouseMoved");
         lua_pushstring(L, "uielement");
-        lua_pushcfunction(L, UIElement_handleMouseHover, NULL);
+        lua_pushcfunction(L, uielement_handleMouseHover, NULL);
         lua_call(L, 3, 0);
 
-	lua_pushcfunction(L, Api_SetHook, NULL);
+	lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnMouseButtonPressed");
         lua_pushstring(L, "uielement");
-        lua_pushcfunction(L, UIElement_handleMouseButtonPressed, NULL);
+        lua_pushcfunction(L, uielement_handleMouseButtonPressed, NULL);
         lua_call(L, 3, 0);
 
-	lua_pushcfunction(L, Api_SetHook, NULL);
+	lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnMouseButtonReleased");
         lua_pushstring(L, "uielement");
-        lua_pushcfunction(L, UIElement_handleMouseButtonReleased, NULL);
+        lua_pushcfunction(L, uielement_handleMouseButtonReleased, NULL);
         lua_call(L, 3, 0);
     }
 
@@ -517,22 +633,22 @@ static int UIElement_mouseHooks(lua_State* L)
     return 0;
 }
 
-static int UIElement_keyboardHooks(lua_State* L)
+static int uielement_keyboardHooks(lua_State* L)
 {
     luaL_getmetatable(L, "uielement");
     lua_getfield(L, -1, "__keyboardHooks");
 
     if (!lua_toboolean(L, -1)) {
-      	lua_pushcfunction(L, Api_SetHook, NULL);
+      	lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnKeyPressed");
         lua_pushstring(L, "uielement");
-        lua_pushcfunction(L, UIElement_handleKeyPressed, NULL);
+        lua_pushcfunction(L, uielement_handleKeyPressed, NULL);
         lua_call(L, 3, 0);
 
-	lua_pushcfunction(L, Api_SetHook, NULL);
+	lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnKeyReleased");
         lua_pushstring(L, "uielement");
-        lua_pushcfunction(L, UIElement_handleKeyReleased, NULL);
+        lua_pushcfunction(L, uielement_handleKeyReleased, NULL);
         lua_call(L, 3, 0);
     }
 
@@ -543,24 +659,24 @@ static int UIElement_keyboardHooks(lua_State* L)
     return 0;
 }
 
-static int UIElement_renderHooks(lua_State* L)
+static int uielement_renderHooks(lua_State* L)
 {
     luaL_getmetatable(L, "uielement");
     lua_getfield(L, -1, "__renderHooks");
 
     if (!lua_toboolean(L, -1)) {
-        lua_pushcfunction(L, Api_SetHook, NULL);
+        lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnRenderForeground");
         lua_pushstring(L, "uielement");
         lua_pushunsigned(L, (uint32_t)RENDER_FG_GLOBALID);
-        lua_pushcclosure(L, UIElement_drawVisualsClosure, "UIElement.drawVisualsClosure", 1);
+        lua_pushcclosure(L, uielement_drawVisualsClosure, "uielement.drawVisualsClosure", 1);
         lua_call(L, 3, 0);
 
-        lua_pushcfunction(L, Api_SetHook, NULL);
+        lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnRenderBackground");
         lua_pushstring(L, "uielement");
         lua_pushunsigned(L, (uint32_t)RENDER_BG_GLOBALID);
-        lua_pushcclosure(L, UIElement_drawVisualsClosure, "UIElement.drawVisualsClosure", 1);
+        lua_pushcclosure(L, uielement_drawVisualsClosure, "uielement.drawVisualsClosure", 1);
         lua_call(L, 3, 0);
     }
 
@@ -571,7 +687,7 @@ static int UIElement_renderHooks(lua_State* L)
     return 0;
 }
 
-static int UIElement__index(lua_State* L)
+static int uielement__index(lua_State* L)
 {
     const char*  k = lua_tostring(L, -1);
 
@@ -596,57 +712,57 @@ static int UIElement__index(lua_State* L)
     return 0;
 }
 
-static int UIElement_get_clock(lua_State* L)
+static int uielement_get_clock(lua_State* L)
 {
     lua_pushnumber(L, GetTime());
     return 1;
 }
 
-static int UIElement_get_deltaClock(lua_State* L)
+static int uielement_get_deltaClock(lua_State* L)
 {
     lua_pushnumber(L, GetFrameTime());
     return 1;
 }
 
-static int UIElement_get_hoverState(lua_State* L)
+static int uielement_get_hoverState(lua_State* L)
 {
-    std::shared_ptr<UIElement>* elem = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-    lua_pushboolean(L, (*elem)->hoverState);
+    uielement* elem = static_cast<uielement*>(lua_touserdata(L, 1));
+    lua_pushboolean(L, elem->hoverState);
     return 1;
 }
 
-static int UIElement_get_displayed(lua_State* L)
+static int uielement_get_displayed(lua_State* L)
 {
-    std::shared_ptr<UIElement>* elem = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-    lua_pushboolean(L, (*elem)->displayed);
+    uielement* elem = static_cast<uielement*>(lua_touserdata(L, 1));
+    lua_pushboolean(L, elem->displayed);
     return 1;
 }
 
-static int UIElement_get_WIN_W(lua_State* L)
+static int uielement_get_WIN_W(lua_State* L)
 {
     lua_pushnumber(L, GetScreenWidth());
     return 1;
 }
 
-static int UIElement_get_WIN_H(lua_State* L)
+static int uielement_get_WIN_H(lua_State* L)
 {
     lua_pushnumber(L, GetScreenHeight());
     return 1;
 }
 
-static int UIElement_get_MOUSE_X(lua_State* L)
+static int uielement_get_MOUSE_X(lua_State* L)
 {
     lua_pushnumber(L, GetMouseX());
     return 1;
 }
 
-static int UIElement_get_MOUSE_Y(lua_State* L)
+static int uielement_get_MOUSE_Y(lua_State* L)
 {
     lua_pushnumber(L, GetMouseY());
     return 1;
 }
 
-static int UIElement__newindex(lua_State* L)
+static int uielement__newindex(lua_State* L)
 {
     const char*  k = lua_tostring(L, -2);
     luaL_getmetatable(L, "uielement");
@@ -658,11 +774,37 @@ static int UIElement__newindex(lua_State* L)
     return 0;
 }
 
-static int UIElement_set_enterAction(lua_State* L)
+static int uielement_set_mouseButtonPressed(lua_State* L)
 {
     if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
-        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-        lua_pushlightuserdata(L, ud->get());
+        uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, "mouseButtonPressed");
+    }
+
+    return 0;
+}
+
+static int uielement_set_keyPressed(lua_State* L)
+{
+    if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
+        uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, -2);
+        lua_setfield(L, -2, "keyPressed");
+    }
+
+    return 0;
+}
+
+static int uielement_set_enterAction(lua_State* L)
+{
+    if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
+        uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud);
         lua_gettable(L, LUA_REGISTRYINDEX);
         lua_pushvalue(L, -2);
         lua_setfield(L, -2, "enterAction");
@@ -671,11 +813,11 @@ static int UIElement_set_enterAction(lua_State* L)
     return 0;
 }
 
-static int UIElement_set_onShow(lua_State* L)
+static int uielement_set_onShow(lua_State* L)
 {
     if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
-        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-        lua_pushlightuserdata(L, ud->get());
+        uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud);
         lua_gettable(L, LUA_REGISTRYINDEX);
         lua_pushvalue(L, -2);
         lua_setfield(L, -2, "onShow");
@@ -684,11 +826,11 @@ static int UIElement_set_onShow(lua_State* L)
     return 0;
 }
 
-static int UIElement_set_customDisplay(lua_State* L)
+static int uielement_set_customDisplay(lua_State* L)
 {
     if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
-        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-        lua_pushlightuserdata(L, ud->get());
+        uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud);
         lua_gettable(L, LUA_REGISTRYINDEX);
         lua_pushvalue(L, -2);
         lua_setfield(L, -2, "customDisplay");
@@ -697,11 +839,11 @@ static int UIElement_set_customDisplay(lua_State* L)
     return 0;
 }
 
-static int UIElement_set_customDisplayBefore(lua_State* L)
+static int uielement_set_customDisplayBefore(lua_State* L)
 {
     if (lua_isuserdata(L, -2) && lua_isfunction(L, -1)) {
-        std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
-        lua_pushlightuserdata(L, ud->get());
+        uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+        lua_pushlightuserdata(L, ud);
         lua_gettable(L, LUA_REGISTRYINDEX);
         lua_pushvalue(L, -2);
         lua_setfield(L, -2, "customDisplayBefore");
@@ -710,26 +852,26 @@ static int UIElement_set_customDisplayBefore(lua_State* L)
     return 0;
 }
 
-static int UIElement_addCustomDisplay(lua_State* L)
+static int uielement_addCustomDisplay(lua_State* L)
 {
-    std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+    uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
 
     int customDisplayFunc = 2;
     
     if (lua_isboolean(L, 2)) {
-        (*ud)->customDisplayOnly = lua_toboolean(L, 2);
+        ud->customDisplayOnly = lua_toboolean(L, 2);
 	customDisplayFunc += 1;
     }
 
     if (lua_isfunction(L, customDisplayFunc)) {
-        lua_pushcfunction(L, UIElement_set_customDisplay, NULL);
+        lua_pushcfunction(L, uielement_set_customDisplay, NULL);
         lua_pushvalue(L, 1);
         lua_pushvalue(L, customDisplayFunc);
         lua_call(L, 2, 0);
     }
     
     if (lua_isfunction(L, customDisplayFunc + 1)) {
-        lua_pushcfunction(L, UIElement_set_customDisplayBefore, NULL);
+        lua_pushcfunction(L, uielement_set_customDisplayBefore, NULL);
         lua_pushvalue(L, 1);
         lua_pushvalue(L, customDisplayFunc + 1);
         lua_call(L, 2, 0);
@@ -738,9 +880,9 @@ static int UIElement_addCustomDisplay(lua_State* L)
     return 0;
 }
 
-static int UIElement_uiText(lua_State* L)
+static int uielement_uiText(lua_State* L)
 {
-    std::shared_ptr<UIElement>* ud = static_cast<std::shared_ptr<UIElement>*>(lua_touserdata(L, 1));
+    uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
 
     const char* string = nullptr;
 
@@ -751,8 +893,8 @@ static int UIElement_uiText(lua_State* L)
     int x = 0;
     int y = 0;
     
-    Color col1 = (*ud)->uiColor;
-    Color col2 = (*ud)->uiColor;
+    Color col1 = ud->uiColor;
+    Color col2 = ud->uiColor;
 
     if (lua_isnumber(L, 3)) {
         x = lua_tounsigned(L, 3);
@@ -775,14 +917,14 @@ static int UIElement_uiText(lua_State* L)
 	lua_pop(L, 5);
     }
     
-    (*ud)->uiText(string, x, y, col1, col2);
+    ud->uiText(string, x, y, col1, col2);
     
     return 0;
 }
 
-static int UIElement_uiTextClosure(lua_State* L)
+static int uielement_uiTextClosure(lua_State* L)
 {
-    lua_pushcfunction(L, UIElement_uiText, NULL);   
+    lua_pushcfunction(L, uielement_uiText, NULL);   
     int n = 0;
     do {
        n += 1;
@@ -792,63 +934,80 @@ static int UIElement_uiTextClosure(lua_State* L)
     return 0;
 }
 
-static int UIElement_addAdaptedText(lua_State* L)
+static int uielement_addAdaptedText(lua_State* L)
 {
     int nargs = lua_gettop(L);
-    lua_pushcfunction(L, UIElement_addCustomDisplay, NULL);
+    lua_pushcfunction(L, uielement_addCustomDisplay, NULL);
     lua_pushvalue(L, 1);
     for (int n = 1; n <= nargs; n += 1) lua_pushvalue(L, n);
-    lua_pushcclosure(L, UIElement_uiTextClosure, NULL, nargs);
+    lua_pushcclosure(L, uielement_uiTextClosure, NULL, nargs);
     lua_call(L, 2, 0);
     return 0;
 }
 
+static int uielement_addChild(lua_State* L)
+{
+    uielement* ud = static_cast<uielement*>(lua_touserdata(L, 1));
+
+    lua_pushvalue(L, 1);
+    lua_setfield(L, -2, "parent");
+
+    lua_pushcfunction(L, uielement_new, NULL);
+    lua_pushvalue(L, 2);
+    lua_call(L, 1, 1);
+
+    return 1;
+}
+
 static const luaL_Reg uielement_methods[]
 {
-    {"__index", UIElement__index},
-    {"__newindex", UIElement__newindex},
+    {"__index", uielement__index},
+    {"__newindex", uielement__newindex},
 
-    {"new", UIElement_new},
+    {"new", uielement_new},
     
-    {"display", UIElement_display},
-    {"show", UIElement_show},
-    {"hide", UIElement_hide},
-    {"kill", UIElement_kill},
+    {"display", uielement_display},
+    {"show", uielement_show},
+    {"hide", uielement_hide},
+    {"kill", uielement_kill},
 
-    {"uiText", UIElement_uiText},
+    {"uiText", uielement_uiText},
 
-    {"addCustomDisplay", UIElement_addCustomDisplay},
-    {"addAdaptedText", UIElement_addAdaptedText},
+    {"addChild", uielement_addChild},
+    {"addCustomDisplay", uielement_addCustomDisplay},
+    {"addAdaptedText", uielement_addAdaptedText},
     
-    {"drawVisuals", UIElement_drawVisuals},
+    {"drawVisuals", uielement_drawVisuals},
 
-    {"mouseHooks", UIElement_mouseHooks},
-    {"keyboardHooks", UIElement_keyboardHooks},
-    {"renderHooks", UIElement_renderHooks},
+    {"mouseHooks", uielement_mouseHooks},
+    {"keyboardHooks", uielement_keyboardHooks},
+    {"renderHooks", uielement_renderHooks},
 
     {NULL, NULL},
 };
 
 static const luaL_Reg uielement_getters[]
 {
-    {"clock",      UIElement_get_clock},
-    {"deltaClock", UIElement_get_deltaClock},
-    {"displayed",  UIElement_get_displayed},
-    {"hoverState", UIElement_get_hoverState},
-    {"WIN_W",      UIElement_get_WIN_W},
-    {"WIN_H",      UIElement_get_WIN_H},
-    {"MOUSE_X",    UIElement_get_MOUSE_X},
-    {"MOUSE_Y",    UIElement_get_MOUSE_Y},
+    {"clock",      uielement_get_clock},
+    {"deltaClock", uielement_get_deltaClock},
+    {"displayed",  uielement_get_displayed},
+    {"hoverState", uielement_get_hoverState},
+    {"WIN_W",      uielement_get_WIN_W},
+    {"WIN_H",      uielement_get_WIN_H},
+    {"MOUSE_X",    uielement_get_MOUSE_X},
+    {"MOUSE_Y",    uielement_get_MOUSE_Y},
     
     {NULL, NULL},
 };
 
 static const luaL_Reg uielement_setters[]
 {
-    {"onShow",              UIElement_set_onShow},
-    {"enterAction",         UIElement_set_enterAction},
-    {"customDisplay",       UIElement_set_customDisplay},
-    {"customDisplayBefore", UIElement_set_customDisplayBefore},
+    {"onShow",              uielement_set_onShow},
+    {"enterAction",         uielement_set_enterAction},
+    {"keyPressed",          uielement_set_keyPressed},
+    {"mouseButtonPressed",  uielement_set_mouseButtonPressed},
+    {"customDisplay",       uielement_set_customDisplay},
+    {"customDisplayBefore", uielement_set_customDisplayBefore},
     
     {NULL, NULL},
 };
@@ -872,7 +1031,7 @@ static const struct { const char* name; uint32_t context; } UIRenderingContexts[
     {"RENDER_BG_GLOBALID", (uint32_t)RENDER_BG_GLOBALID},
 };
 
-int luaopen_UIElement(lua_State* L)
+int luaopen_uielement(lua_State* L)
 {
     luaL_newmetatable(L, "uielement");
     luaL_register(L, NULL, uielement_methods);
@@ -896,7 +1055,7 @@ int luaopen_UIElement(lua_State* L)
     lua_setfield(L, -2, "__renderHooks");
 
     lua_setuserdatametatable(L, 1);
-    lua_setuserdatadtor(L, 1, UIElement_destructor);
+    lua_setuserdatadtor(L, 1, uielement_destructor);
 
     lua_newtable(L);
 
@@ -923,6 +1082,22 @@ int luaopen_UIElement(lua_State* L)
         lua_setfield(L, -2, name);
     }
 
+    lua_pushstring(L, "UIVisualManager");
+    lua_newtable(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "UIElementManager");
+    lua_newtable(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "UIMouseHandler");
+    lua_newtable(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "UIKeyboardHandler");
+    lua_newtable(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+    
     luaL_getmetatable(L, "uielement");
     lua_setmetatable(L, -2);
     

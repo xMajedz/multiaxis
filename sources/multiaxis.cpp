@@ -6,6 +6,8 @@
 
 #include <cstring>
 
+#include <optional>
+
 void help(void)
 {
     const char* help_message =
@@ -38,22 +40,19 @@ int main(int argc, char* argv[])
         }
     }
 
-    Api& ApiInstance = Api::GetInstance();
+    Api ApiInstance;
 
-    Game& GameInstance = Game::GetInstance();
-    GameInstance.SetApiInstance(&ApiInstance);
+    Game GameInstance(ApiInstance);
 	
-    Renderer& RendererInstance = Renderer::GetInstance();
-    RendererInstance.SetApiInstance(&ApiInstance);
-    RendererInstance.SetGameInstance(&GameInstance);
+    Renderer RendererInstance(ApiInstance, GameInstance);
 
     ApiInstance.Boot(bootfile);
 
     bool running = true;
+    
     while (running) {
 	GameInstance.Update();
-	RendererInstance.Render();
-		
-	running = !WindowShouldClose();
+	RendererInstance.Render();		
+	running = !WindowShouldClose() && !GameInstance.ShouldQuit();
     }
 }

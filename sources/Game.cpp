@@ -2,18 +2,26 @@
 
 void Game::Update()
 {
-    if (ApiInstance_ != nullptr) ApiInstance_->Update();
+    ApiInstance_.Update();
 }
 
-Game::Game()
+Game::Game(Api& ApiInstance)
+  : ApiInstance_(ApiInstance)
+  , running_(true)
 {
+    ApiInstance_.SetGame(this);
 }
 
 Game::~Game()
 {
 }
 
-void Game::SetApiInstance(Api* ApiInstance)
+void Game::Quit()
 {
-    ApiInstance_ = ApiInstance;
+    running_ = false;
+}
+
+bool Game::ShouldQuit()
+{
+    return !running_;
 }

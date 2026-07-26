@@ -5,19 +5,18 @@
 #define GAME_VERSION "git-box3d"
 
 class Game {
-public:	
-    static Game& GetInstance()
-    {
-        static Game GameInstance;
-        return GameInstance;
-    }
-    
+public:
+    Game(Api& ApiInstance);
+    ~Game();
+  
+    void Quit();
+    bool ShouldQuit();
+  
     void Update();
 
     void SetApiInstance(Api* ApiInstance);
 private:
-    Api* ApiInstance_ = nullptr;
+    Api& ApiInstance_;
 
-    Game();
-    ~Game();
+    bool running_ = false;
 };

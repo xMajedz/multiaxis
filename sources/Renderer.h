@@ -1,14 +1,22 @@
-#include "raylib.h"
+#pragma once
+
 #include "Game.h"
+
+#include "raylib.h"
+
+#include "raymath.h"
+
+enum ShaderType {
+    BASE_SHADER,
+  
+    SHADER_COUNT,
+};
 
 class Renderer {
 public:
-    static Renderer& GetInstance()
-    {
-       static Renderer RendererInstance;
-       return RendererInstance;
-    }
-	
+    Renderer(Api& ApiInstance, Game& GameInstance);
+    ~Renderer();
+
     void Render();
     void RenderGame();
     void RenderBackground();
@@ -19,6 +27,9 @@ public:
 
     void GetSettings();
 private:
+    Api& ApiInstance_;	
+    Game& GameInstance_;
+
     float screenWidth;
     float screenHeight;
 	
@@ -27,11 +38,7 @@ private:
     RenderTexture bg;
     RenderTexture fg;
 
-    Camera3D camera;
-  
-    Api* ApiInstance_ = nullptr;	
-    Game* GameInstance_ = nullptr;
+    Camera camera;
 
-    Renderer();
-    ~Renderer();
+    Shader shaders[SHADER_COUNT];  
 };

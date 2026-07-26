@@ -8,16 +8,20 @@
 
 #include <string>
 
+class Game;
+class Renderer;
+
 class Api {
 public:
-    static Api& GetInstance()
-    {
-        static Api ApiInstance;
-        return ApiInstance;
-    }
-  
-    void Boot(const std::string& bootfile);
+    Api();
+    ~Api();
 
+    void Boot(const std::string& bootfile);
+    void Log(const std::string& message);
+  
+    void SetGame(Game* GameInstance);
+    void SetRenderer(Renderer* RendererInstance);
+  
     void Update();
     void Console(const std::string& message);
 
@@ -33,10 +37,9 @@ public:
   
 private:
     lua_State* ML;
-
-    Api();
-    ~Api();
 };
+
+int Api_AddHook(lua_State* L);
 
 enum HookType {
     PROTOTYPE = 0,
@@ -90,3 +93,22 @@ static struct { int key; const char * name; } Hooks[HOOK_COUNT] {
 	"FileDropped",*/
 };
 
+int luaL_registerwithclosure(lua_State* L, const char* libname, const luaL_Reg* l, int upvalues);
+
+int luaopenApiRaylib(lua_State* L);
+int luaopenApiRaygui(lua_State* L);
+int luaopenApiRaymath(lua_State* L);
+
+int luaopen_uielement(lua_State* L);
+
+static const struct { std::string name; int (*func)(lua_State*); } builtinlibs[] {
+    {"@raylib",    luaopenApiRaylib},
+    {"@raygui",    luaopenApiRaygui},
+    {"@raymath",   luaopenApiRaymath},
+
+    {"@uielement", luaopen_uielement},
+};
+
+int luaopenApi(lua_State* L);
+int luaopenGame(lua_State* L);
+int luaopenRenderer(lua_State* L);

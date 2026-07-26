@@ -5,8 +5,6 @@
 #include <fstream>
 #include <sstream>
 
-#include <utility>
-
 class Bytecode {
 public:  
     int load(lua_State* L, const std::string& chunkname)
@@ -37,7 +35,6 @@ private:
 
 static void log(const std::string& message)
 {
-    Api::GetInstance().Console(message);
     std::cout << message << std::endl;
 }
 
@@ -59,10 +56,8 @@ static int loadfile(lua_State* L, const std::string& filepath, const std::string
     std::stringstream text;
 
     text << file.rdbuf();
-	
-    Bytecode bytecode(text.str());
 
-    return bytecode.load(L, chunkname);
+    return loadstring(L, text.str(), chunkname);
 }
 
 static void query_replace(std::string& source, const std::string& from, const std::string& to)
@@ -106,20 +101,6 @@ static int requirefile(lua_State* L, std::string requirename, std::string chunkn
     return bytecode.load(L, chunkname);
 }
 
-int luaopenApiRaylib(lua_State* L);
-int luaopenApiRaygui(lua_State* L);
-int luaopenApiRaymath(lua_State* L);
-
-int luaopen_UIElement(lua_State* L);
-
-std::tuple<int, int(*)(lua_State*), std::string> builtinlibs[] = {
-    {0, luaopenApiRaylib, "@Raylib"},
-    {0, luaopenApiRaygui, "@Raygui"},
-    {0, luaopenApiRaymath, "@Raymath"},
-
-    {0, luaopen_UIElement, "@uielement"},
-};
-
 static bool compare_case_insenstive(const std::string s1, const std::string s2)
 {
     bool match = true;
@@ -133,15 +114,20 @@ static bool compare_case_insenstive(const std::string s1, const std::string s2)
 
 static int require_builtin(lua_State* L, const std::string& filename)
 {
-    for (auto& [ref, luaopen_lib, name] : builtinlibs) {
+    for (auto& [name, luaopen_lib] : builtinlibs) {
         if (compare_case_insenstive(filename, name)) {
-            if (ref == 0) {
+	    lua_pushstring(L, name.data());
+	    lua_gettable(L, LUA_REGISTRYINDEX);
+
+	    if (lua_isnil(L, -1)) {
+	        lua_pop(L, 1);
 	        lua_pushcfunction(L, luaopen_lib, NULL);
 	        lua_call(L, 0, 1);
-	        ref = lua_ref(L, -1);
-	    } else {
-	        lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
+		lua_pushstring(L, name.data());
+		lua_pushvalue(L, -2);
+		lua_settable(L, LUA_REGISTRYINDEX);
 	    }
+	    
 	    return 0;
 	}
     }
@@ -149,10 +135,12 @@ static int require_builtin(lua_State* L, const std::string& filename)
     return 1;
 }
 
-static int require(lua_State* L, const std::string& filename)
+static int require(lua_State* L, std::string filename)
 {
     if (filename.at(0) == '@' && require_builtin(L, filename) == LUA_OK) return 0;
-      
+
+    query_replace(filename, ".", "/");
+
     std::string requirestring = "./scripts/?.luau;./scripts/?/?.luau";
     std::string chunkname = "=require:" + filename;
 	 
@@ -202,15 +190,13 @@ static int runscript(lua_State* L, const std::string& scriptpath)
     return 0;
 }
 
-void luaopenApi(lua_State* L);
-
 Api::Api() : ML(luaL_newstate())
 {
     luaL_openlibs(ML);
 
-    luaopenApi(ML);
-
-    luaL_sandbox(ML);
+    lua_pushlightuserdata(ML, this); 
+    lua_pushcclosure(ML, luaopenApi, NULL, 1);
+    lua_call(ML, 0, 0);
 }
 
 Api::~Api()
@@ -220,7 +206,28 @@ Api::~Api()
 
 void Api::Boot(const std::string& bootfile)
 {
+    luaL_sandbox(ML);
     runscript(ML, bootfile);
+}
+
+void Api::Log(const std::string& message)
+{
+    Console(message);
+    std::cout << message << std::endl;
+}
+
+void Api::SetGame(Game* GameInstance)
+{
+    lua_pushlightuserdata(ML, GameInstance);
+    lua_pushcclosure(ML, luaopenGame, NULL, 1);
+    lua_call(ML, 0, 0);
+}
+
+void Api::SetRenderer(Renderer* RendererInstance)
+{
+    lua_pushlightuserdata(ML, RendererInstance);
+    lua_pushcclosure(ML, luaopenRenderer, NULL, 1);
+    lua_call(ML, 0, 0);
 }
 
 void Api::Console(const std::string& message)
@@ -290,11 +297,12 @@ void Api::KeyReleased(int key)
 
 static int Api_log(lua_State* L)
 {
-    std::stringstream ss;
-
     int nargs = lua_gettop(L);
-	
-    if (nargs == 0) return 0;
+
+    if (nargs == 0)
+        return 0;
+
+    std::stringstream ss;
 	
     for (int n = 1; n <= nargs; n += 1) {
 	const char* s = luaL_tolstring(L, n, NULL);
@@ -303,8 +311,8 @@ static int Api_log(lua_State* L)
         
 	ss << s;
     }
-	
-    log(ss.str());
+    
+    static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)))->Log(ss.str());
 
     return 0;
 }
@@ -313,7 +321,8 @@ static int Api_require(lua_State* L)
 {
     int nargs = lua_gettop(L);
 	
-    if (nargs == 0 || lua_isnil(L, 1)) return 0;
+    if (nargs == 0 || lua_isnil(L, 1))
+        return 0;
     
     require(L, lua_tostring(L, -1));
 
@@ -329,21 +338,21 @@ static int Api_runscript(lua_State* L)
 
 static void parsemod(std::istream& data)
 {
-	int version = 0;
-	int context = 0;
+    int version = 0;
+    int context = 0;
 
-	int env_obj_id = 0;
-	int env_obj_plane_id = 0;
-	int env_obj_joint_id = 0;
+    int env_obj_id = 0;
+    int env_obj_plane_id = 0;
+    int env_obj_joint_id = 0;
 
-	int player_id = 0;
+    int player_id = 0;
     int body_id = 0;
-	int joint_id = 0;
+    int joint_id = 0;
 
-	std::string body_name;
-	std::string joint_name;
+    std::string body_name;
+    std::string joint_name;
 
-	std::string line;
+    std::string line;
 	/*
     EnvPlane* current_plane = nullptr;
     size_t plane_count = 0;
@@ -613,31 +622,52 @@ static int Api_loadmodfile(lua_State* L)
     return 0;
 }
 
+int luaL_registerwithclosure(lua_State* L, const char* libname, const luaL_Reg* l, int upvalues)
+{
+   if (libname) {
+       lua_getglobal(L, libname);
+       if (lua_isnil(L, -1)) {
+	   lua_pop(L, 1);
+	   lua_newtable(L);
+	   lua_pushvalue(L, -1);
+	   lua_setglobal(L, libname);
+       }
+   }
+   
+   for (const luaL_Reg* f = l; f->name; f += 1) {    
+       lua_pushvalue(L, lua_upvalueindex(upvalues));
+       lua_pushcclosure(L, f->func, NULL, upvalues);
+       lua_setfield(L, -2, f->name);
+   }
+   
+   return 1;
+}
+    
+
 static const luaL_Reg ApiBase[] = {
-    {"log", Api_log},
-    {"require", Api_require},
+    {"log",       Api_log},
+    {"require",   Api_require},
     {"runscript", Api_runscript},
 	
-    {"loadmodstring", Api_loadmodstring},
-    {"loadmodfile", Api_loadmodfile},
-  //{"loadmod_t", Api_loadmod_t},
+    //{"loadmodstring", Api_loadmodstring},
+    //{"loadmodfile", Api_loadmodfile},
+    //{"loadmod_t", Api_loadmod_t},
 	
     {NULL, NULL},
 };
 
 static int luaopenApiBase(lua_State* L)
 {
-    luaL_register(L, "_G", ApiBase);
+    lua_pushvalue(L, LUA_GLOBALSINDEX);
+    luaL_registerwithclosure(L, NULL, ApiBase, 1);
     return 1;
 }
 
-static int metamethod_call(lua_State* L)
+static int hook__call(lua_State* L)
 {
-    const char* callback = lua_tostring(L, lua_upvalueindex(1));
+    int nargs = lua_gettop(L);
 
-    size_t nargs = lua_gettop(L);
-
-    lua_rawgeti(L, lua_upvalueindex(2), 1);
+    lua_pushvalue(L, lua_upvalueindex(2));
     lua_pushnil(L);
 	
     while (lua_next(L, -2) != 0) {
@@ -655,116 +685,115 @@ static int metamethod_call(lua_State* L)
 	    }
 	}
     }
-	
-    lua_pop(L, 1);
 
     return 0;
 }
 
-static int metamethod_index(lua_State* L)
+static int hook__index(lua_State* L)
 {
-    const char* callback = lua_tostring(L, lua_upvalueindex(1));
-    lua_rawgeti(L, lua_upvalueindex(2), 1);
-    lua_getfield(L, -1, lua_tostring(L, 2));
+    lua_gettable(L, lua_upvalueindex(2));
     return 1;
 }
 
-static int metamethod_newindex(lua_State* L)
+static int hook__newindex(lua_State* L)
 {
-    const char* callback = lua_tostring(L, lua_upvalueindex(1));
-    lua_rawgeti(L, lua_upvalueindex(2), 1);
-    lua_pushvalue(L, 3);
-    lua_setfield(L, -2, lua_tostring(L, 2));
+    if (!lua_isfunction(L, 3))
+        return 0;
+
+    lua_settable(L, lua_upvalueindex(2));
+
     return 0;
 }
 
-int Api_SetHook(lua_State* L)
+int Api_AddHook(lua_State* L)
 {
-    const char* callback = lua_tostring(L, 1);
-    const char* name =  lua_tostring(L, 2);
-
+    if (!lua_isfunction(L, 3))
+        return 0;
+	
     lua_getglobal(L, "Api");
-    lua_getfield(L, -1, callback);
+    lua_getfield(L, -1, lua_tostring(L, 1));
     lua_pushvalue(L, -3);
-    lua_setfield(L, -2, name);
+    lua_setfield(L, -2, lua_tostring(L, 2));
 
+    return 0;
+}
+
+int Api_RemoveHook(lua_State* L)
+{
+    lua_getglobal(L, "Api");
+    lua_getfield(L, -1, lua_tostring(L, 1));
+    lua_pushnil(L);
+    lua_setfield(L, -2, lua_tostring(L, 2));
+
+    return 0;
+}
+
+int Api_RemoveHooks(lua_State* L)
+{
     return 0;
 }
 
 static const luaL_Reg ApiMain[] = {
-    {"SetHook", Api_SetHook},
-  
+    {"AddHook",     Api_AddHook},
+    {"RemoveHook",  Api_RemoveHook},
+    {"RemoveHooks", Api_RemoveHooks},
+
     {NULL, NULL},
 };
 
 int luaopenApiMain(lua_State* L)
 {
-    luaL_register(L, "Api", ApiMain);
+    luaL_registerwithclosure(L, "Api", ApiMain, 1);
 
     for (auto& hook : Hooks) {		
         lua_newtable(L);
         lua_newtable(L);
-
-       // closure table
-        lua_newtable(L);
-        lua_newtable(L);
-        int closure_table = lua_ref(L, -2);
-        lua_rawseti(L, -2, 1);
-        lua_remove(L, -1);
-
-	std::string chunknames = "Api.?.__call Api.?.__index Api.?.__newindex";
-	query_replace(chunknames, "?", hook.name);
-
-	std::string chunkname;
-	std::stringstream chunkstream(chunknames);
-
-	chunkstream >> chunkname;
 	
         lua_pushstring(L, hook.name);
-        lua_getref(L, closure_table);
-        lua_pushcclosure(L, metamethod_call, chunkname.data(), 2);
-        lua_setfield(L, -2, "__call");
+        lua_newtable(L);
 
-	chunkstream >> chunkname;
+        lua_pushvalue(L, -2);
+	lua_pushvalue(L, -2);
+        lua_pushcclosure(L, hook__call, NULL, 2);
+        lua_setfield(L, 3, "__call");
 
-	lua_pushstring(L, hook.name);
-        lua_getref(L, closure_table);
-	lua_pushcclosure(L, metamethod_index, chunkname.data(), 2);
-	lua_setfield(L, -2, "__index");
+	lua_pushvalue(L, -2);
+        lua_pushvalue(L, -2);
+        lua_pushcclosure(L, hook__index, NULL, 2);
+	lua_setfield(L, 3, "__index");
 
-	chunkstream >> chunkname;
+	lua_pushvalue(L, -2);
+	lua_pushvalue(L, -2);
+	lua_pushcclosure(L, hook__newindex, NULL, 2);
+        lua_setfield(L, 3, "__newindex");
 
-	lua_pushstring(L, hook.name);
-	lua_getref(L, closure_table);
-	lua_pushcclosure(L, metamethod_newindex, chunkname.data(), 2);
-        lua_setfield(L, -2, "__newindex");
-      
+        lua_pop(L, 2);
+
 	hook.key = lua_ref(L, -2);
 
 	lua_setmetatable(L, -2);
 	lua_setfield(L, -2, hook.name);
     }
-	
+    
     return 1;
 }
 
-static const luaL_Reg libs[] = {
-    {"",            luaopenApiBase},
-    {"Api",         luaopenApiMain},
-	
-  //{"Game",        luaopenApiGame},
-  //{"Replay",      luaopenApiReplay},
-  //{"Expermental", luaopenApiExpermental},
-  //{"Net",         luaopenApiNet},
-	
+
+static const luaL_Reg libs[] {
+    {"",    luaopenApiBase},
+    {"Api", luaopenApiMain},
+    
     {NULL, NULL},
 };
 
-void luaopenApi(lua_State* L)
+int luaopenApi(lua_State* L)
 {
     for (const luaL_Reg* lib = libs; lib->func; lib += 1) {
-        lua_pushcfunction(L, lib->func, NULL);
-        lua_pushstring(L, lib->name);
-        lua_call(L, 1, 0);
+        lua_pushvalue(L, lua_upvalueindex(1));
+        lua_pushcclosure(L, lib->func, NULL, 1);
+	//lua_pushstring(L, lib->name);
+	lua_call(L, 0, 0);
     }
+    
+    return 1;
 }

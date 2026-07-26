@@ -2,6 +2,12 @@
 
 #include "raylib.h"
 
+static int RAYLIB_TraceLog(lua_State* L)
+{
+    TraceLog(lua_tointeger(L, 1), lua_tostring(L, 2), lua_tostring(L, 3));
+    return 0;
+}
+
 static int RAYLIB_DrawText(lua_State* L)
 {
 	Color color;
@@ -211,6 +217,8 @@ static int RAYLIB_IsWindowFullscreen(lua_State* L)
 }
 
 static const luaL_Reg ApiRaylib[] {
+        {"TraceLog", RAYLIB_TraceLog},
+	
 	{"DrawText", RAYLIB_DrawText},
 	{"DrawRectangle", RAYLIB_DrawRectangle},
 	{"DrawRectangleLines", RAYLIB_DrawRectangleLines},
