@@ -10,6 +10,8 @@ sources/ApiRaylib.cpp
 sources/ApiRaygui.cpp
 sources/ApiRaymath.cpp
 sources/Api.cpp
+sources/ApiGame.cpp
+sources/ApiRenderer.cpp
 sources/Game.cpp
 sources/Renderer.cpp
 sources/uielement.cpp
