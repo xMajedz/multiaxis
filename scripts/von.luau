@@ -1,2 +1,6 @@
 local uielement = require "@uielement"
-uielement.new { pos = {200, 200}, bgImage = "scripts/von/von.png" }
+local von = uielement.new {bgImage = "scripts/von/von.png", interactive = true}
+function von.mouseButtonPressed()
+    von:kill()
+    von = nil
+end

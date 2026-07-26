@@ -1,65 +1,125 @@
 --local Console = require "Ui/Console" -- load console first so i can get errors logged
---runscript("redpixel.luau")
---runscript("von.luau")
 
 local ui = require "@uielement"
-
-if true then
-local viewElement = ui.new{
-    rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20 },
-
-    bgColor = ui.UICOLORBLANK,
-    hoverColor = ui.UICOLORBLANK,
-    pressedColor = ui.UICOLORBLUE,
-    
-    borderColor = ui.UICOLORWHITE,
-    borderHoverColor = ui.UICOLORBLUE,
-    
-    interactive = true,
-}
-
-viewElement:hide()
-
---viewElement:makeTextfield(textfieldString, textfieldSettings)
-
-local text = "textfield"
-
-function viewElement.customDisplay()
-    viewElement:uiText(text, 5, 0, (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE)
-end
-
-function viewElement.enterAction()
-    if viewElement.displayed then viewElement:hide() else viewElement:show() end
-end
-
---function viewElement.keyPressed(key) end
-
-function Api.OnKeyPressed.textfield(key)
-    -- TODO: safely convert key to char in c api
-    --if key ~= 257 then text = text .. string.char(key) end
-end
 
 ui.mouseHooks()
 ui.keyboardHooks()
 ui.renderHooks()
+
+--runscript("redpixel.luau")
+--runscript("von.luau")
+
+
+--local viewElement = ui.new {globalId = ui.RENDER_BG_GLOBALID, rec = {(ui.WIN_W - 100)/2, (ui.WIN_H - 100)/2, 100, 100}, shapeType = ui.SHAPE_ROUNDED}
+--viewElement:makeTextfield(textfieldString, textfieldSettings)
+
+
+function makeTextfield(o, textfieldString)
+    local viewElement = ui.new{
+        rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20 },
+
+        bgColor = ui.UICOLORBLANK,
+        hoverColor = ui.UICOLORBLANK,
+        pressedColor = ui.UICOLORBLUE,
+    
+        borderColor = ui.UICOLORWHITE,
+        borderHoverColor = ui.UICOLORBLUE,
+     
+        interactive = true,
+	
+	keyboard = true,
+    }
+
+    viewElement:hide()
+
+    function viewElement.customDisplay()
+        viewElement:uiText(textfieldString, 5, 0, (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE)
+    end
+    
+    function viewElement.enterAction()
+        if viewElement.displayed then viewElement:hide() else viewElement:show() end
+    end
+    
+    function viewElement.keyPressed(key)
+       --log(key)
+    end
 end
 
-local viewElement = ui.new {rec = {(ui.WIN_W - 100)/2, (ui.WIN_H - 100)/2, 100, 100}, shapeType = ui.SHAPE_ROUNDED}
+makeTextfield(nil, "textfield")
 
--- uielement.new() no arguments default constructor behaviour and throw an error
--- uielement.new{} table argument default constructor behaviour
--- uielement:new() self(table) argument default constructor behaviour
---uielement.new()
---local viewElement = uielement.new {size = {uielement.WIN_W, uielement.WIN_H}, uiColor = uielement["UICOLORBLUE"]}
---viewElement:addAdaptedText("addAdaptedText")
+function makeMenu()
+    local offset = 10
+    local button_size = 100
+    local gape = (ui.WIN_W - 2 * button_size + 10)/3
 
+    local viewElement = ui.new{ size = {ui.WIN_W, 25}, bgColor = ui.UICOLORBLANK }
 
---function viewElement.customDisplay() end
---function viewElement.customDisplayBefore() end
+    local rulesButton = viewElement:addChild{
+        rec = {offset, 10, button_size, 25},
+        bgColor = ui.UICOLORRED,
+        hoverColor = ui.UICOLORBLUE,
+        interactive = true,
+    }
+    
+    rulesButton:addAdaptedText("Rules")
+    
+    offset += gape 
+    local modlistButton = viewElement:addChild{
+        rec = {offset, 10, button_size, 25},
+        bgColor = ui.UICOLORRED,
+        hoverColor = ui.UICOLORBLUE,
+        interactive = true,
+    }
+    
+    modlistButton:addAdaptedText("Mods")
 
---viewElement:addCustomDisplay(function() end)
---viewElement:addCustomDisplay(false, function() end)
---viewElement:addCustomDisplay(false, false, function() end)
+    offset += gape
+    local replaylistButton = viewElement:addChild{
+        rec = {offset, 10, button_size, 25},
+        bgColor = ui.UICOLORRED,
+        hoverColor = ui.UICOLORBLUE,
+	interactive = true,
+    }
+    
+    replaylistButton:addAdaptedText("Replays")
+
+    offset += gape
+    local scriptlistButton = viewElement:addChild{
+        rec = {offset, 10, button_size, 25},
+        bgColor = ui.UICOLORRED,
+        hoverColor = ui.UICOLORBLUE,
+	interactive = true,
+    }
+    
+    scriptlistButton:addAdaptedText("Scripts")
+
+    local settingsButton = viewElement:addChild{
+        rec = {ui.WIN_W - 70, 10, 25, 25},
+        bgColor = ui.UICOLORRED,
+        hoverColor = ui.UICOLORBLUE,
+        interactive = true,
+    }
+
+    settingsButton:addAdaptedText("1")
+
+    local closeButton = viewElement:addChild{
+        rec = {ui.WIN_W - 35, 10, 25, 25},
+        bgColor = ui.UICOLORRED,
+        hoverColor = ui.UICOLORBLUE,
+        interactive = true,
+    }
+
+    closeButton:addAdaptedText("2")
+
+    function closeButton.mouseButtonPressed()
+        log("viewElement:kill()")
+        viewElement:kill()
+        viewElement = nil
+	Game.Quit()
+    end
+end
+
+makeMenu()
 
 --[[
 for i, message in require("intro") do -- insert the intro message into the chat
