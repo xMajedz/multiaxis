@@ -15,6 +15,7 @@ sources/ApiRenderer.cpp
 sources/Game.cpp
 sources/Renderer.cpp
 sources/uielement.cpp
+sources/uielement3d.cpp
 sources/multiaxis.cpp)
 
 target_include_directories(multiaxis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/raygui/src)
