@@ -6,6 +6,13 @@
 
 #include "raymath.h"
 
+enum RenderTextureType {
+    RENDER_TEXTURE_BG,
+    RENDER_TEXTURE_FG,
+    
+    RENDER_TEXTURE_COUNT,
+};
+
 enum ShaderType {
     BASE_SHADER,
   
@@ -18,6 +25,9 @@ public:
     ~Renderer();
 
     void Render();
+  
+    void Draw(int shapeType, Vector3 size, Color color);
+
     void RenderGame();
     void RenderBackground();
     void RenderForeground();
@@ -33,10 +43,9 @@ private:
     float screenWidth;
     float screenHeight;
 	
-    Color bg_color;
+    Color bgColor;
 
-    RenderTexture bg;
-    RenderTexture fg;
+    RenderTexture renderTextures[RENDER_TEXTURE_COUNT];
 
     Camera camera;
 

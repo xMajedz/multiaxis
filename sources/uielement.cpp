@@ -2,19 +2,16 @@
 
 #include "raylib.h"
 
-#include <iostream>
-
-#include <vector>
-
 #include <cstring>
+
+#define lua_isuielement(L, idx) (lua_isuserdata(L, idx) && lua_userdatatag(L, idx) == 1)
 
 enum UIRenderingContext { RENDER_FG_GLOBALID = 1000, RENDER_BG_GLOBALID = 1001 };
 
 enum UIShapeType { SQUARE = 1, ROUNDED = 2 };
 
-class uielement
+struct uielement
 {
-public:
     uielement* parent;
 
     uint32_t globalId = (uint32_t)RENDER_FG_GLOBALID;
@@ -50,6 +47,10 @@ public:
     bool destroyed = false;
 
     bool noReload = false;
+
+    bool log = false;
+  
+    Api* ApiInstance;
   
     void display();
     bool show(bool forceReload);
@@ -59,6 +60,7 @@ public:
 
     void uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2);
 
+    uielement(Api* ApiInst);
     ~uielement();
 };
 
@@ -136,21 +138,19 @@ void uielement::uiText(const char* str, uint32_t x, uint32_t y, Color col1, Colo
     DrawText(str, rec.x + x, rec.y + y, 20, col1);
 }
 
+uielement::uielement(Api* ApiInst) : ApiInstance(ApiInst)
+{
+    if (log) ApiInstance->Log(TextFormat("uielement.new: %p", this));
+}
+
 uielement::~uielement()
 {
     if (bgImage.data) {
         UnloadImage(bgImage);
         UnloadTexture(bgImageTexture);
     }
-    std::cout << "~uielement: " << this << std::endl;
-}
-
-static bool lua_isuielement(lua_State* L, int idx)
-{
-    lua_getfield(L, -1, "__type");
-    bool res = lua_isuserdata(L, -2) && (strcmp(lua_tostring(L, -1), "uielement") == 0);
-    lua_pop(L, 1);
-    return res;
+    
+    if (log) ApiInstance->Log(TextFormat("~uielement: %p", this));
 }
 
 static void uielement_destructor(lua_State* L, void* ud)
@@ -249,24 +249,25 @@ static void parseColor(lua_State* L, Color* color, const char* name)
     lua_getfield(L, -2, name);
     if (lua_istable(L, -1)) {
         lua_rawgeti(L, -1, 1);
-        color->r = 255 * lua_tointeger(L, -1);
+        color->r = 255 * lua_tonumber(L, -1);
         lua_rawgeti(L, -2, 2);
-        color->g = 255 * lua_tointeger(L, -1);
+        color->g = 255 * lua_tonumber(L, -1);
         lua_rawgeti(L, -3, 3);
-        color->b = 255 * lua_tointeger(L, -1);
+        color->b = 255 * lua_tonumber(L, -1);
         lua_rawgeti(L, -4, 4);
-        color->a = 255 * lua_tointeger(L, -1);
-        lua_pop(L, 5);
-    } else {
-        lua_pop(L, 1);
+        color->a = 255 * lua_tonumber(L, -1);
+        lua_pop(L, 4);
     }
+    lua_pop(L, 1);
 }
 
 static int uielement_new(lua_State* L)
 {
+    Api* ApiInstance = static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)));
+
     int nargs = lua_gettop(L);
 
-    uielement* elem = new (static_cast<uielement*>(lua_newuserdatataggedwithmetatable(L, sizeof(uielement), 1))) uielement();
+    uielement* elem = new (static_cast<uielement*>(lua_newuserdatataggedwithmetatable(L, sizeof(uielement), 1))) uielement(ApiInstance);
     
     lua_pushlightuserdata(L, elem);
     lua_newtable(L);
@@ -275,12 +276,12 @@ static int uielement_new(lua_State* L)
     lua_settable(L, LUA_REGISTRYINDEX);
     
     if (!nargs && !lua_istable(L, 1)) {
-        std::cout << "error: uielement.new(o: table)" << std::endl;
+        ApiInstance->Log("error: uielement.new(o: table)");
         return 1;
     }
 
     lua_getfield(L, -2, "parent");
-    if (lua_isuserdata(L, -1)) {
+    if (lua_isuielement(L, -1)) {
         elem->parent = static_cast<uielement*>(lua_touserdata(L, -1));
 	
 	lua_pushlightuserdata(L, elem->parent);
@@ -292,7 +293,7 @@ static int uielement_new(lua_State* L)
     
 	lua_pop(L, 1);
     } else {
-        if (!lua_isnil(L, -1)) std::cout << "error: field parent is not of type uielement" << std::endl;
+        if (!lua_isnil(L, -1)) ApiInstance->Log("error: field parent is not of type uielement");
 
 	lua_pushstring(L, "UIElementManager");
         lua_gettable(L, LUA_REGISTRYINDEX);
@@ -301,8 +302,6 @@ static int uielement_new(lua_State* L)
         lua_pop(L, 2);
     }
 
-    std::cout << "uielement.new: " << elem << std::endl;
-    
     lua_getfield(L, -2, "globalId");
     if (lua_isnumber(L, -1)) {
         elem->globalId = lua_tounsigned(L, -1);	
@@ -324,9 +323,8 @@ static int uielement_new(lua_State* L)
 	lua_pushunsigned(L, elem->globalId);
         lua_gettable(L, -2);
     }
-    int n = lua_objlen(L, -1);
     lua_pushvalue(L, 2);
-    lua_rawseti(L, -2, n + 1);
+    lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
     
     lua_pop(L, 2);
     //
@@ -337,9 +335,9 @@ static int uielement_new(lua_State* L)
 
 	lua_pushstring(L, "UIMouseHandler");
         lua_gettable(L, LUA_REGISTRYINDEX);
-        int n = lua_objlen(L, -1);
+	
         lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, n + 1);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
         lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -350,9 +348,9 @@ static int uielement_new(lua_State* L)
 
 	lua_pushstring(L, "UIKeyboardHandler");
         lua_gettable(L, LUA_REGISTRYINDEX);
-        int n = lua_objlen(L, -1);
+	
         lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, n + 1);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
         lua_pop(L, 1);
     }
     lua_pop(L, 1);
@@ -415,6 +413,12 @@ static int uielement_new(lua_State* L)
     }
     lua_pop(L, 1);
 
+    lua_getfield(L, -2, "log");
+    if (lua_isnumber(L, -1)) {
+        elem->log = lua_toboolean(L, -1);
+    }
+    lua_pop(L, 1);
+    
     elem->displayed = true;
 
     return 1;
@@ -936,12 +940,19 @@ static int uielement_uiTextClosure(lua_State* L)
 
 static int uielement_addAdaptedText(lua_State* L)
 {
+    Api* ApiInstance = static_cast<Api*>(lua_touserdata(L, lua_upvalueindex(1)));
     int nargs = lua_gettop(L);
+    int cnargs = 2;
     lua_pushcfunction(L, uielement_addCustomDisplay, NULL);
+    lua_pushvalue(L, 1);  
+    if (lua_isboolean(L, 2)) {
+       lua_pushvalue(L, 2);
+       cnargs += 1;
+    }
     lua_pushvalue(L, 1);
-    for (int n = 1; n <= nargs; n += 1) lua_pushvalue(L, n);
-    lua_pushcclosure(L, uielement_uiTextClosure, NULL, nargs);
-    lua_call(L, 2, 0);
+    for (int n = cnargs; n <= nargs; n += 1) lua_pushvalue(L, n);
+    lua_pushcclosure(L, uielement_uiTextClosure, NULL, nargs - 1);
+    lua_call(L, cnargs, 0);
     return 0;
 }
 
@@ -1034,7 +1045,7 @@ static const struct { const char* name; uint32_t context; } UIRenderingContexts[
 int luaopen_uielement(lua_State* L)
 {
     luaL_newmetatable(L, "uielement");
-    luaL_register(L, NULL, uielement_methods);
+    luaL_registerwithclosure(L, NULL, uielement_methods, 1);
 
     lua_newtable(L);
     luaL_register(L, NULL, uielement_getters);

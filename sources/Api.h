@@ -25,6 +25,8 @@ public:
     void Update();
     void Console(const std::string& message);
 
+    void RenderGame(Renderer* RendererInstance);
+
     void RenderBackground();
     void RenderForeground();
 
@@ -34,6 +36,8 @@ public:
 
     void KeyPressed(int key);
     void KeyReleased(int key);
+
+    int require_builtin(lua_State* L, const std::string& filename);
   
 private:
     lua_State* ML;
@@ -46,6 +50,8 @@ enum HookType {
 
     CONSOLE,
     UPDATE,
+
+    RENDER_GAME,
 
     RENDER_BG,
     RENDER_FG,
@@ -74,6 +80,8 @@ static struct { int key; const char * name; } Hooks[HOOK_COUNT] {
     {0, "Console"},
     {0, "Update"},
 
+    {0, "OnRenderGame"},
+
     {0, "OnRenderBackground"},
     {0, "OnRenderForeground"},
 
@@ -100,13 +108,15 @@ int luaopenApiRaygui(lua_State* L);
 int luaopenApiRaymath(lua_State* L);
 
 int luaopen_uielement(lua_State* L);
+int luaopen_uielement3d(lua_State* L);
 
 static const struct { std::string name; int (*func)(lua_State*); } builtinlibs[] {
-    {"@raylib",    luaopenApiRaylib},
-    {"@raygui",    luaopenApiRaygui},
-    {"@raymath",   luaopenApiRaymath},
+    {"@raylib",      luaopenApiRaylib},
+    {"@raygui",      luaopenApiRaygui},
+    {"@raymath",     luaopenApiRaymath},
 
-    {"@uielement", luaopen_uielement},
+    {"@uielement",   luaopen_uielement},
+    {"@uielement3d", luaopen_uielement3d},
 };
 
 int luaopenApi(lua_State* L);

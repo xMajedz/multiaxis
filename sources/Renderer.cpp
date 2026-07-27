@@ -20,7 +20,7 @@ Renderer::Renderer(Api& ApiInstance, Game& GameInstance)
   , GameInstance_(GameInstance)
   , screenWidth(800)
   , screenHeight(450)
-  , bg_color(BLACK) 
+  , bgColor(BLACK) 
 {
     ApiInstance_.SetRenderer(this);
     
@@ -30,8 +30,8 @@ Renderer::Renderer(Api& ApiInstance, Game& GameInstance)
 
     InitWindow(screenWidth, screenHeight, "MultiAxis");
 
-    bg = LoadRenderTexture(screenWidth, screenHeight);
-    fg = LoadRenderTexture(screenWidth, screenHeight);
+    renderTextures[RENDER_TEXTURE_BG] = LoadRenderTexture(screenWidth, screenHeight);
+    renderTextures[RENDER_TEXTURE_FG] = LoadRenderTexture(screenWidth, screenHeight);
 
     camera.up = {0.f, 0.f, 1.f};
     camera.fovy = 45.f;
@@ -49,11 +49,14 @@ Renderer::Renderer(Api& ApiInstance, Game& GameInstance)
 
 Renderer::~Renderer()
 {
-    UnloadRenderTexture(bg);
-    UnloadRenderTexture(fg);
+    for (auto renderTexture : renderTextures) {
+        UnloadRenderTexture(renderTexture);
+    }
 
-    UnloadShader(shaders[BASE_SHADER]);
-
+    for (auto shader : shaders) {
+        UnloadShader(shader);
+    }
+    
     CloseWindow();
 }
 
@@ -79,10 +82,8 @@ void Renderer::GetSettings()
     }
 }
 
-void Renderer::RenderGame()
+void Renderer::Draw(int shapeType, Vector3 size, Color color)
 {
-    Color color = GREEN;
-    
     Vector4 normalizedColor = ColorNormalize(color);
     Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
     SetShaderValue(shaders[BASE_SHADER], GetShaderLocation(shaders[BASE_SHADER], "objectColor"), &objectColor, SHADER_UNIFORM_VEC3);
@@ -90,12 +91,22 @@ void Renderer::RenderGame()
 
     BeginShaderMode(shaders[BASE_SHADER]);
     BeginMode3D(camera);
-    
-    DrawCube(Vector3{0}, 0.5, 0.5, 0.5, WHITE);
-    //DrawSphere(Vector3{0}, 0.25, WHITE);
-
+    switch(shapeType)
+    {
+    case 0:
+        DrawCube(Vector3{0}, size.x, size.y, size.z, WHITE);
+	break;
+    case 1:
+        DrawSphere(Vector3{0}, size.x, WHITE);
+	break;
+    }
     EndMode3D();
     EndShaderMode();
+}
+
+void Renderer::RenderGame()
+{
+    ApiInstance_.RenderGame(this);
 
     //BeginMode3D(camera);
     //DrawModel(model, (Vector3){0}, 1.f, WHITE);
@@ -104,8 +115,8 @@ void Renderer::RenderGame()
 
 void Renderer::RenderBackground()
 {
-    BeginTextureMode(bg);
-        ClearBackground(bg_color);
+    BeginTextureMode(renderTextures[RENDER_TEXTURE_BG]);
+        ClearBackground(bgColor);
 	ApiInstance_.RenderBackground();
         RenderGame();
     EndTextureMode();
@@ -113,7 +124,7 @@ void Renderer::RenderBackground()
 
 void Renderer::RenderForeground()
 {
-    BeginTextureMode(fg);
+    BeginTextureMode(renderTextures[RENDER_TEXTURE_FG]);
 	ClearBackground(BLANK);
 	ApiInstance_.RenderForeground();
     EndTextureMode();
@@ -185,7 +196,7 @@ void Renderer::Render()
     RenderForeground();
     
     BeginDrawing();
-        DrawTextureRec(bg.texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);
-	DrawTextureRec(fg.texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);	
+        DrawTextureRec(renderTextures[RENDER_TEXTURE_BG].texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);
+	DrawTextureRec(renderTextures[RENDER_TEXTURE_FG].texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);	
     EndDrawing();
 }

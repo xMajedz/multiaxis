@@ -103,16 +103,19 @@ static int requirefile(lua_State* L, std::string requirename, std::string chunkn
 
 static bool compare_case_insenstive(const std::string s1, const std::string s2)
 {
+    if (s1.size() != s2.size())
+        return false;
+      
     bool match = true;
     
-    for (int i = 0; match && i < s1.size() && i < s2.size(); i += 1) {
+    for (int i = 0; match && i < s1.size(); i += 1) {
         match = std::tolower(s1[i]) == std::tolower(s2[i]);
     }
 
     return match;
 }
 
-static int require_builtin(lua_State* L, const std::string& filename)
+int Api::require_builtin(lua_State* L, const std::string& filename)
 {
     for (auto& [name, luaopen_lib] : builtinlibs) {
         if (compare_case_insenstive(filename, name)) {
@@ -121,7 +124,8 @@ static int require_builtin(lua_State* L, const std::string& filename)
 
 	    if (lua_isnil(L, -1)) {
 	        lua_pop(L, 1);
-	        lua_pushcfunction(L, luaopen_lib, NULL);
+		lua_pushlightuserdata(L, this);
+	        lua_pushcclosure(L, luaopen_lib, NULL, 1);
 	        lua_call(L, 0, 1);
 		lua_pushstring(L, name.data());
 		lua_pushvalue(L, -2);
@@ -137,7 +141,9 @@ static int require_builtin(lua_State* L, const std::string& filename)
 
 static int require(lua_State* L, std::string filename)
 {
-    if (filename.at(0) == '@' && require_builtin(L, filename) == LUA_OK) return 0;
+    Api* ApiInstance = static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)));
+
+    if (filename.at(0) == '@' && ApiInstance->require_builtin(L, filename) == LUA_OK) return 0;
 
     query_replace(filename, ".", "/");
 
@@ -152,7 +158,7 @@ static int require(lua_State* L, std::string filename)
 
     if (status == LUA_OK) return 0;
 	 
-    log(lua_tostring(L, 1));
+    ApiInstance->Log(lua_tostring(L, 1));
 
     return status;
 }
@@ -212,8 +218,8 @@ void Api::Boot(const std::string& bootfile)
 
 void Api::Log(const std::string& message)
 {
-    Console(message);
     std::cout << message << std::endl;
+    Console(message);
 }
 
 void Api::SetGame(Game* GameInstance)
@@ -241,6 +247,13 @@ void Api::Update()
 {
     lua_getref(ML, Hooks[UPDATE].key);
     lua_pcall(ML, 0, 0, 0);
+}
+
+void Api::RenderGame(Renderer* RendererInstance)
+{
+    lua_getref(ML, Hooks[RENDER_GAME].key);
+    lua_pushlightuserdata(ML, RendererInstance);
+    lua_pcall(ML, 1, 0, 0);
 }
 
 void Api::RenderBackground()
