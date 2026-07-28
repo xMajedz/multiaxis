@@ -19,14 +19,33 @@ enum ShaderType {
     SHADER_COUNT,
 };
 
+struct RenderWindow {
+    RenderWindow(float width, float height, const char* title);
+    ~RenderWindow();
+
+    void GetSettings();
+
+    float screenWidth;
+    float screenHeight;
+};
+
+struct RenderPass {
+    RenderPass();
+    ~RenderPass();
+
+    void Draw(int shapeType, Vector3 size, Color color);
+
+    Camera camera;
+  
+    Shader shaders[SHADER_COUNT];    
+};
+
 class Renderer {
 public:
     Renderer(Api& ApiInstance, Game& GameInstance);
     ~Renderer();
 
     void Render();
-  
-    void Draw(int shapeType, Vector3 size, Color color);
 
     void RenderGame();
     void RenderBackground();
@@ -35,19 +54,15 @@ public:
     void SetApiInstance(Api* ApiInstance);
     void SetGameInstance(Game* GameInstance);
 
-    void GetSettings();
 private:
     Api& ApiInstance_;	
     Game& GameInstance_;
 
-    float screenWidth;
-    float screenHeight;
-	
     Color bgColor;
 
+    RenderWindow window;
+
+    RenderPass pass;
+
     RenderTexture renderTextures[RENDER_TEXTURE_COUNT];
-
-    Camera camera;
-
-    Shader shaders[SHADER_COUNT];  
 };

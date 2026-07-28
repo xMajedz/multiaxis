@@ -80,7 +80,6 @@ void uielement::display()
 	    //borderCol = borderHoverColor;
 	}
 
-
 	if (col.a > 0)
 	    DrawRectangleRec(rec, col);
 
@@ -449,13 +448,14 @@ static int uielement_drawVisuals(lua_State* L)
 
     lua_pushunsigned(L, globalId);
     lua_gettable(L, -2);
-    if (!lua_isnil(L, -1)) {
-        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
-            lua_pushcfunction(L, uielement_display, NULL);
-            lua_rawgeti(L, -2, i);
-            lua_call(L, 1, 0);
-        }
-    }    
+    if (!lua_istable(L, -1))
+        return 0;
+    
+    for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+        lua_pushcfunction(L, uielement_display, NULL);
+        lua_rawgeti(L, -2, i);
+        lua_call(L, 1, 0);
+    }
     
     return 0;
 }
@@ -940,18 +940,19 @@ static int uielement_uiTextClosure(lua_State* L)
 
 static int uielement_addAdaptedText(lua_State* L)
 {
-    Api* ApiInstance = static_cast<Api*>(lua_touserdata(L, lua_upvalueindex(1)));
     int nargs = lua_gettop(L);
     int cnargs = 2;
+    int upvalues = nargs;;
     lua_pushcfunction(L, uielement_addCustomDisplay, NULL);
     lua_pushvalue(L, 1);  
     if (lua_isboolean(L, 2)) {
        lua_pushvalue(L, 2);
        cnargs += 1;
+       upvalues -= 1;
     }
     lua_pushvalue(L, 1);
     for (int n = cnargs; n <= nargs; n += 1) lua_pushvalue(L, n);
-    lua_pushcclosure(L, uielement_uiTextClosure, NULL, nargs - 1);
+    lua_pushcclosure(L, uielement_uiTextClosure, NULL, upvalues);
     lua_call(L, cnargs, 0);
     return 0;
 }
@@ -972,9 +973,6 @@ static int uielement_addChild(lua_State* L)
 
 static const luaL_Reg uielement_methods[]
 {
-    {"__index", uielement__index},
-    {"__newindex", uielement__newindex},
-
     {"new", uielement_new},
     
     {"display", uielement_display},
@@ -993,6 +991,9 @@ static const luaL_Reg uielement_methods[]
     {"mouseHooks", uielement_mouseHooks},
     {"keyboardHooks", uielement_keyboardHooks},
     {"renderHooks", uielement_renderHooks},
+
+    {"__index", uielement__index},
+    {"__newindex", uielement__newindex},
 
     {NULL, NULL},
 };

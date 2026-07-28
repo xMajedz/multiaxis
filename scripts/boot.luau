@@ -6,32 +6,18 @@ ui.mouseHooks()
 ui.keyboardHooks()
 ui.renderHooks()
 
-local messages = {}
-
-function Api.Console.boot(message)
-    table.insert(messages, message)
-end
-
-local viewElement = ui.new{size = {ui.WIN_W, ui.WIN_H}, bgColor = ui.UICOLORBLANK, keyboard = true}
-    
-function showMessages()
-    for index, message in messages do
-        viewElement:addChild({rec = {0, 25 * (#messages - index), ui.WIN_W, 25}}):addAdaptedText(true, message)
-    end
-end
-
-function viewElement.enterAction()
-    showMessages()
-end
+local viewElement = ui.new{size = {ui.WIN_W, ui.WIN_H}, bgColor = ui.UICOLORBLANK}
 
 local ui3d = require "@uielement3d"
 
-local obj = ui3d.new{bgColor = {0, 1, 0, 1}}
+--ui3d.renderHooks()
+--[[
+local obj = ui3d.new{bgColor = ui.UICOLORGREEN}
 
 function Api.OnRenderGame.boot(pass)
     obj:display(pass)
 end
-
+]]
 --runscript("redpixel.luau")
 --runscript("von.luau")
 
@@ -68,14 +54,14 @@ function makeTextfield(o, textfieldString)
 end
 
 makeTextfield(nil, "textfield")
-
+]]
 function makeMenu()
+    local viewElement = ui.new{rec = {0, 10, ui.WIN_W, 25}, bgColor = ui.UICOLORRED}
+
     local offset = 10
     local button_size = 100
     local gape = (ui.WIN_W - 2 * button_size + 10)/3
-
-    local viewElement = ui.new{ size = {ui.WIN_W, 25}, bgColor = ui.UICOLORBLANK }
-
+  
     local rulesButton = viewElement:addChild{
         rec = {offset, 10, button_size, 25},
         bgColor = ui.UICOLORRED,
@@ -142,7 +128,7 @@ function makeMenu()
 end
 
 makeMenu()
-]]
+
 --[[
 for i, message in require("intro") do -- insert the intro message into the chat
    Console.InsertMessage(`{message.lable}: {message.content}`)

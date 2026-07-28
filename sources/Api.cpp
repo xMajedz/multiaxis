@@ -249,10 +249,10 @@ void Api::Update()
     lua_pcall(ML, 0, 0, 0);
 }
 
-void Api::RenderGame(Renderer* RendererInstance)
+void Api::RenderGame(RenderPass* renderPass)
 {
     lua_getref(ML, Hooks[RENDER_GAME].key);
-    lua_pushlightuserdata(ML, RendererInstance);
+    lua_pushlightuserdata(ML, renderPass);
     lua_pcall(ML, 1, 0, 0);
 }
 

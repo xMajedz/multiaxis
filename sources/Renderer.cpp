@@ -15,52 +15,21 @@ static void UpdateCameraCustom(Camera* camera, Vector3 target, Vector3 rotation,
     camera->position = Vector3Add(target, offset);
 }
 
-Renderer::Renderer(Api& ApiInstance, Game& GameInstance)
-  : ApiInstance_(ApiInstance)
-  , GameInstance_(GameInstance)
-  , screenWidth(800)
-  , screenHeight(450)
-  , bgColor(BLACK) 
+RenderWindow::RenderWindow(float width, float height, const char* title): screenWidth(width), screenHeight(height)
 {
-    ApiInstance_.SetRenderer(this);
-    
     GetSettings();
     
     SetTraceLogLevel(LOG_ERROR);
 
-    InitWindow(screenWidth, screenHeight, "MultiAxis");
-
-    renderTextures[RENDER_TEXTURE_BG] = LoadRenderTexture(screenWidth, screenHeight);
-    renderTextures[RENDER_TEXTURE_FG] = LoadRenderTexture(screenWidth, screenHeight);
-
-    camera.up = {0.f, 0.f, 1.f};
-    camera.fovy = 45.f;
-    camera.projection = CAMERA_PERSPECTIVE;
-
-    UpdateCameraCustom(&camera, Vector3{0}, Vector3{0}, 0);
-
-    shaders[BASE_SHADER] = LoadShader("resources/shader/base.vs", "resources/shader/base.fs");
-
-    //
-    //model = LoadModelFromMesh(GenMeshPlane(340/45, 90/45, 340, 90));
-    //model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("scripts/von/von.png");
-    //
+    InitWindow(screenWidth, screenHeight, title);
 }
 
-Renderer::~Renderer()
+RenderWindow::~RenderWindow()
 {
-    for (auto renderTexture : renderTextures) {
-        UnloadRenderTexture(renderTexture);
-    }
-
-    for (auto shader : shaders) {
-        UnloadShader(shader);
-    }
-    
     CloseWindow();
 }
 
-void Renderer::GetSettings()
+void RenderWindow::GetSettings()
 {
     std::ifstream file("settings.txt");
 	
@@ -82,7 +51,18 @@ void Renderer::GetSettings()
     }
 }
 
-void Renderer::Draw(int shapeType, Vector3 size, Color color)
+RenderPass::RenderPass()
+{
+      shaders[BASE_SHADER] = LoadShader("resources/shader/base.vs", "resources/shader/base.fs");
+}
+
+RenderPass::~RenderPass()
+{
+    for (auto shader : shaders)
+        UnloadShader(shader);
+}
+
+void RenderPass::Draw(int shapeType, Vector3 size, Color color)
 {
     Vector4 normalizedColor = ColorNormalize(color);
     Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
@@ -104,9 +84,38 @@ void Renderer::Draw(int shapeType, Vector3 size, Color color)
     EndShaderMode();
 }
 
+Renderer::Renderer(Api& ApiInstance, Game& GameInstance)
+  : ApiInstance_(ApiInstance)
+  , GameInstance_(GameInstance)
+  , window(800, 450, "MultiAxis")
+  , bgColor(BLACK) 
+{
+    ApiInstance_.SetRenderer(this);
+    
+    renderTextures[RENDER_TEXTURE_BG] = LoadRenderTexture(window.screenWidth, window.screenHeight);
+    renderTextures[RENDER_TEXTURE_FG] = LoadRenderTexture(window.screenWidth, window.screenHeight);
+
+    pass.camera.up = {0.f, 0.f, 1.f};
+    pass.camera.fovy = 45.f;
+    pass.camera.projection = CAMERA_PERSPECTIVE;
+
+    UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{0}, 0);
+
+    //
+    //model = LoadModelFromMesh(GenMeshPlane(340/45, 90/45, 340, 90));
+    //model.materials[0].maps[MATERIAL_MAP_DIFFUSE].texture = LoadTexture("scripts/von/von.png");
+    //
+}
+
+Renderer::~Renderer()
+{
+    for (auto renderTexture : renderTextures)
+        UnloadRenderTexture(renderTexture);
+}
+
 void Renderer::RenderGame()
 {
-    ApiInstance_.RenderGame(this);
+    ApiInstance_.RenderGame(&pass);
 
     //BeginMode3D(camera);
     //DrawModel(model, (Vector3){0}, 1.f, WHITE);
@@ -164,28 +173,28 @@ void Renderer::Render()
     /* Camera Controls */
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
         if (IsKeyDown(KEY_W))
-	    UpdateCameraCustom(&camera, Vector3{0}, Vector3{-1 * DEG2RAD, 0.f, 0.f}, 0);
+	    UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{-1 * DEG2RAD, 0.f, 0.f}, 0);
 
         if (IsKeyDown(KEY_A))
-            UpdateCameraCustom(&camera, Vector3{0}, Vector3{0.f, 0.f,  1 * DEG2RAD}, 0);      
+            UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{0.f, 0.f,  1 * DEG2RAD}, 0);      
 
         if (IsKeyDown(KEY_S))
-	    UpdateCameraCustom(&camera, Vector3{0}, Vector3{1 * DEG2RAD, 0.f, 0.f}, 0);
+	    UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{1 * DEG2RAD, 0.f, 0.f}, 0);
 
         if (IsKeyDown(KEY_D))
-            UpdateCameraCustom(&camera, Vector3{0}, Vector3{0.f, 0.f, -1 * DEG2RAD}, 0);
+            UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{0.f, 0.f, -1 * DEG2RAD}, 0);
     } else {
         if (IsKeyDown(KEY_W))
-            UpdateCameraCustom(&camera, Vector3{0}, Vector3{0}, -0.01);
+            UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{0}, -0.01);
 
         if (IsKeyDown(KEY_A))
-            UpdateCameraCustom(&camera, Vector3{0}, Vector3{0.f, 0.f, 5 * DEG2RAD}, 0);      
+            UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{0.f, 0.f, 5 * DEG2RAD}, 0);      
 
         if (IsKeyDown(KEY_S))
-            UpdateCameraCustom(&camera, Vector3{0}, Vector3{0}, 0.01);
+            UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{0}, 0.01);
 
         if (IsKeyDown(KEY_D))
-            UpdateCameraCustom(&camera, Vector3{0}, Vector3{0.f, 0.f, -5 * DEG2RAD}, 0);
+            UpdateCameraCustom(&pass.camera, Vector3{0}, Vector3{0.f, 0.f, -5 * DEG2RAD}, 0);
     }
 
     /* UpdateCameraPro is good for zoom and free cam movement */
@@ -196,7 +205,7 @@ void Renderer::Render()
     RenderForeground();
     
     BeginDrawing();
-        DrawTextureRec(renderTextures[RENDER_TEXTURE_BG].texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);
-	DrawTextureRec(renderTextures[RENDER_TEXTURE_FG].texture, {0, 0, screenWidth, -screenHeight}, {0, 0}, WHITE);	
+        DrawTextureRec(renderTextures[RENDER_TEXTURE_BG].texture, {0, 0, window.screenWidth, -window.screenHeight}, {0, 0}, WHITE);
+	DrawTextureRec(renderTextures[RENDER_TEXTURE_FG].texture, {0, 0, window.screenWidth, -window.screenHeight}, {0, 0}, WHITE);	
     EndDrawing();
 }

@@ -30,15 +30,15 @@ struct uielement3d
   
     Api* ApiInstance;
 
-    void display(Renderer* RendererInstance);
+    void display(RenderPass* renderPass);
   
     uielement3d(Api* ApiInst);
     ~uielement3d();
 };
 
-void uielement3d::display(Renderer* RendererInstance)
+void uielement3d::display(RenderPass* pass)
 {
-    RendererInstance->Draw((int)shapeType, size, bgColor);
+    pass->Draw((int)shapeType, size, bgColor);
 }
 
 uielement3d::uielement3d(Api* ApiInst) : ApiInstance(ApiInst)
@@ -129,10 +129,82 @@ static int uielement3d_new(lua_State* L)
     return 1;
 }
 
+#include <iostream>
+
 static int uielement3d_display(lua_State* L)
 {
-    Renderer* RendererInstance = static_cast<Renderer*>(lua_tolightuserdata(L, 2));
-    static_cast<uielement3d*>(lua_touserdata(L, 1))->display(RendererInstance);
+    RenderPass* pass = static_cast<RenderPass*>(lua_tolightuserdata(L, 2));
+    static_cast<uielement3d*>(lua_touserdata(L, 1))->display(pass);
+    return 0;
+}
+
+static int uielement3d_drawVisuals(lua_State* L)
+{
+    uint32_t globalId;
+    
+    if (lua_gettop(L) == 0)
+        return 0;
+
+    if (lua_istable(L, 1)) {
+        lua_getfield(L, 1, "globalId");
+	if (lua_isnumber(L, -1)) {
+	    globalId = lua_tounsigned(L, -1);
+	    lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+    }
+    
+    if (lua_isnumber(L, 1)) {
+        globalId = lua_tounsigned(L, 1);
+    }
+    
+    lua_pushstring(L, "UIVisual3DManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+            
+    lua_pushunsigned(L, globalId);
+    lua_gettable(L, -2);
+
+    if (!lua_istable(L, -1))
+        return 0;
+	  
+    for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+        lua_pushcfunction(L, uielement3d_display, NULL);
+        lua_rawgeti(L, -2, i);
+	lua_pushvalue(L, 2);
+	lua_call(L, 2, 0);
+    }
+    
+    return 0;
+}
+
+static int uielement3d_drawVisualsClosure(lua_State* L)
+{
+    lua_pushcfunction(L, uielement3d_drawVisuals, "uielement3d.drawVisuals");
+    lua_pushvalue(L, lua_upvalueindex(1));
+    lua_pushvalue(L, 1);
+    lua_call(L, 2, 0);
+    return 0;
+}
+
+
+static int uielement3d_renderHooks(lua_State* L)
+{
+    luaL_getmetatable(L, "uielement3d");
+    lua_getfield(L, -1, "__renderHooks");
+
+    if (!lua_toboolean(L, -1)) {
+        lua_pushcfunction(L, Api_AddHook, NULL);
+        lua_pushstring(L, "OnRenderGame");
+        lua_pushstring(L, "uielement3d");
+        lua_pushunsigned(L, 1000);
+        lua_pushcclosure(L, uielement3d_drawVisualsClosure, "uielement.drawVisualsClosure", 1);
+        lua_call(L, 3, 0);
+    }
+
+    lua_pushvalue(L, 1);
+    lua_pushboolean(L, true);
+    lua_setfield(L, -2, "__renderHooks");
+    
     return 0;
 }
 
@@ -160,6 +232,10 @@ static const luaL_Reg uielement3d_methods[]
 {
     {"new", uielement3d_new},
     {"display", uielement3d_display},
+
+    {"drawVisuals", uielement3d_drawVisuals},
+
+    {"renderHooks", uielement3d_renderHooks},
     
     {"__index", uielement3d__index},
     
@@ -174,6 +250,9 @@ int luaopen_uielement3d(lua_State* L)
     lua_pushstring(L, "uielement3d");
     lua_setfield(L, -2, "__type");
 
+    lua_pushboolean(L, false);
+    lua_setfield(L, -2, "__renderHooks");
+    
     lua_setuserdatametatable(L, 2);
     lua_setuserdatadtor(L, 2, uielement3d_destructor);
 

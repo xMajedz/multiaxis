@@ -10,6 +10,7 @@
 
 class Game;
 class Renderer;
+class RenderPass;
 
 class Api {
 public:
@@ -25,7 +26,7 @@ public:
     void Update();
     void Console(const std::string& message);
 
-    void RenderGame(Renderer* RendererInstance);
+    void RenderGame(RenderPass* renderPass);
 
     void RenderBackground();
     void RenderForeground();
