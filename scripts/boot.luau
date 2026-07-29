@@ -8,7 +8,7 @@ ui.renderHooks()
 
 local viewElement = ui.new{size = {ui.WIN_W, ui.WIN_H}, bgColor = ui.UICOLORBLANK}
 
-local ui3d = require "@uielement3d"
+--local ui3d = require "@uielement3d"
 
 --ui3d.renderHooks()
 --[[
@@ -55,6 +55,7 @@ end
 
 makeTextfield(nil, "textfield")
 ]]
+--[[
 function makeMenu()
     local viewElement = ui.new{rec = {0, 10, ui.WIN_W, 25}, bgColor = ui.UICOLORRED}
 
@@ -128,7 +129,7 @@ function makeMenu()
 end
 
 makeMenu()
-
+]]
 --[[
 for i, message in require("intro") do -- insert the intro message into the chat
    Console.InsertMessage(`{message.lable}: {message.content}`)

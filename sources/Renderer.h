@@ -51,9 +51,6 @@ public:
     void RenderBackground();
     void RenderForeground();
 
-    void SetApiInstance(Api* ApiInstance);
-    void SetGameInstance(Game* GameInstance);
-
 private:
     Api& ApiInstance_;	
     Game& GameInstance_;

@@ -4,8 +4,6 @@
 
 #include "raylib.h"
 
-#define lua_isuielement3d(L, idx) (lua_isuserdata(L, idx) && lua_userdatatag(L, idx) == 2)
-
 enum UI3DShapeType {
   CUBE,
   SPHERE,
@@ -24,8 +22,6 @@ struct uielement3d
 
     Color bgColor = GREEN;
 
-    Shader shader;
-  
     bool viewport = false;
   
     Api* ApiInstance;
@@ -35,6 +31,10 @@ struct uielement3d
     uielement3d(Api* ApiInst);
     ~uielement3d();
 };
+
+#define lua_newuielement3d(L) static_cast<uielement3d*>(lua_newuserdatataggedwithmetatable(L, sizeof(uielement3d), 2))
+#define lua_isuielement3d(L, idx) (lua_isuserdata(L, idx) && lua_userdatatag(L, idx) == 2)
+#define lua_touielement3d(L, idx) static_cast<uielement3d*>(lua_touserdatatagged(L, idx, 2))
 
 void uielement3d::display(RenderPass* pass)
 {
@@ -55,7 +55,7 @@ static int uielement3d_new(lua_State* L)
 {
     Api* ApiInstance = static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)));
 
-    uielement3d* elem = new (static_cast<uielement3d*>(lua_newuserdatataggedwithmetatable(L, sizeof(uielement3d), 2))) uielement3d(ApiInstance);
+    uielement3d* elem = new (lua_newuielement3d(L)) uielement3d(ApiInstance);
 
     lua_getfield(L, -2, "pos");
     if (lua_istable(L, -1)) {
@@ -134,7 +134,7 @@ static int uielement3d_new(lua_State* L)
 static int uielement3d_display(lua_State* L)
 {
     RenderPass* pass = static_cast<RenderPass*>(lua_tolightuserdata(L, 2));
-    static_cast<uielement3d*>(lua_touserdata(L, 1))->display(pass);
+    lua_touielement3d(L, 1)->display(pass);
     return 0;
 }
 
@@ -212,7 +212,8 @@ static int uielement3d__index(lua_State* L)
 {
     const char*  k = lua_tostring(L, -1);
 
-    luaL_getmetatable(L, "uielement3d");
+    //luaL_getmetatable(L, "uielement3d");
+    lua_getmetatable(L, 1);
     lua_getfield(L, -1, k);
     if (lua_isnil(L, -1)) {
         lua_pop(L, 1);

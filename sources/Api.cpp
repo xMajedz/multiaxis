@@ -207,6 +207,7 @@ Api::Api() : ML(luaL_newstate())
 
 Api::~Api()
 {
+    Log("~Api()");
     lua_close(ML);
 }
 
