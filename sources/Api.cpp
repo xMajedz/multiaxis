@@ -205,9 +205,20 @@ Api::Api() : ML(luaL_newstate())
     lua_call(ML, 0, 0);
 }
 
+void lua_close_uielement(lua_State* L);
+void lua_close_uielement3d(lua_State* L);
+
 Api::~Api()
 {
-    Log("~Api()");
+    /*
+       this code block is so i can use Api.Log inside uielements just before they get destroyed
+       destroy all uielements 2d/3d before calling lua_close and destroying Api
+    */
+    /* BEGIN */
+    lua_close_uielement(ML);
+    lua_close_uielement3d(ML);
+    lua_gc(ML, LUA_GCCOLLECT, 0);
+    /* END */
     lua_close(ML);
 }
 

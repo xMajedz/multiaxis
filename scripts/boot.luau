@@ -6,7 +6,11 @@ ui.mouseHooks()
 ui.keyboardHooks()
 ui.renderHooks()
 
+--[[
 local viewElement = ui.new{size = {ui.WIN_W, ui.WIN_H}, bgColor = ui.UICOLORBLANK}
+viewElement:kill()
+viewElement = nil
+]]
 
 --local ui3d = require "@uielement3d"
 
@@ -55,21 +59,20 @@ end
 
 makeTextfield(nil, "textfield")
 ]]
---[[
+
 function makeMenu()
     local viewElement = ui.new{rec = {0, 10, ui.WIN_W, 25}, bgColor = ui.UICOLORRED}
 
     local offset = 10
     local button_size = 100
     local gape = (ui.WIN_W - 2 * button_size + 10)/3
-  
+    
     local rulesButton = viewElement:addChild{
         rec = {offset, 10, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
         interactive = true,
-    }
-    
+    }  
     rulesButton:addAdaptedText("Rules")
     
     offset += gape 
@@ -121,7 +124,6 @@ function makeMenu()
     closeButton:addAdaptedText("2")
 
     function closeButton.mouseButtonPressed()
-        log("viewElement:kill()")
         viewElement:kill()
         viewElement = nil
 	Game.Quit()
@@ -129,7 +131,7 @@ function makeMenu()
 end
 
 makeMenu()
-]]
+
 --[[
 for i, message in require("intro") do -- insert the intro message into the chat
    Console.InsertMessage(`{message.lable}: {message.content}`)

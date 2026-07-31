@@ -243,6 +243,21 @@ static const luaL_Reg uielement3d_methods[]
     {NULL, NULL},
 };
 
+void lua_close_uielement3d(lua_State* L)
+{
+    lua_pushstring(L, "UIElement3dManager");
+    lua_pushnil(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "UIVisual3DManager");
+    lua_pushnil(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+    
+    lua_pushstring(L, "UIVisual3DManagerViewport");
+    lua_pushnil(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+}
+
 int luaopen_uielement3d(lua_State* L)
 {
     luaL_newmetatable(L, "uielement3d");

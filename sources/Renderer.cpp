@@ -2,8 +2,6 @@
 
 #include <fstream>
 
-#include <iostream>
-
 static Model model;
 
 static void UpdateCameraCustom(Camera* camera, Vector3 target, Vector3 rotation, float zoom)
@@ -28,7 +26,6 @@ RenderWindow::RenderWindow(float width, float height, const char* title): screen
 
 RenderWindow::~RenderWindow()
 {
-    std::cout << "~RenderWindow()" << std::endl;
     CloseWindow();
 }
 
@@ -61,7 +58,6 @@ RenderPass::RenderPass()
 
 RenderPass::~RenderPass()
 {
-    std::cout << "~RenderPass()" << std::endl;
     for (auto shader : shaders)
         UnloadShader(shader);
 }
@@ -113,7 +109,6 @@ Renderer::Renderer(Api& ApiInstance, Game& GameInstance)
 
 Renderer::~Renderer()
 {
-    std::cout << "~Renderer()" << std::endl;
     for (auto renderTexture : renderTextures)
         UnloadRenderTexture(renderTexture);
 }

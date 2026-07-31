@@ -10,7 +10,7 @@ enum UIShapeType { SQUARE = 1, ROUNDED = 2 };
 
 struct uielement
 {
-    uielement* parent;
+    uielement* parent = nullptr;
 
     uint32_t globalId = (uint32_t)RENDER_FG_GLOBALID;
 
@@ -29,8 +29,8 @@ struct uielement
     Color borderColor = BLANK;
     Color borderHoverColor = BLANK;
     
-    Image bgImage;
-    Texture bgImageTexture;
+    Image bgImage = {0};
+    Texture bgImageTexture = {0};
     Color bgImageColor = WHITE;
 
     bool hoverState = false;
@@ -125,10 +125,6 @@ void uielement::reload()
 
 void uielement::kill()
 {
-  //for (uielement* elem : child) {
-  //    elem->kill();
-  //}
-    
     destroyed = true;
 }
 
@@ -144,10 +140,9 @@ uielement::uielement(Api* ApiInst) : ApiInstance(ApiInst)
 
 uielement::~uielement()
 {
-    // checking bgImage.data is undefined behaviour smh
     if (bgImage.data) {
-        //UnloadImage(bgImage);
-	//UnloadTexture(bgImageTexture);
+        UnloadImage(bgImage);
+	UnloadTexture(bgImageTexture);
     }
     
     ApiInstance->Log(TextFormat("~uielement: %p", this));
@@ -269,14 +264,14 @@ static int uielement_new(lua_State* L)
     int nargs = lua_gettop(L);
 
     uielement* elem = new (lua_newuielement(L)) uielement(ApiInstance);
-    
+
     lua_pushlightuserdata(L, elem);
     lua_newtable(L);
     lua_newtable(L);
     lua_setfield(L, -2, "child");
     lua_settable(L, LUA_REGISTRYINDEX);
     
-    if (!nargs && !lua_istable(L, 1)) {
+    if (!nargs || !lua_istable(L, 1)) {
         ApiInstance->Log("error: uielement.new(o: table)");
         return 1;
     }
@@ -284,24 +279,8 @@ static int uielement_new(lua_State* L)
     lua_getfield(L, -2, "parent");
     if (lua_isuielement(L, -1)) {
         elem->parent = lua_touielement(L, -1);
-	
-	lua_pushlightuserdata(L, elem->parent);
-        lua_gettable(L, LUA_REGISTRYINDEX);
-        lua_getfield(L, -1, "child");
-	lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-	lua_pop(L, 2);
-    
-	lua_pop(L, 1);
-    } else {
-        if (!lua_isnil(L, -1)) ApiInstance->Log("error: field parent is not of type uielement");
-
-	lua_pushstring(L, "UIElementManager");
-        lua_gettable(L, LUA_REGISTRYINDEX);
-        lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-        lua_pop(L, 2);
     }
+    lua_pop(L, 1);
 
     lua_getfield(L, -2, "globalId");
     if (lua_isnumber(L, -1)) {
@@ -309,27 +288,6 @@ static int uielement_new(lua_State* L)
     }
     lua_pop(L, 1);
 
-    //
-    lua_pushstring(L, "UIVisualManager");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-
-    lua_pushunsigned(L, elem->globalId);
-    lua_gettable(L, -2);
-    if (lua_isnil(L, -1)) {
-	lua_pop(L, 1);
-	lua_pushunsigned(L, elem->globalId);
-	lua_newtable(L);
-        lua_settable(L, -3);
-
-	lua_pushunsigned(L, elem->globalId);
-        lua_gettable(L, -2);
-    }
-    lua_pushvalue(L, 2);
-    lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-    
-    lua_pop(L, 2);
-    //
-    
     lua_getfield(L, -2, "interactive");
     if (lua_isboolean(L, -1)) {
         elem->interactive = lua_toboolean(L, -1);
@@ -413,6 +371,42 @@ static int uielement_new(lua_State* L)
         elem->shapeType = (UIShapeType)lua_tounsigned(L, -1);
     }
     lua_pop(L, 1);
+
+    if (elem->parent) {
+	lua_pushlightuserdata(L, elem->parent);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_getfield(L, -1, "child");
+	lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+	lua_pop(L, 2);    
+    } else {
+      	lua_pushstring(L, "UIElementManager");
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+        lua_pop(L, 1);
+    }
+    
+    lua_pushstring(L, "UIVisualManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    lua_pushunsigned(L, elem->globalId);
+    lua_gettable(L, -2);
+    if (lua_isnil(L, -1)) {
+	lua_pop(L, 1);
+	
+        lua_newtable(L);
+
+	lua_pushvalue(L, -2);
+	lua_pushunsigned(L, elem->globalId);
+	lua_pushvalue(L, -3);
+	lua_settable(L, -3);
+        lua_pop(L, 1);
+    }
+    lua_pushvalue(L, 2);
+    lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+    
+    lua_pop(L, 2);
     
     elem->displayed = true;
 
@@ -960,15 +954,16 @@ static int uielement_addAdaptedText(lua_State* L)
 
 static int uielement_addChild(lua_State* L)
 {
-    uielement* ud = lua_touielement(L, 1);
+    Api* ApiInstance = static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)));
 
     lua_pushvalue(L, 1);
     lua_setfield(L, -2, "parent");
 
-    lua_pushcfunction(L, uielement_new, NULL);
+    lua_pushvalue(L, lua_upvalueindex(1));
+    lua_pushcclosure(L, uielement_new, NULL, 1);
     lua_pushvalue(L, 2);
     lua_call(L, 1, 1);
-
+    
     return 1;
 }
 
@@ -1043,6 +1038,25 @@ static const struct { const char* name; uint32_t context; } UIRenderingContexts[
     {"RENDER_FG_GLOBALID", (uint32_t)RENDER_FG_GLOBALID},
     {"RENDER_BG_GLOBALID", (uint32_t)RENDER_BG_GLOBALID},
 };
+
+void lua_close_uielement(lua_State* L)
+{
+    lua_pushstring(L, "UIVisualManager");
+    lua_pushnil(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "UIElementManager");
+    lua_pushnil(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "UIMouseHandler");
+    lua_pushnil(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
+    lua_pushstring(L, "UIKeyboardHandler");
+    lua_pushnil(L);
+    lua_settable(L, LUA_REGISTRYINDEX);
+}
 
 int luaopen_uielement(lua_State* L)
 {
