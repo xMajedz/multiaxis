@@ -4,6 +4,8 @@
 
 #include "raylib.h"
 
+#include "rlgl.h"
+
 #include "raymath.h"
 
 enum RenderTextureType {
@@ -33,7 +35,9 @@ struct RenderPass {
     RenderPass();
     ~RenderPass();
 
-    void Draw(int shapeType, Vector3 size, Color color);
+    void Draw_(int shapeType, Vector3 size, Color color);
+
+    void Draw(int shape, Quaternion q, Vector3 p, Vector3 sides, Color color);
 
     Camera camera;
   

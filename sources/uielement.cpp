@@ -2,11 +2,23 @@
 
 #include "raylib.h"
 
+#include "raymath.h"
+
 #include <cstring>
 
 enum UIRenderingContext { RENDER_FG_GLOBALID = 1000, RENDER_BG_GLOBALID = 1001 };
 
 enum UIShapeType { SQUARE = 1, ROUNDED = 2 };
+
+
+enum UITextAlign {
+    TEXT_ALIGN_LEFT   = 0,
+    TEXT_ALIGN_TOP    = 0,
+    TEXT_ALIGN_CENTRE = 1,
+    TEXT_ALIGN_MIDDLE = 1,
+    TEXT_ALIGN_RIGHT  = 2,
+    TEXT_ALIGN_BOTTOM = 2
+};
 
 struct uielement
 {
@@ -32,7 +44,7 @@ struct uielement
     Image bgImage = {0};
     Texture bgImageTexture = {0};
     Color bgImageColor = WHITE;
-
+  
     bool hoverState = false;
     bool pressedState = false;
 
@@ -54,7 +66,7 @@ struct uielement
     void reload();
     void kill();
 
-    void uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2);
+    void uiText(const char* str, uint32_t x, uint32_t y, Font font, UITextAlign hAlign, UITextAlign vAlign, int scale, Color col1, Color col2);
 
     uielement(Api* ApiInst);
     ~uielement();
@@ -128,9 +140,23 @@ void uielement::kill()
     destroyed = true;
 }
 
-void uielement::uiText(const char* str, uint32_t x, uint32_t y, Color col1, Color col2)
+void uielement::uiText(
+    const char* str,
+    uint32_t x, uint32_t y,
+    Font font,
+    UITextAlign hAlign, UITextAlign vAlign,
+    int scale,
+    Color col1, Color col2
+    )
 {
-    DrawText(str, rec.x + x, rec.y + y, 20, col1);
+    Vector2 size = MeasureTextEx(font, str, (float)scale, scale * 0.1f);
+
+    Vector2 pos {
+        x + rec.x + Lerp(0.0f, rec.width - size.x, ((float)hAlign) * 0.5f),
+        y + rec.y + Lerp(0.0f, rec.height -size.y, ((float)vAlign) * 0.5f),
+    };
+	    
+    DrawTextEx(font, str, pos, scale, 1, col1);
 }
 
 uielement::uielement(Api* ApiInst) : ApiInstance(ApiInst)
@@ -452,7 +478,7 @@ static int uielement_drawVisuals(lua_State* L)
 
 static int uielement_drawVisualsClosure(lua_State* L)
 {
-    lua_pushcfunction(L, uielement_drawVisuals, "uielement.drawVisuals");
+    lua_pushcfunction(L, uielement_drawVisuals, NULL);
     lua_pushvalue(L, lua_upvalueindex(1));
     lua_call(L, 1, 0);
     return 0;
@@ -663,14 +689,14 @@ static int uielement_renderHooks(lua_State* L)
         lua_pushstring(L, "OnRenderForeground");
         lua_pushstring(L, "uielement");
         lua_pushunsigned(L, (uint32_t)RENDER_FG_GLOBALID);
-        lua_pushcclosure(L, uielement_drawVisualsClosure, "uielement.drawVisualsClosure", 1);
+        lua_pushcclosure(L, uielement_drawVisualsClosure, NULL, 1);
         lua_call(L, 3, 0);
 
         lua_pushcfunction(L, Api_AddHook, NULL);
         lua_pushstring(L, "OnRenderBackground");
         lua_pushstring(L, "uielement");
         lua_pushunsigned(L, (uint32_t)RENDER_BG_GLOBALID);
-        lua_pushcclosure(L, uielement_drawVisualsClosure, "uielement.drawVisualsClosure", 1);
+        lua_pushcclosure(L, uielement_drawVisualsClosure, NULL, 1);
         lua_call(L, 3, 0);
     }
 
@@ -878,44 +904,79 @@ static int uielement_uiText(lua_State* L)
 {
     uielement* ud = lua_touielement(L, 1);
 
-    const char* string = nullptr;
-
-    if (lua_isstring(L, 2)) {
+    const char* string = "";
+    
+    if (lua_isstring(L, 2))
         string = lua_tostring(L, 2);
-    }
 
     int x = 0;
     int y = 0;
+ 
+    if (lua_isnumber(L, 3))
+        x = lua_tounsigned(L, 3);
+
+    if (lua_isnumber(L, 4))
+        y = lua_tounsigned(L, 4);
+
+    Font font = GetFontDefault();
     
+    if (lua_isnumber(L, 5)) {
+      //font = ud->font;
+    }
+
+    UITextAlign hAlign = TEXT_ALIGN_CENTRE;
+    UITextAlign vAlign = TEXT_ALIGN_MIDDLE;
+  
+    if (lua_isnumber(L, 6))
+        hAlign = (UITextAlign)lua_tointeger(L, 6);
+
+    if (lua_isnumber(L, 7))
+        hAlign = (UITextAlign)lua_tointeger(L, 7);
+    
+    int scale = 20;
+    
+    if (lua_isnumber(L, 8))
+        scale = lua_tointeger(L, 8);
+       
     Color col1 = ud->uiColor;
     Color col2 = ud->uiColor;
-
-    if (lua_isnumber(L, 3)) {
-        x = lua_tounsigned(L, 3);
-    }
-
-    if (lua_isnumber(L, 4)) {
-        y = lua_tounsigned(L, 4);
-    }
     
-    if (lua_istable(L, 5)) {
-        lua_pushvalue(L, 5);
-        lua_rawgeti(L, -1, 1);
-        col1.r = 255 * lua_tointeger(L, -1);
-        lua_rawgeti(L, -2, 2);
-        col1.g = 255 * lua_tointeger(L, -1);
-        lua_rawgeti(L, -3, 3);
-        col1.b = 255 * lua_tointeger(L, -1);
-        lua_rawgeti(L, -4, 4);
-	col1.a = 255 * lua_tointeger(L, -1);
+    if (lua_istable(L, 9)) {
+        lua_rawgeti(L, 9, 1);
+        col1.r = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, 9, 2);
+        col1.g = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, 9, 3);
+        col1.b = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, 9, 4);
+	col1.a = 255 * lua_tonumber(L, -1);
+	lua_pop(L, 5);
+    }
+
+    if (lua_istable(L, 10)) {
+        lua_rawgeti(L, 10, 1);
+        col2.r = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, 10, 2);
+        col2.g = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, 10, 3);
+        col2.b = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, 10, 4);
+	col2.a = 255 * lua_tonumber(L, -1);
 	lua_pop(L, 5);
     }
     
-    ud->uiText(string, x, y, col1, col2);
+    ud->uiText(
+	string,
+	x, y,
+	font,
+	hAlign, vAlign,
+	scale,
+	col1, col2
+    );
     
     return 0;
 }
-#include <iostream>
+
 static int uielement_uiTextClosure(lua_State* L)
 {
     lua_pushcfunction(L, uielement_uiText, NULL);

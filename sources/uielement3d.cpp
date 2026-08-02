@@ -17,6 +17,7 @@ struct uielement3d
 
     Vector3 pos = { 0, 0, 0 };
     Vector3 size = { 1, 1, 1 };
+    Vector3 rot = { 0, 0, 0 };
   
     UI3DShapeType shapeType = CUBE;
 
@@ -38,7 +39,9 @@ struct uielement3d
 
 void uielement3d::display(RenderPass* pass)
 {
-    pass->Draw((int)shapeType, size, bgColor);
+    Vector3 r = {DEG2RAD * rot.x, DEG2RAD * rot.y, DEG2RAD * rot.z};
+    Quaternion q = QuaternionFromMatrix(MatrixRotateXYZ(r));
+    pass->Draw((int)shapeType, q, pos, size, bgColor);
 }
 
 uielement3d::uielement3d(Api* ApiInst) : ApiInstance(ApiInst)
@@ -48,7 +51,7 @@ uielement3d::uielement3d(Api* ApiInst) : ApiInstance(ApiInst)
 
 uielement3d::~uielement3d()
 {
-  //ApiInstance->Log(TextFormat("~uielement3d: %p", this));
+    ApiInstance->Log(TextFormat("~uielement3d: %p", this));
 }
 
 static int uielement3d_new(lua_State* L)
@@ -60,11 +63,11 @@ static int uielement3d_new(lua_State* L)
     lua_getfield(L, -2, "pos");
     if (lua_istable(L, -1)) {
         lua_rawgeti(L, 3, 1);
-        elem->pos.x = lua_tointeger(L, -1);
+        elem->pos.x = lua_tonumber(L, -1);
         lua_rawgeti(L, 3, 2);
-        elem->pos.y = lua_tointeger(L, -1);
+        elem->pos.y = lua_tonumber(L, -1);
         lua_rawgeti(L, 3, 3);
-        elem->pos.z = lua_tointeger(L, -1);
+        elem->pos.z = lua_tonumber(L, -1);
         lua_pop(L, 3);
     }
     lua_pop(L, 1);
@@ -72,15 +75,27 @@ static int uielement3d_new(lua_State* L)
     lua_getfield(L, -2, "size");
     if (lua_istable(L, -1)) {
         lua_rawgeti(L, 3, 1);
-        elem->size.x = lua_tointeger(L, -1);
+        elem->size.x = lua_tonumber(L, -1);
         lua_rawgeti(L, 3, 2);
-        elem->size.y = lua_tointeger(L, -1);
+        elem->size.y = lua_tonumber(L, -1);
         lua_rawgeti(L, 3, 3);
-        elem->size.z = lua_tointeger(L, -1);
+        elem->size.z = lua_tonumber(L, -1);
         lua_pop(L, 3);
     }
     lua_pop(L, 1);
 
+    lua_getfield(L, -2, "rot");
+    if (lua_istable(L, -1)) {
+        lua_rawgeti(L, 3, 1);
+        elem->rot.x = lua_tonumber(L, -1);
+        lua_rawgeti(L, 3, 2);
+        elem->rot.y = lua_tonumber(L, -1);
+        lua_rawgeti(L, 3, 3);
+        elem->rot.z = lua_tonumber(L, -1);
+        lua_pop(L, 3);
+    }
+    lua_pop(L, 1);
+    
     lua_getfield(L, -2, "bgColor");
     if (lua_istable(L, -1)) {
         lua_rawgeti(L, 3, 1);
@@ -179,7 +194,7 @@ static int uielement3d_drawVisuals(lua_State* L)
 
 static int uielement3d_drawVisualsClosure(lua_State* L)
 {
-    lua_pushcfunction(L, uielement3d_drawVisuals, "uielement3d.drawVisuals");
+    lua_pushcfunction(L, uielement3d_drawVisuals, NULL);
     lua_pushvalue(L, lua_upvalueindex(1));
     lua_pushvalue(L, 1);
     lua_call(L, 2, 0);
@@ -197,7 +212,7 @@ static int uielement3d_renderHooks(lua_State* L)
         lua_pushstring(L, "OnRenderGame");
         lua_pushstring(L, "uielement3d");
         lua_pushunsigned(L, 1000);
-        lua_pushcclosure(L, uielement3d_drawVisualsClosure, "uielement.drawVisualsClosure", 1);
+        lua_pushcclosure(L, uielement3d_drawVisualsClosure, NULL, 1);
         lua_call(L, 3, 0);
     }
 
@@ -245,7 +260,7 @@ static const luaL_Reg uielement3d_methods[]
 
 void lua_close_uielement3d(lua_State* L)
 {
-    lua_pushstring(L, "UIElement3dManager");
+    lua_pushstring(L, "UIElement3DManager");
     lua_pushnil(L);
     lua_settable(L, LUA_REGISTRYINDEX);
 
