@@ -1,32 +1,20 @@
---local Console = require "Ui/Console" -- load console first so i can get errors logged
-
 local ui = require "@uielement"
-
 ui.mouseHooks()
 ui.keyboardHooks()
 ui.renderHooks()
 
---[[
-local viewElement = ui.new{size = {ui.WIN_W, ui.WIN_H}, bgColor = ui.UICOLORBLANK}
-viewElement:kill()
-viewElement = nil
-]]
+--local viewElement = ui.new{size = {ui.WIN_W, ui.WIN_H}, bgColor = ui.UICOLORBLANK}
 
---local ui3d = require "@uielement3d"
+local ui3d = require "@uielement3d"
+ui3d.renderHooks()
 
---ui3d.renderHooks()
---[[
-local obj = ui3d.new{bgColor = ui.UICOLORGREEN}
+local obj = ui3d.new{size = {4, 4, 0.5}, bgColor = ui.UICOLORGREEN}
 
-function Api.OnRenderGame.boot(pass)
-    obj:display(pass)
-end
-]]
+--local Console = require "Ui/Console" -- load console first so i can get errors logged
 --runscript("redpixel.luau")
 --runscript("von.luau")
 
---[[
-function makeTextfield(o, textfieldString)
+function makeTextfield(textfieldString)
     local viewElement = ui.new{
         rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20 },
 
@@ -42,14 +30,15 @@ function makeTextfield(o, textfieldString)
 	keyboard = true,
     }
 
-    viewElement:hide()
+    --viewElement:hide()
 
     function viewElement.customDisplay()
-        viewElement:uiText(textfieldString, 5, 0, (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE)
+        local color = (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE
+        viewElement:uiText(textfieldString, 5, 0, nil, 0, nil, 20, color)
     end
     
     function viewElement.enterAction()
-        if viewElement.displayed then viewElement:hide() else viewElement:show() end
+        --if viewElement.displayed then viewElement:hide() else viewElement:show() end
     end
     
     function viewElement.keyPressed(key)
@@ -57,11 +46,10 @@ function makeTextfield(o, textfieldString)
     end
 end
 
-makeTextfield(nil, "textfield")
-]]
+makeTextfield("textfield")
 
 function makeMenu()
-    local viewElement = ui.new{rec = {0, 10, ui.WIN_W, 25}, bgColor = ui.UICOLORRED}
+    local viewElement = ui.new{rec = {10, 10, ui.WIN_W - 20, 25}, bgColor = ui.UICOLORRED}
 
     local offset = 10
     local button_size = 100
@@ -71,8 +59,10 @@ function makeMenu()
         rec = {offset, 10, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
+	pressedColor = ui.UICOLORRED,
         interactive = true,
-    }  
+    }
+    
     rulesButton:addAdaptedText("Rules")
     
     offset += gape 
@@ -80,16 +70,20 @@ function makeMenu()
         rec = {offset, 10, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
+	pressedColor = ui.UICOLORRED,
         interactive = true,
     }
     
     modlistButton:addAdaptedText("Mods")
 
+    modlistButton.mouseButtonPressed = Game.NewGame
+    
     offset += gape
     local replaylistButton = viewElement:addChild{
         rec = {offset, 10, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
+	pressedColor = ui.UICOLORRED,
 	interactive = true,
     }
     
@@ -100,6 +94,7 @@ function makeMenu()
         rec = {offset, 10, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
+	pressedColor = ui.UICOLORRED,
 	interactive = true,
     }
     
@@ -109,6 +104,7 @@ function makeMenu()
         rec = {ui.WIN_W - 70, 10, 25, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
+	pressedColor = ui.UICOLORRED,
         interactive = true,
     }
 
@@ -118,16 +114,13 @@ function makeMenu()
         rec = {ui.WIN_W - 35, 10, 25, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
+	pressedColor = ui.UICOLORRED,
         interactive = true,
     }
 
     closeButton:addAdaptedText("2")
 
-    function closeButton.mouseButtonPressed()
-        viewElement:kill()
-        viewElement = nil
-	Game.Quit()
-    end
+    closeButton.mouseButtonPressed = Game.Quit
 end
 
 makeMenu()
