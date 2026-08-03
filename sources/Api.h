@@ -35,8 +35,8 @@ public:
     void MouseButtonPressed(int btn, float x, float y);
     void MouseButtonReleased(int btn, float x, float y);
 
-    void KeyPressed(int key);
-    void KeyReleased(int key);
+    void KeyPressed(int key, int keyCode);
+    void KeyReleased(int key, int keyCode);
 
     int require_builtin(lua_State* L, const std::string& filename);
   

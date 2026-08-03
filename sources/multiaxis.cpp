@@ -6,17 +6,12 @@
 
 #include <cstring>
 
-#include <optional>
-
-void help(void)
+static void help(void)
 {
-    const char* help_message =
-	  "Usage: multiaxis <flag>\n"
-	  "\tmultiaxis --help -h\n"
-	  "\tmultiaxis --version -v\n"
-	  "\tmultiaxis --bootfile -b <file>"
-	;
-    std::cout << help_message << std::endl;
+    std::cout << "Usage: multiaxis <flag>" << std::endl;
+    std::cout << '\t' << "multiaxis --help -h" << std::endl;
+    std::cout << '\t' << "multiaxis --version -v" << std::endl;
+    std::cout << '\t' << "multiaxis --bootfile -b <file>" << std::endl;
 }
 
 int main(int argc, char* argv[])

@@ -204,19 +204,11 @@ void Renderer::RenderGame()
 {
     ApiInstance_.RenderGame(&pass);
     
-    DrawTextStyled(GetFontDefault(), "Text: %^0FText, %^F2Text, %^22Text,", Vector2{200, 200}, 20, 1, WHITE);
+    DrawTextStyled(GetFontDefault(), "Text, %^0FText, %^F2Text, %^22Text,", Vector2{200, 200}, 20, 1, WHITE);
 
-    auto frame = GameInstance_.GetFrameData();
-    /*
-    Vector3 ground_sides = {
-        2 * frame.ground_transform.sides.x,
-        2 * frame.ground_transform.sides.y,
-        2 * frame.ground_transform.sides.z,
-    };
-    
-    pass.Draw(0, QuaternionIdentity(), Vector3{0}, ground_sides, WHITE);
-    */
-    for (const auto& o : frame.transforms) {    
+    auto* frame = GameInstance_.GetFrameData();
+
+    for (const auto& o : frame->transforms) {    
         Quaternion q {
             o.rotation.v.x,
             o.rotation.v.y,
@@ -286,20 +278,26 @@ static void ProcessMouseInput(Api* ApiInstance)
         ApiInstance->MouseButtonReleased(MOUSE_BUTTON_LEFT, position.x, position.y);
 }
 
+#include <iostream>
+
 static void ProcessKeyboardInput(Api* ApiInstance)
 {
     static int previousKey = 0;
+    static int previousKeyCode = 0;
 
-    int key = GetKeyPressed();
+    int key = GetCharPressed();
+    int keyCode = GetKeyPressed();
 
-    if (IsKeyPressed(key)) {
-        ApiInstance->KeyPressed(key);
+    if (IsKeyPressed(keyCode)) {
+        ApiInstance->KeyPressed(key, keyCode);
 	previousKey = key;
+	previousKeyCode = keyCode;
     }
 
-    if (IsKeyReleased(previousKey)) {
-        ApiInstance->KeyReleased(previousKey);
-	previousKey = key;	
+    if (IsKeyReleased(previousKeyCode)) {
+        ApiInstance->KeyReleased(previousKey, previousKeyCode);
+	previousKey = key;
+	previousKeyCode = keyCode;
     }
 }
 
@@ -350,54 +348,49 @@ void Renderer::Render()
     
     /* Camera Controls */
 
-    auto frame = GameInstance_.GetFrameData();
+    auto* frame = GameInstance_.GetFrameData();
 
-    Vector3 body_position {
-        frame.body_transform.position.x,
-        frame.body_transform.position.y,
-        frame.body_transform.position.z,
-    };
-    
-    Vector3 body_sides {
-        frame.body_transform.sides.x,
-        frame.body_transform.sides.y,
-        frame.body_transform.sides.z,
-    };
-        
-    Vector3 target = body_position;
+    Vector3 target {0};
+
+    if (frame->transforms.size() > 0) {
+        target = {
+            frame->transforms[0].position.x,
+            frame->transforms[0].position.y,
+            frame->transforms[0].position.z,
+        };
+    }
     
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
         if (IsKeyDown(KEY_W))
 	    UpdateCameraCustom(&pass.camera, target, Vector3{-1 * DEG2RAD, 0.f, 0.f}, 0);
 
         if (IsKeyDown(KEY_A))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f,  1 * DEG2RAD}, 0);      
+            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f,  1.f * DEG2RAD}, 0);      
 
         if (IsKeyDown(KEY_S))
 	    UpdateCameraCustom(&pass.camera, target, Vector3{1 * DEG2RAD, 0.f, 0.f}, 0);
 
         if (IsKeyDown(KEY_D))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -1 * DEG2RAD}, 0);
+            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -1.f * DEG2RAD}, 0);
     } else {
         if (IsKeyDown(KEY_W))
             UpdateCameraCustom(&pass.camera, target, Vector3{0}, -0.01);
 
         if (IsKeyDown(KEY_A))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, 5 * DEG2RAD}, 0);      
+            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f,  5.f * DEG2RAD}, 0);      
 
         if (IsKeyDown(KEY_S))
             UpdateCameraCustom(&pass.camera, target, Vector3{0}, 0.01);
 
         if (IsKeyDown(KEY_D))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -5 * DEG2RAD}, 0);
+            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -5.f * DEG2RAD}, 0);
     }
 
     UpdateCameraCustom(&pass.camera, target, Vector3{0}, 0);
 
     /* UpdateCameraPro is good for zoom and free cam movement */
 
-    if (ProcessMouseRay(pass.camera, body_position, body_sides))
-        ApiInstance_.Log("1");
+    //if (ProcessMouseRay(pass.camera, body_position, body_sides))
     
     SetWindowTitle(TextFormat("MultiAxis %dFPS", GetFPS()));
 

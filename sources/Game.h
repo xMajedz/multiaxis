@@ -64,31 +64,23 @@ struct FrameTransform {
 
 struct FrameData {
     std::vector<FrameTransform> transforms;
-
-    FrameTransform ground_transform;
-    FrameTransform body_transform;
 };
 
 struct GamePhysics {
-    GamePhysics(Api& ApiInstance, FrameData& frame, GameMod* mod);
+    GamePhysics(Api& ApiInstance, FrameData* frame, GameMod* mod);
     ~GamePhysics();
 
     void NewWorld();
 
-    void Step(FrameData& frame);
+    void Step(FrameData* frame);
 
     Api& ApiInstance_;
 
-    FrameData& frame_;
+    FrameData* frame_;
 
     GameMod* mod_;
 
     b3WorldId worldId;
-
-    b3BodyId bodyId;
-
-    b3Vec3 body_sides;
-    b3Vec3 ground_sides;
 };
 
 class Game {
@@ -97,6 +89,9 @@ public:
     ~Game();
   
     void Quit();
+  
+    void LoadModText(const std::string& text);
+    void LoadModFile(const std::string& filename);
 
     void NewGame();
 
@@ -104,14 +99,15 @@ public:
   
     void Update();
   
-    FrameData GetFrameData();
+    FrameData* GetFrameData();
     FrameData GetFreezeData();
 private:
     Api& ApiInstance_;
 
     GamePhysics* physics_;
+    GameMod* mod_;
 
-    FrameData frame_;
+    FrameData* frame_;
     FrameData freeze_;
 
     bool running_ = false;

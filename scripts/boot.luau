@@ -8,7 +8,10 @@ ui.renderHooks()
 local ui3d = require "@uielement3d"
 ui3d.renderHooks()
 
-local obj = ui3d.new{size = {4, 4, 0.5}, bgColor = ui.UICOLORGREEN}
+local obj0 = ui3d.new{size = {0.50, 0.50, 0.50}, bgColor = ui.UICOLORGREEN}
+local obj1 = ui3d.new{size = {5.00, 0.25, 0.25}, bgColor = ui.UICOLORGREEN}
+local obj2 = ui3d.new{size = {0.25, 5.00, 0.25}, bgColor = ui.UICOLORGREEN}
+local obj3 = ui3d.new{size = {0.25, 0.25, 5.00}, bgColor = ui.UICOLORGREEN}
 
 --local Console = require "Ui/Console" -- load console first so i can get errors logged
 --runscript("redpixel.luau")
@@ -16,7 +19,7 @@ local obj = ui3d.new{size = {4, 4, 0.5}, bgColor = ui.UICOLORGREEN}
 
 function makeTextfield(textfieldString)
     local viewElement = ui.new{
-        rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20 },
+        rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20},
 
         bgColor = ui.UICOLORBLANK,
         hoverColor = ui.UICOLORBLANK,
@@ -34,15 +37,23 @@ function makeTextfield(textfieldString)
 
     function viewElement.customDisplay()
         local color = (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE
-        viewElement:uiText(textfieldString, 5, 0, nil, 0, nil, 20, color)
+        viewElement:uiText(textfieldString .. "_", 5, 0, nil, 0, nil, 20, color)
     end
     
     function viewElement.enterAction()
-        --if viewElement.displayed then viewElement:hide() else viewElement:show() end
+        if viewElement.displayed then
+	    log(textfieldString)
+	    textfieldString = ""
+	    viewElement:hide()
+	else
+	    viewElement:show()
+	end
     end
     
     function viewElement.keyPressed(key)
-       --log(key)
+        if viewElement.displayed and key ~= 0 then
+	    textfieldString = textfieldString .. string.char(key)
+        end
     end
 end
 
@@ -51,12 +62,12 @@ makeTextfield("textfield")
 function makeMenu()
     local viewElement = ui.new{rec = {10, 10, ui.WIN_W - 20, 25}, bgColor = ui.UICOLORRED}
 
-    local offset = 10
+    local offset = 0
     local button_size = 100
     local gape = (ui.WIN_W - 2 * button_size + 10)/3
     
     local rulesButton = viewElement:addChild{
-        rec = {offset, 10, button_size, 25},
+        rec = {offset, 0, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
 	pressedColor = ui.UICOLORRED,
@@ -67,7 +78,7 @@ function makeMenu()
     
     offset += gape 
     local modlistButton = viewElement:addChild{
-        rec = {offset, 10, button_size, 25},
+        rec = {offset, 0, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
 	pressedColor = ui.UICOLORRED,
@@ -76,11 +87,15 @@ function makeMenu()
     
     modlistButton:addAdaptedText("Mods")
 
-    modlistButton.mouseButtonPressed = Game.NewGame
+    function modlistButton.mouseButtonPressed()
+       --Game.LoadModFile("box.tbm")
+        runscript("LoadModText.luau")
+        Game.NewGame()
+    end
     
     offset += gape
     local replaylistButton = viewElement:addChild{
-        rec = {offset, 10, button_size, 25},
+        rec = {offset, 0, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
 	pressedColor = ui.UICOLORRED,
@@ -91,7 +106,7 @@ function makeMenu()
 
     offset += gape
     local scriptlistButton = viewElement:addChild{
-        rec = {offset, 10, button_size, 25},
+        rec = {offset, 0, button_size, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
 	pressedColor = ui.UICOLORRED,
@@ -101,7 +116,7 @@ function makeMenu()
     scriptlistButton:addAdaptedText("Scripts")
 
     local settingsButton = viewElement:addChild{
-        rec = {ui.WIN_W - 70, 10, 25, 25},
+        rec = {-60, 0, 25, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
 	pressedColor = ui.UICOLORRED,
@@ -111,7 +126,7 @@ function makeMenu()
     settingsButton:addAdaptedText("1")
 
     local closeButton = viewElement:addChild{
-        rec = {ui.WIN_W - 35, 10, 25, 25},
+        rec = {-25, 0, 25, 25},
         bgColor = ui.UICOLORRED,
         hoverColor = ui.UICOLORBLUE,
 	pressedColor = ui.UICOLORRED,

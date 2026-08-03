@@ -174,7 +174,6 @@ static GameMod* parsemod(std::istream& data)
 		      //datastream >> Api::o->force.z;
 		  } else if (dataname == "flag") {
 		      datastream >> current_object->flag;
-
 		      //current_object->static_ = current_object->flag_ & 1;
 		      //current_object->composite_ = current_object->flag_ & 2;
 		      //current_object->interactive_ = current_object->flag_ & 4;
@@ -190,19 +189,16 @@ static GameMod* parsemod(std::istream& data)
     return mod;
 }
 
-static void parsemodstring(std::string content)
+static GameMod* parsemodstring(std::string text)
 {
-    std::stringstream s(content);
-
-    parsemod(s);
+    std::stringstream s(text);
+    return parsemod(s);
 }
 
 static GameMod* parsemodfile(std::string filename)
 {
     std::ifstream file(filename);
-
     if (!file) return nullptr;
-
     return parsemod(file);
 }
 
@@ -212,10 +208,13 @@ Game::Game(Api& ApiInstance)
   , running_(true)
 {
     ApiInstance_.SetGame(this);
+
+    frame_ = new FrameData;
 }
 
 Game::~Game()
 {
+    delete frame_;
     delete physics_;
 }
 
@@ -226,7 +225,7 @@ void Game::Update()
     if (physics_) physics_->Step(frame_);
 }
 
-FrameData Game::GetFrameData()
+FrameData* Game::GetFrameData()
 {
     return frame_;
 }
@@ -236,13 +235,22 @@ void Game::Quit()
     running_ = false;
 }
 
+void Game::LoadModText(const std::string& text)
+{
+    mod_ = parsemodstring(text);
+}
+
+void Game::LoadModFile(const std::string& filename)
+{
+    mod_ = parsemodfile(filename);
+}
+
 void Game::NewGame()
 {
+    delete frame_;
     delete physics_;
-
-    GameMod* mod = parsemodfile("mods/box.tbm");
-
-    physics_ = new GamePhysics(ApiInstance_, frame_, mod);
+    frame_ = new FrameData;
+    physics_ = new GamePhysics(ApiInstance_, frame_, mod_);
 }
 
 bool Game::ShouldQuit()
@@ -250,7 +258,7 @@ bool Game::ShouldQuit()
     return !running_;
 }
 
-GamePhysics::GamePhysics(Api& ApiInstance, FrameData& frame, GameMod* mod)
+GamePhysics::GamePhysics(Api& ApiInstance, FrameData* frame, GameMod* mod)
   : ApiInstance_(ApiInstance)
   , frame_(frame)
   , mod_(mod)
@@ -261,7 +269,7 @@ GamePhysics::GamePhysics(Api& ApiInstance, FrameData& frame, GameMod* mod)
     worldId = b3CreateWorld(&worldDef);
 
     for (auto o : mod_->objects) {
-       auto& o_transform = frame_.transforms.emplace_back();
+       auto& o_transform = frame_->transforms.emplace_back();
 
        o_transform.position = o.position;
        o_transform.sides = o.sides;
@@ -269,15 +277,15 @@ GamePhysics::GamePhysics(Api& ApiInstance, FrameData& frame, GameMod* mod)
 
        if (o.flag & 1) {
            /* static */
-           b3BodyDef groundDef = b3DefaultBodyDef();
-           groundDef.position = o.position;
+           b3BodyDef bodyDef = b3DefaultBodyDef();
+           bodyDef.position = o.position;
 
-           o_transform.id = b3CreateBody(worldId, &groundDef);
+           o_transform.id = b3CreateBody(worldId, &bodyDef);
 
-           b3BoxHull groundBox = b3MakeBoxHull(o.sides.x, o.sides.y, o.sides.z);
+           b3BoxHull box = b3MakeBoxHull(o.sides.x, o.sides.y, o.sides.z);
 
-           b3ShapeDef groundShapeDef = b3DefaultShapeDef();
-           b3CreateHullShape(o_transform.id, &groundShapeDef, &groundBox.base);
+           b3ShapeDef shapeDef = b3DefaultShapeDef();
+           b3CreateHullShape(o_transform.id, &shapeDef, &box.base);
        } else {
 	    /* dynamic */
             b3BodyDef bodyDef = b3DefaultBodyDef();
@@ -303,13 +311,11 @@ GamePhysics::~GamePhysics()
     b3DestroyWorld(worldId);
 }
 
-void GamePhysics::Step(FrameData& frame)
+void GamePhysics::Step(FrameData* frame)
 {
     b3World_Step(worldId, (1.0f / 60.0f), 4);
 
-    //   frame.ground_transform.sides = ground_sides;
- 
-    for (auto& o : frame_.transforms) {
+    for (auto& o : frame_->transforms) {
         if (o.flag & 1) {
 
 	} else {

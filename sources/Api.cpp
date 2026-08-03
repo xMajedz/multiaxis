@@ -289,18 +289,20 @@ void Api::MouseButtonReleased(int btn, float x, float y)
     lua_pcall(ML, 3, 0, 0);
 }
 
-void Api::KeyPressed(int key)
+void Api::KeyPressed(int key, int keyCode)
 {
     lua_getref(ML, Hooks[KEY_PRESSED].key);
     lua_pushinteger(ML, key);
-    lua_pcall(ML, 1, 0, 0);
+    lua_pushinteger(ML, keyCode);
+    lua_pcall(ML, 2, 0, 0);
 }
 
-void Api::KeyReleased(int key)
+void Api::KeyReleased(int key, int keyCode)
 {
     lua_getref(ML, Hooks[KEY_RELEASED].key);
     lua_pushinteger(ML, key);
-    lua_pcall(ML, 1, 0, 0);
+    lua_pushinteger(ML, keyCode);
+    lua_pcall(ML, 2, 0, 0);
 }
 
 static int Api_log(lua_State* L)

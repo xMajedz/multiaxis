@@ -28,11 +28,14 @@ struct uielement
 
     Rectangle rec = {0, 0, 1, 1};
 
+    Vector2 shift = {0, 0};
+
     UIShapeType shapeType = SQUARE;
   
     float rounded = 0.1;
 
     Color uiColor = WHITE;
+    Color uiShadowColor = BLACK;
 
     Color bgColor = WHITE;
     Color hoverColor = WHITE;
@@ -58,8 +61,12 @@ struct uielement
 
     bool noReload = false;
 
+    bool __positionDirty = true;
+
     Api* ApiInstance;
-  
+
+    void updateChildPos();
+    void updatePos(lua_State* L);
     void display();
     bool show(bool forceReload);
     void hide(bool noreload);
@@ -68,13 +75,49 @@ struct uielement
 
     void uiText(const char* str, uint32_t x, uint32_t y, Font font, UITextAlign hAlign, UITextAlign vAlign, int scale, Color col1, Color col2);
 
-    uielement(Api* ApiInst);
+    uielement(lua_State* L);
     ~uielement();
 };
 
 #define lua_newuielement(L) static_cast<uielement*>(lua_newuserdatataggedwithmetatable(L, sizeof(uielement), 1))
 #define lua_isuielement(L, idx) (lua_isuserdata(L, idx) && lua_userdatatag(L, idx) == 1)
 #define lua_touielement(L, idx) static_cast<uielement*>(lua_touserdatatagged(L, idx, 1))
+
+void uielement::updateChildPos()
+{
+    if (!__positionDirty)
+        return;
+
+    if (shift.x < 0)
+        rec.x = parent->rec.x + parent->rec.width + shift.x;
+    else
+        rec.x = parent->rec.x + shift.x;
+    
+    if (shift.y < 0)
+        rec.y = parent->rec.y + parent->rec.height + shift.y;
+    else
+        rec.y = parent->rec.y + shift.y;
+
+    __positionDirty = false;
+}
+
+void uielement::updatePos(lua_State* L)
+{
+    if (parent)
+        updateChildPos();
+
+    lua_pushlightuserdata(L, this);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "child");
+    if (!lua_isnil(L, -1)) {
+        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+	    lua_rawgeti(L, -1, i);
+            lua_touielement(L, -1)->updatePos(L);
+	    lua_pop(L, 1);
+	}
+    }
+    lua_pop(L, 2);
+}
 
 void uielement::display()
 {
@@ -121,7 +164,6 @@ bool uielement::show(bool forceReload)
 
 void uielement::hide(bool noreload)
 {
-  
     noReload = noreload;
 
     if (destroyed || !displayed) return;
@@ -159,9 +201,194 @@ void uielement::uiText(
     DrawTextEx(font, str, pos, scale, 1, col1);
 }
 
-uielement::uielement(Api* ApiInst) : ApiInstance(ApiInst)
+static void parseColor(lua_State* L, Color* color, const char* name)
 {
-    ApiInstance->Log(TextFormat("uielement.new: %p", this));
+    lua_getfield(L, -2, name);
+    if (lua_istable(L, -1)) {
+        lua_rawgeti(L, -1, 1);
+        color->r = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, -2, 2);
+        color->g = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, -3, 3);
+        color->b = 255 * lua_tonumber(L, -1);
+        lua_rawgeti(L, -4, 4);
+        color->a = 255 * lua_tonumber(L, -1);
+        lua_pop(L, 4);
+    }
+    lua_pop(L, 1);
+}
+
+uielement::uielement(lua_State* L)
+{
+    ApiInstance = static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)));
+
+    lua_pushlightuserdata(L, this);
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_setfield(L, -2, "child");
+    lua_settable(L, LUA_REGISTRYINDEX);
+    
+    if (!lua_gettop(L) || !lua_istable(L, 1)) {
+        ApiInstance->Log("error: uielement.new(o: table)");
+        return;
+    }
+
+    lua_getfield(L, -2, "parent");
+    if (lua_isuielement(L, -1)) {
+        parent = lua_touielement(L, -1);
+
+	globalId = parent->globalId;
+	
+	uiColor = parent->uiColor;
+	uiShadowColor = parent->uiShadowColor;
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -2, "globalId");
+    if (lua_isnumber(L, -1)) {
+        globalId = lua_tounsigned(L, -1);	
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -2, "interactive");
+    if (lua_isboolean(L, -1)) {
+        interactive = lua_toboolean(L, -1);
+
+	lua_pushstring(L, "UIMouseHandler");
+        lua_gettable(L, LUA_REGISTRYINDEX);
+	
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -2, "keyboard");
+    if (lua_isboolean(L, -1)) {
+        interactive = lua_toboolean(L, -1);
+
+	lua_pushstring(L, "UIKeyboardHandler");
+        lua_gettable(L, LUA_REGISTRYINDEX);
+	
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
+    
+    lua_getfield(L, -2, "pos");
+    if (lua_istable(L, -1)) {
+        lua_rawgeti(L, -1, 1);
+        if (parent)
+	    shift.x = lua_tointeger(L, -1);
+	else
+	    rec.x = lua_tointeger(L, -1);
+
+	lua_rawgeti(L, -2, 2);
+	if (parent)
+	    shift.y = lua_tointeger(L, -1);
+	else
+            rec.y = lua_tointeger(L, -1);
+
+	lua_pop(L, 2);
+    }
+    lua_pop(L, 1);
+    
+    lua_getfield(L, -2, "size");
+    if (lua_istable(L, -1)) {
+        lua_rawgeti(L, -1, 1);
+        rec.width = lua_tointeger(L, -1);
+        lua_rawgeti(L, -2, 2);
+        rec.height = lua_tointeger(L, -1);
+        lua_pop(L, 2);
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -2, "rec");
+    if (lua_istable(L, -1)) {
+        lua_rawgeti(L, -1, 1);
+	if (parent)
+	    shift.x = lua_tointeger(L, -1);
+	else
+            rec.x = lua_tointeger(L, -1);
+
+	lua_rawgeti(L, -2, 2);
+	if (parent)
+	    shift.y = lua_tointeger(L, -1);
+	else
+            rec.y = lua_tointeger(L, -1);
+
+	lua_rawgeti(L, -3, 3);
+        rec.width = lua_tointeger(L, -1);
+        lua_rawgeti(L, -4, 4);
+        rec.height = lua_tointeger(L, -1);
+        lua_pop(L, 4);
+    }
+    lua_pop(L, 1);
+
+    parseColor(L, &uiColor, "uiColor");
+
+    parseColor(L, &bgColor, "bgColor");
+    parseColor(L, &hoverColor, "hoverColor");
+    parseColor(L, &pressedColor, "pressedColor");
+
+    parseColor(L, &borderColor, "borderColor"); 
+    parseColor(L, &borderHoverColor, "borderHoverColor"); 
+
+    lua_getfield(L, -2, "bgImage");
+    if (lua_isstring(L, -1)) {
+        bgImage = LoadImage(lua_tostring(L, -1));
+        bgImageTexture = LoadTextureFromImage(bgImage);
+	rec.width  = bgImage.width;
+	rec.height = bgImage.height;
+    }
+    lua_pop(L, 1);
+
+    lua_getfield(L, -2, "shapeType");
+    if (lua_isnumber(L, -1)) {
+        shapeType = (UIShapeType)lua_tounsigned(L, -1);
+    }
+    lua_pop(L, 1);
+
+    if (parent) {
+	lua_pushlightuserdata(L, parent);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_getfield(L, -1, "child");
+	lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+	lua_pop(L, 2);    
+    } else {
+      	lua_pushstring(L, "UIElementManager");
+        lua_gettable(L, LUA_REGISTRYINDEX);
+        lua_pushvalue(L, 2);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+        lua_pop(L, 1);
+    }
+    
+    lua_pushstring(L, "UIVisualManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    lua_pushunsigned(L, globalId);
+    lua_gettable(L, -2);
+    if (lua_isnil(L, -1)) {
+	lua_pop(L, 1);
+	
+        lua_newtable(L);
+
+	lua_pushvalue(L, -2);
+	lua_pushunsigned(L, globalId);
+	lua_pushvalue(L, -3);
+	lua_settable(L, -3);
+        lua_pop(L, 1);
+    }
+    lua_pushvalue(L, 2);
+    lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+    
+    lua_pop(L, 2);
+
+    updatePos(L);
+    
+    displayed = true;
 }
 
 uielement::~uielement()
@@ -177,6 +404,19 @@ uielement::~uielement()
 static void uielement_destructor(lua_State* L, void* ud)
 {
     std::destroy_at(static_cast<uielement*>(ud));    
+}
+
+static int uielement_updateChildPos(lua_State* L)
+{
+    uielement* elem = lua_touielement(L, 1);
+
+    return 0;
+}
+
+static int uielement_updatePos(lua_State* L)
+{
+    lua_touielement(L, 1)->updatePos(L);
+    return 0;
 }
 
 static int uielement_display(lua_State* L)
@@ -266,175 +506,13 @@ static int uielement_kill(lua_State* L)
     return 0;
 }
 
-static void parseColor(lua_State* L, Color* color, const char* name)
-{
-    lua_getfield(L, -2, name);
-    if (lua_istable(L, -1)) {
-        lua_rawgeti(L, -1, 1);
-        color->r = 255 * lua_tonumber(L, -1);
-        lua_rawgeti(L, -2, 2);
-        color->g = 255 * lua_tonumber(L, -1);
-        lua_rawgeti(L, -3, 3);
-        color->b = 255 * lua_tonumber(L, -1);
-        lua_rawgeti(L, -4, 4);
-        color->a = 255 * lua_tonumber(L, -1);
-        lua_pop(L, 4);
-    }
-    lua_pop(L, 1);
-}
-
 static int uielement_new(lua_State* L)
 {
     Api* ApiInstance = static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)));
 
-    int nargs = lua_gettop(L);
+    uielement* elem = new (lua_newuielement(L)) uielement(L);
 
-    uielement* elem = new (lua_newuielement(L)) uielement(ApiInstance);
-
-    lua_pushlightuserdata(L, elem);
-    lua_newtable(L);
-    lua_newtable(L);
-    lua_setfield(L, -2, "child");
-    lua_settable(L, LUA_REGISTRYINDEX);
-    
-    if (!nargs || !lua_istable(L, 1)) {
-        ApiInstance->Log("error: uielement.new(o: table)");
-        return 1;
-    }
-
-    lua_getfield(L, -2, "parent");
-    if (lua_isuielement(L, -1)) {
-        elem->parent = lua_touielement(L, -1);
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -2, "globalId");
-    if (lua_isnumber(L, -1)) {
-        elem->globalId = lua_tounsigned(L, -1);	
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -2, "interactive");
-    if (lua_isboolean(L, -1)) {
-        elem->interactive = lua_toboolean(L, -1);
-
-	lua_pushstring(L, "UIMouseHandler");
-        lua_gettable(L, LUA_REGISTRYINDEX);
-	
-        lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-        lua_pop(L, 1);
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -2, "keyboard");
-    if (lua_isboolean(L, -1)) {
-        elem->interactive = lua_toboolean(L, -1);
-
-	lua_pushstring(L, "UIKeyboardHandler");
-        lua_gettable(L, LUA_REGISTRYINDEX);
-	
-        lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-        lua_pop(L, 1);
-    }
-    lua_pop(L, 1);
-    
-    lua_getfield(L, -2, "pos");
-    if (lua_istable(L, -1)) {
-        lua_rawgeti(L, -1, 1);
-        elem->rec.x = lua_tointeger(L, -1);
-        lua_rawgeti(L, -2, 2);
-        elem->rec.y = lua_tointeger(L, -1);
-        lua_pop(L, 2);
-    }
-    lua_pop(L, 1);
-    
-    lua_getfield(L, -2, "size");
-    if (lua_istable(L, -1)) {
-        lua_rawgeti(L, -1, 1);
-        elem->rec.width = lua_tointeger(L, -1);
-        lua_rawgeti(L, -2, 2);
-        elem->rec.height = lua_tointeger(L, -1);
-        lua_pop(L, 2);
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -2, "rec");
-    if (lua_istable(L, -1)) {
-        lua_rawgeti(L, -1, 1);
-        elem->rec.x = lua_tointeger(L, -1);
-        lua_rawgeti(L, -2, 2);
-        elem->rec.y = lua_tointeger(L, -1);
-        lua_rawgeti(L, -3, 3);
-        elem->rec.width = lua_tointeger(L, -1);
-        lua_rawgeti(L, -4, 4);
-        elem->rec.height = lua_tointeger(L, -1);
-        lua_pop(L, 4);
-    }
-    lua_pop(L, 1);
-
-    parseColor(L, &elem->uiColor, "uiColor");
-
-    parseColor(L, &elem->bgColor, "bgColor");
-    parseColor(L, &elem->hoverColor, "hoverColor");
-    parseColor(L, &elem->pressedColor, "pressedColor");
-
-    parseColor(L, &elem->borderColor, "borderColor"); 
-    parseColor(L, &elem->borderHoverColor, "borderHoverColor"); 
-
-    lua_getfield(L, -2, "bgImage");
-    if (lua_isstring(L, -1)) {
-        elem->bgImage = LoadImage(lua_tostring(L, -1));
-        elem->bgImageTexture = LoadTextureFromImage(elem->bgImage);
-	elem->rec.width  = elem->bgImage.width;
-	elem->rec.height = elem->bgImage.height;
-    }
-    lua_pop(L, 1);
-
-    lua_getfield(L, -2, "shapeType");
-    if (lua_isnumber(L, -1)) {
-        elem->shapeType = (UIShapeType)lua_tounsigned(L, -1);
-    }
-    lua_pop(L, 1);
-
-    if (elem->parent) {
-	lua_pushlightuserdata(L, elem->parent);
-        lua_gettable(L, LUA_REGISTRYINDEX);
-        lua_getfield(L, -1, "child");
-	lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-	lua_pop(L, 2);    
-    } else {
-      	lua_pushstring(L, "UIElementManager");
-        lua_gettable(L, LUA_REGISTRYINDEX);
-        lua_pushvalue(L, 2);
-        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-        lua_pop(L, 1);
-    }
-    
-    lua_pushstring(L, "UIVisualManager");
-    lua_gettable(L, LUA_REGISTRYINDEX);
-
-    lua_pushunsigned(L, elem->globalId);
-    lua_gettable(L, -2);
-    if (lua_isnil(L, -1)) {
-	lua_pop(L, 1);
-	
-        lua_newtable(L);
-
-	lua_pushvalue(L, -2);
-	lua_pushunsigned(L, elem->globalId);
-	lua_pushvalue(L, -3);
-	lua_settable(L, -3);
-        lua_pop(L, 1);
-    }
-    lua_pushvalue(L, 2);
-    lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
-    
-    lua_pop(L, 2);
-    
-    elem->displayed = true;
+    ApiInstance->Log(TextFormat("uielement.newi: %p", elem));
 
     return 1;
 }
@@ -563,6 +641,7 @@ static int uielement_handleMouseButtonReleased(lua_State* L)
 static int uielement_handleKeyPressed(lua_State* L)
 {
     int key = lua_tointeger(L, 1);
+    int keyCode = lua_tointeger(L, 2);
 
     lua_pushstring(L, "UIKeyboardHandler");
     lua_gettable(L, LUA_REGISTRYINDEX);
@@ -574,7 +653,7 @@ static int uielement_handleKeyPressed(lua_State* L)
         lua_pushlightuserdata(L, elem);
         lua_gettable(L, LUA_REGISTRYINDEX);
             
-        if (key == KEY_ENTER) {
+        if (keyCode == KEY_ENTER) {
             lua_getfield(L, -1, "enterAction");
             if(lua_isfunction(L, -1)) {
                 lua_call(L, 0, 0);
@@ -586,7 +665,8 @@ static int uielement_handleKeyPressed(lua_State* L)
 	lua_getfield(L, -1, "keyPressed");
         if(lua_isfunction(L, -1)) {
 	    lua_pushinteger(L, key);
-            lua_call(L, 1, 0);
+	    lua_pushinteger(L, keyCode);
+            lua_call(L, 2, 0);
         }
 	
 	lua_pop(L, 2);
@@ -598,6 +678,7 @@ static int uielement_handleKeyPressed(lua_State* L)
 static int uielement_handleKeyReleased(lua_State* L)
 {
     int key = lua_tointeger(L, 1);
+    int keyCode = lua_tointeger(L, 2);
 
     lua_pushstring(L, "UIKeyboardHandler");
     lua_gettable(L, LUA_REGISTRYINDEX);
@@ -612,7 +693,8 @@ static int uielement_handleKeyReleased(lua_State* L)
 	lua_getfield(L, -1, "keyReleased");
         if(lua_isfunction(L, -1)) {
 	    lua_pushinteger(L, key);
-            lua_call(L, 1, 0);
+	    lua_pushinteger(L, keyCode);
+            lua_call(L, 2, 0);
         }
 
 	lua_pop(L, 2);
