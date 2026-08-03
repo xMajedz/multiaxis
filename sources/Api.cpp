@@ -5,32 +5,16 @@
 #include <fstream>
 #include <sstream>
 
-class Bytecode {
-public:  
-    int load(lua_State* L, const std::string& chunkname)
-    {
-	return luau_load(L, chunkname.data(), data(), size(), 0);
-    };
-
-    char* data()
-    {
-        return data_;
-    };
-
-    size_t size()
-    {
-	return size_;
-    };
-
-    Bytecode(const std::string& string) : data_(luau_compile(string.data(), string.size(), NULL, &size_)) {};
+struct Bytecode {
+    Bytecode(const std::string& string) : data(luau_compile(string.data(), string.size(), NULL, &size)) {};
 
     ~Bytecode()
     {
-        std::free(data_);
+        std::free(data);
     };
-private:
-    char* data_;
-    size_t size_;
+  
+    char* data;
+    size_t size;
 };
 
 static void log(const std::string& message)
@@ -41,7 +25,7 @@ static void log(const std::string& message)
 static int loadstring(lua_State* L, const std::string& string, const std::string& chunkname)
 {
     Bytecode bytecode(string);
-    return bytecode.load(L, chunkname);
+    return luau_load(L, chunkname.data(), bytecode.data, bytecode.size, 0);
 }
 
 static int loadfile(lua_State* L, const std::string& filepath, const std::string& chunkname)
@@ -97,8 +81,7 @@ static int requirefile(lua_State* L, std::string requirename, std::string chunkn
     }
 
     Bytecode bytecode(text.str());
-
-    return bytecode.load(L, chunkname);
+    return luau_load(L, chunkname.data(), bytecode.data, bytecode.size, 0);
 }
 
 static bool compare_case_insenstive(const std::string s1, const std::string s2)
@@ -360,279 +343,26 @@ static int Api_runscript(lua_State* L)
     return 0;
 }
 
-
 static void parsemod(std::istream& data)
 {
-    int version = 0;
-    int context = 0;
-
-    int env_obj_id = 0;
-    int env_obj_plane_id = 0;
-    int env_obj_joint_id = 0;
-
-    int player_id = 0;
-    int body_id = 0;
-    int joint_id = 0;
-
-    std::string body_name;
-    std::string joint_name;
-
-    std::string line;
-	/*
-    EnvPlane* current_plane = nullptr;
-    size_t plane_count = 0;
-	
-    Body* current_object = nullptr;
-    size_t object_count = 0;
-
-	Joint* current_object_joint = nullptr;
-    size_t object_joint_count = 0;
-
-	Player* current_player = nullptr;
-	size_t player_count = 0;
-
-	Body* current_body = nullptr;
-	size_t b_count = 0;
-
-	Joint* current_joint = nullptr;
-	size_t j_count = 0;
-	
-	while (std::getline(data, line)) {
-		std::stringstream datastream(line);
-		std::string dataname;
-	    		
-		datastream >> dataname;
-		    
-		if (dataname == "version") {
-		    datastream >> version;
-				
-            continue;
-		} else if (dataname == "gamerule") {
-			continue;
-		} else if (dataname == "env_obj") {
-			context = 1;
-				
-			if (datastream >> env_obj_id) {
-			    std::string name = "object_" + std::to_string(env_obj_id);
-				//Body object;
-	            Api::objects_vector.push_back(Body());
-				Api::o_map[name] = object_count;
-				current_object = &Api::objects_vector[object_count];
-
-				object_count += 1;
-			}
-				
-			continue;
-		} else if (dataname == "env_obj_plane") {
-			context = 2;
-
-			if (datastream >> env_obj_plane_id) {
-				std::string name = "plane_" + std::to_string(env_obj_plane_id);
-				//EnvPlane plane;
-	            Api::planes.push_back(EnvPlane());
-				current_plane = &Api::planes[plane_count];
-
-				plane_count += 1;
-            }
-			
-			continue;
-		 } else if (dataname == "env_obj_joint") {
-			context = 3;
-
-			if (datastream >> env_obj_joint_id) {
-			  std::string name = "object_joint_" + std::to_string(env_obj_joint_id);
-              Joint object_joint;
-			  Api::object_joints_vector.push_back(object_joint);
-			  current_object_joint = &Api::object_joints_vector[object_joint_count];
-
-			  object_joint_count += 1;
-            }
-				
-			continue;
-		 } else if (dataname == "player") {
-			context = 3;
-
-			if (datastream >> player_id) {
-			    std::string name = "player_" + player_id;
-	            if (player_count < Api::rules.numplayers) {
-		            b_count = 0;
-		            j_count = 0;
-
-		            Player player(player_count, name.data());
-		            Api::players_vector.push_back(player);
-		            current_player = &Api::players_vector[player_count];
-
-					player_count += 1;
-				}
-			}
-				
-			continue;
-	     } else if (dataname == "body") {
-			context = 4;
-
-			if (datastream >> body_name) {
-			    Body body;
-				body.id_ = b_count;
-				body.name_ = body_name;
-			    
-	            Api::b_map[body_name] = b_count;
-				current_player->body.push_back(body);
-				current_body = &current_player->body[b_count];
-
-				b_count += 1;
-			}
-
-			continue;
-		 } else if (dataname == "joint") {
-			context = 5;
-
-			if (datastream >> joint_name) {
-			    Joint joint;
-				joint.id_ = j_count;
-				joint.name_ = joint_name;
-			    
-	            current_player->joint.push_back(joint);
-	            current_joint = &current_player->joint[j_count];
-
-				j_count += 1;
-			}
-				
-			continue;
-		 }
-
-		 switch(context)
-		 {
-		 case 0:
-			if (dataname == "turnframes") {
-			  datastream >> Api::rules.turnframes;
-			} else if (dataname == "engagedistance") {
-			  datastream >> Api::rules.engagedistance;
-			} else if (dataname == "engageheight") {
-			  datastream >> Api::rules.engageheight;
-			} else if (dataname == "gravity") {
-			  datastream >> Api::rules.gravity.x;
-			  datastream >> Api::rules.gravity.y;
-			  datastream >> Api::rules.gravity.z;
-			} else if (dataname == "numplayers") {
-			  datastream >> Api::rules.numplayers;
-			}
-			    
-			break;
-		  case 1:
-			if (dataname == "shape") {
-			     if (datastream >> dataname) {
-				   	 if (dataname == "box") current_object->shape = BOX;
-				     else if (dataname == "sphere") current_object->shape = SPHERE;
-				     else if (dataname == "capsule") current_object->shape = CAPSULE;
-					 else if (dataname == "cylinder") current_object->shape = CYLINDER;
-					 else if (dataname == "composite") current_object->shape = COMPOSITE;
-			     }
-			} else if (dataname == "pos") {
-			   	 datastream >> current_object->m_position.x;
-				 datastream >> current_object->m_position.y;
-				 datastream >> current_object->m_position.z;
-			} else if (dataname == "mass") {
-			     datastream >> current_object->mass;
-			} else if (dataname == "density") {
-			     datastream >> current_object->density;
-			} else if (dataname == "color") {
-			     float r, g, b, a;
-			     datastream >> r;
-				 datastream >> g;
-				 datastream >> b;
-				 datastream >> a;
-				 current_object->m_color.r = 255 * r;
-				 current_object->m_color.g = 255 * g;
-				 current_object->m_color.b = 255 * b;
-				 current_object->m_color.a = 255 * a;
-			} else if (dataname == "rot") {
-			     Vector3 rot;
-				 datastream >> rot.x;
-			     datastream >> rot.y;
-				 datastream >> rot.z;
-			   	 Quaternion q = QuaternionFromMatrix(MatrixRotateXYZ(rot));
-			     current_object->m_orientation.x = q.x;
-				 current_object->m_orientation.y = q.y;
-				 current_object->m_orientation.z = q.z;
-				 current_object->m_orientation.w = q.w;
-			} else if (dataname == "sides") {
-			     datastream >> current_object->sides.x;
-				 datastream >> current_object->sides.y;
-				 datastream >> current_object->sides.z;
-			} else if (dataname == "radius") {
-			     datastream >> current_object->radius;
-			} else if (dataname == "length") {
-			     datastream >> current_object->length;
-			} else if (dataname == "force") {
-			     //datastream >> Api::o->force.x;
-				 //datastream >> Api::o->force.y;
-				 //datastream >> Api::o->force.z;
-			} else if (dataname == "flag") {
-			     datastream >> current_object->flag_;
-
-				 current_object->static_ = current_object->flag_ & 1;
-				 current_object->composite_ = current_object->flag_ & 2;
-				 current_object->interactive_ = current_object->flag_ & 4;
-			} else if (dataname == "bounce") {
-			     datastream >> current_object->bounce;
-			} else if (dataname == "friction") {
-			     datastream >> current_object->friction;
-			}	
-			break;
-		case 2:
-			if (dataname == "param") {
-			   	 datastream >> current_plane->param.x;
-				 datastream >> current_plane->param.y;
-				 datastream >> current_plane->param.z;
-				 datastream >> current_plane->param.w;
-			} else if (dataname == "bounce") {
-			     datastream >> current_plane->bounce;
-			} else if (dataname == "friction") {
-			     datastream >> current_plane->friction;
-			}
-
-			break;
-		}
-	}*/
 }
 
 static void parsemodstring(std::string content)
 {
-    std::stringstream s(content);
-
-    parsemod(s);
 }
 
 static void parsemodfile(std::string filename)
 {
-    std::ifstream file(filename);
-
-    if (!file) return;
-
-    parsemod(file);
 }
-
 
 static int loadmodstring(lua_State* L, std::string content)
 {
-    //Reset();
-    parsemodstring(content);
-    //Game& Game_ = Game::GetInstance();
-    //Game_.Reset();
-    //Game_.ImportMod();
-    //Game_.NewGame();
     return 0;
 }
 
 static int loadmodfile(lua_State* L, std::string modpath)
 {
-   //Reset();
-    parsemodfile("./mods/" + modpath);
-    //Game& Game_ = Game::GetInstance();
-    //Game_.Reset();
-    //Game_.ImportMod();
-    //Game_.NewGame();
-    return 0;
+     return 0;
 }
 
 static int Api_loadmodstring(lua_State* L)

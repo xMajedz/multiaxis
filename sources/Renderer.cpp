@@ -207,36 +207,45 @@ void Renderer::RenderGame()
     DrawTextStyled(GetFontDefault(), "Text: %^0FText, %^F2Text, %^22Text,", Vector2{200, 200}, 20, 1, WHITE);
 
     auto frame = GameInstance_.GetFrameData();
-
+    /*
     Vector3 ground_sides = {
-        frame.ground_transform.sides.x,
-        frame.ground_transform.sides.y,
-        frame.ground_transform.sides.z,
+        2 * frame.ground_transform.sides.x,
+        2 * frame.ground_transform.sides.y,
+        2 * frame.ground_transform.sides.z,
     };
     
     pass.Draw(0, QuaternionIdentity(), Vector3{0}, ground_sides, WHITE);
+    */
+    for (const auto& o : frame.transforms) {    
+        Quaternion q {
+            o.rotation.v.x,
+            o.rotation.v.y,
+            o.rotation.v.z,
+            o.rotation.s,
+        };
     
-    Quaternion q = {
-        frame.body_transform.rotation.v.x,
-        frame.body_transform.rotation.v.y,
-        frame.body_transform.rotation.v.z,
-        frame.body_transform.rotation.s,
-    };
-    
-    Vector3 v = {
-        frame.body_transform.position.x,
-        frame.body_transform.position.y,
-        frame.body_transform.position.z,
-    };
+        Vector3 v {
+            o.position.x,
+            o.position.y,
+            o.position.z,
+        };
 
-    Vector3 body_sides = {
-        frame.body_transform.sides.x,
-        frame.body_transform.sides.y,
-        frame.body_transform.sides.z,
-    };
-    
-    pass.Draw(0, q, v, body_sides, GREEN);
+        Vector3 sides {
+            2 * o.sides.x,
+            2 * o.sides.y,
+            2 * o.sides.z,
+        };
 
+	Color color {
+	    (uint8_t)(255 * o.color[0]),
+	    (uint8_t)(255 * o.color[1]),
+	    (uint8_t)(255 * o.color[2]),
+	    (uint8_t)(255 * o.color[3]),
+	};
+    
+        pass.Draw(0, q, v, sides, color);
+    }
+    
     //BeginMode3D(camera);
     //DrawModel(model, (Vector3){0}, 1.f, WHITE);
     //EndMode3D();
