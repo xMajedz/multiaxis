@@ -18,6 +18,12 @@ local obj3 = ui3d.new{size = {0.25, 0.25, 5.00}, bgColor = ui.UICOLORGREEN}
 --runscript("von.luau")
 
 function makeTextfield(textfieldString)
+    local textfieldBuffer = buffer.create(256)
+
+    local textfieldIndex = #textfieldString
+
+    buffer.writestring(textfieldBuffer, 0, textfieldString)
+
     local viewElement = ui.new{
         rec = {10, ui.WIN_H - 25, ui.WIN_W - 20, 20},
 
@@ -32,32 +38,41 @@ function makeTextfield(textfieldString)
 	
 	keyboard = true,
     }
-
-    --viewElement:hide()
+    
+    viewElement:hide()  
 
     function viewElement.customDisplay()
         local color = (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE
-        viewElement:uiText(textfieldString .. "_", 5, 0, nil, 0, nil, 20, color)
+        local text = buffer.readstring(textfieldBuffer, 0, textfieldIndex)
+	viewElement:uiText(text .. "_", 5, 0, nil, 0, nil, 20, color)
     end
     
     function viewElement.enterAction()
         if viewElement.displayed then
-	    log(textfieldString)
-	    textfieldString = ""
+	    if textfieldIndex > 0 then
+	      log(buffer.readstring(textfieldBuffer, 0, textfieldIndex))
+	      textfieldIndex = 0
+	    end
 	    viewElement:hide()
 	else
 	    viewElement:show()
 	end
     end
     
-    function viewElement.keyPressed(key)
-        if viewElement.displayed and key ~= 0 then
-	    textfieldString = textfieldString .. string.char(key)
+    function viewElement.keyPressed(key, keyCode)
+        if keyCode == 259 and textfieldIndex > 0 then
+	    textfieldIndex -= 1
+	end
+        if key > 0 and textfieldIndex < 256 and viewElement.displayed then
+	    buffer.writeu8(textfieldBuffer, textfieldIndex, key)
+            textfieldIndex += 1
         end
     end
+
+    return viewElement
 end
 
-makeTextfield("textfield")
+local viewElement = makeTextfield("textfield")
 
 function makeMenu()
     local viewElement = ui.new{rec = {10, 10, ui.WIN_W - 20, 25}, bgColor = ui.UICOLORRED}

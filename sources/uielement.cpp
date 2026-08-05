@@ -10,7 +10,6 @@ enum UIRenderingContext { RENDER_FG_GLOBALID = 1000, RENDER_BG_GLOBALID = 1001 }
 
 enum UIShapeType { SQUARE = 1, ROUNDED = 2 };
 
-
 enum UITextAlign {
     TEXT_ALIGN_LEFT   = 0,
     TEXT_ALIGN_TOP    = 0,
@@ -65,12 +64,12 @@ struct uielement
 
     Api* ApiInstance;
 
-    void updateChildPos();
+    void updateChildPos(lua_State* L);
     void updatePos(lua_State* L);
-    void display();
-    bool show(bool forceReload);
-    void hide(bool noreload);
-    void reload();
+    void display(lua_State* L);
+    bool show(lua_State* L, bool forceReload);
+    void hide(lua_State* L, bool noreload);
+    void reload(lua_State* L);
     void kill();
 
     void uiText(const char* str, uint32_t x, uint32_t y, Font font, UITextAlign hAlign, UITextAlign vAlign, int scale, Color col1, Color col2);
@@ -83,7 +82,7 @@ struct uielement
 #define lua_isuielement(L, idx) (lua_isuserdata(L, idx) && lua_userdatatag(L, idx) == 1)
 #define lua_touielement(L, idx) static_cast<uielement*>(lua_touserdatatagged(L, idx, 1))
 
-void uielement::updateChildPos()
+void uielement::updateChildPos(lua_State* L)
 {
     if (!__positionDirty)
         return;
@@ -104,7 +103,7 @@ void uielement::updateChildPos()
 void uielement::updatePos(lua_State* L)
 {
     if (parent)
-        updateChildPos();
+        updateChildPos(L);
 
     lua_pushlightuserdata(L, this);
     lua_gettable(L, LUA_REGISTRYINDEX);
@@ -119,42 +118,85 @@ void uielement::updatePos(lua_State* L)
     lua_pop(L, 2);
 }
 
-void uielement::display()
+void uielement::display(lua_State* L)
 {
-    if (shapeType == SQUARE) {
-        Color col = bgColor;
-        Color borderCol = borderColor;
-	
-	if (hoverState) {
-            col = hoverColor;
-	    borderCol = borderHoverColor;
-	}
-	
-	if (pressedState) {
-            col = pressedColor;
-	    //borderCol = borderHoverColor;
-	}
-
-	if (col.a > 0)
-	    DrawRectangleRec(rec, col);
-
-	if (borderColor.a > 0)
-	    DrawRectangleLines(rec.x, rec.y, rec.width, rec.height, borderCol);
+    lua_pushlightuserdata(L, this);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "customDisplayBefore");
+    if (lua_isfunction(L, -1)) {
+        lua_call(L, 0, 0);
     }
+    
+    if (!customDisplayOnly) { 
+        if (shapeType == SQUARE) {
+            Color col = bgColor;
+            Color borderCol = borderColor;
+	
+	    if (hoverState) {
+                col = hoverColor;
+	        borderCol = borderHoverColor;
+	    }
+	
+	    if (pressedState) {
+                col = pressedColor;
+	        //borderCol = borderHoverColor;
+	    }
 
-    if (shapeType == ROUNDED)
-        DrawRectangleRounded(rec, rounded, 8, bgColor);
+	    if (col.a > 0)
+	        DrawRectangleRec(rec, col);
 
-    if (bgImage.data)
-        DrawTexture(bgImageTexture, rec.x, rec.y, bgImageColor);
+	    if (borderColor.a > 0)
+	        DrawRectangleLines(rec.x, rec.y, rec.width, rec.height, borderCol);
+        }
+
+        if (shapeType == ROUNDED)
+            DrawRectangleRounded(rec, rounded, 8, bgColor);
+
+        if (bgImage.data)
+            DrawTexture(bgImageTexture, rec.x, rec.y, bgImageColor);
+    }
+    
+    lua_pushlightuserdata(L, this);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "customDisplay");
+    if (lua_isfunction(L, -1)) {
+        lua_call(L, 0, 0);
+    }
 }
-
-bool uielement::show(bool forceReload)
+#include <iostream>
+bool uielement::show(lua_State* L, bool forceReload)
 {
-    if (noReload && !forceReload) {
+    lua_pushlightuserdata(L, this);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "child");
+    if (!lua_isnil(L, -1)) {
+        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+	    lua_rawgeti(L, -2, i);
+	    lua_touielement(L, -1)->show(L, false);
+	    lua_pop(L, 1);
+        }
+    }    
+    
+    if (noReload && !forceReload)
         return displayed;
-    } else if (forceReload) {
+    else if (forceReload)
         noReload = false;
+    
+    lua_pushstring(L, "UIVisualManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    lua_pushunsigned(L, globalId);
+    lua_gettable(L, -2);
+    if (lua_istable(L, -1)) {
+        lua_pushvalue(L, 1);
+        lua_rawseti(L, -2, lua_objlen(L, -2) + 1);
+    }
+    
+    lua_pushlightuserdata(L, this);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "onShow");
+    if (lua_isfunction(L, -1)) {
+        lua_call(L, 0, 0);
     }
         
     displayed = true;
@@ -162,19 +204,55 @@ bool uielement::show(bool forceReload)
     return displayed;
 }
 
-void uielement::hide(bool noreload)
+void uielement::hide(lua_State* L, bool noreload)
 {
-    noReload = noreload;
+    lua_pushlightuserdata(L, this);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "child");
+    if (!lua_isnil(L, -1)) {
+        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+	    lua_rawgeti(L, -2, i);
+	    lua_touielement(L, -1)->hide(L, false);
+	    lua_pop(L, 1);
+        }
+    }    
 
+    noReload = noreload;
+    
     if (destroyed || !displayed) return;
-  
+    
+    lua_pushstring(L, "UIVisualManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    lua_pushunsigned(L, globalId);
+    lua_gettable(L, -2);
+    if (lua_istable(L, -1)) {
+        lua_newtable(L);
+	int j = 1;
+	for (int i = 1; i <= lua_objlen(L, -2); i += 1) { 
+             lua_rawgeti(L, -2, i);
+	     if (this != lua_touielement(L, -1)) {
+	         lua_pushvalue(L, -2);
+	         lua_pushvalue(L, -2);
+	         lua_rawseti(L, -2, j);
+	         lua_pop(L, 1);
+	         j += 1;
+	     }
+	     lua_pop(L, 1);
+	}
+        lua_pushunsigned(L, globalId);
+	lua_pushvalue(L, -2);
+	
+	lua_settable(L, -5);
+    }
+    
     displayed = false;
 }
 
-void uielement::reload()
+void uielement::reload(lua_State* L)
 {
-    hide(false);
-    show(false);
+    hide(L, false);
+    show(L, false);
 }
 
 void uielement::kill()
@@ -194,11 +272,12 @@ void uielement::uiText(
     Vector2 size = MeasureTextEx(font, str, (float)scale, scale * 0.1f);
 
     Vector2 pos {
-        x + rec.x + Lerp(0.0f, rec.width - size.x, ((float)hAlign) * 0.5f),
-        y + rec.y + Lerp(0.0f, rec.height -size.y, ((float)vAlign) * 0.5f),
+        x + rec.x + Lerp(0.0f, rec.width  - size.x, ((float)hAlign) * 0.5f),
+        y + rec.y + Lerp(0.0f, rec.height - size.y, ((float)vAlign) * 0.5f),
     };
 	    
     DrawTextEx(font, str, pos, scale, 1, col1);
+    //DrawTextEx(font, str, pos, scale, 1, col2);
 }
 
 static void parseColor(lua_State* L, Color* color, const char* name)
@@ -213,9 +292,9 @@ static void parseColor(lua_State* L, Color* color, const char* name)
         color->b = 255 * lua_tonumber(L, -1);
         lua_rawgeti(L, -4, 4);
         color->a = 255 * lua_tonumber(L, -1);
-        lua_pop(L, 4);
+        lua_pop(L, 4); // pop [r, g, b, a]
     }
-    lua_pop(L, 1);
+    lua_pop(L, 1); // pop [table]
 }
 
 uielement::uielement(lua_State* L)
@@ -408,8 +487,7 @@ static void uielement_destructor(lua_State* L, void* ud)
 
 static int uielement_updateChildPos(lua_State* L)
 {
-    uielement* elem = lua_touielement(L, 1);
-
+    lua_touielement(L, 1)->updateChildPos(L);;
     return 0;
 }
 
@@ -421,68 +499,26 @@ static int uielement_updatePos(lua_State* L)
 
 static int uielement_display(lua_State* L)
 {
-    uielement* ud = lua_touielement(L, 1);
-
-    if (ud->destroyed || !ud->displayed) return 0;
-    
-    lua_pushlightuserdata(L, ud);
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    lua_getfield(L, -1, "customDisplayBefore");
-    if(lua_isfunction(L, -1)) {
-        lua_call(L, 0, 0);
-    }
-    
-    if (!ud->customDisplayOnly)
-        ud->display();
-    
-    lua_pushlightuserdata(L, ud);
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    lua_getfield(L, -1, "customDisplay");
-    if(lua_isfunction(L, -1)) {
-        lua_call(L, 0, 0);
-    }
-    
+    lua_touielement(L, 1)->display(L);
     return 0;
 }
 
 static int uielement_show(lua_State* L)
 {
-    uielement* ud = lua_touielement(L, 1);
-
-    lua_pushlightuserdata(L, ud);
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    lua_getfield(L, -1, "child");
-    if (!lua_isnil(L, -1)) {
-        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
-            lua_pushcfunction(L, uielement_show, NULL);
-            lua_rawgeti(L, -2, i);
-            lua_call(L, 1, 0);
-        }
-    }    
-    
-    bool res = ud->show(false);
-
-    lua_pushlightuserdata(L, ud);
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    lua_getfield(L, -1, "onShow");
-    if(lua_isfunction(L, -1)) {
-        lua_call(L, 0, 0);
-    }
-
+    bool res = lua_touielement(L, 1)->show(L, false);
     lua_pushboolean(L, res);
-    
     return 1;
 }
 
 static int uielement_hide(lua_State* L)
 {
-    lua_touielement(L, 1)->hide(false);
+    lua_touielement(L, 1)->hide(L, false);
     return 0;
 }
 
 static int uielement_reload(lua_State* L)
 {
-    lua_touielement(L, 1)->reload();
+    lua_touielement(L, 1)->reload(L);
     return 0;
 }
 
@@ -536,7 +572,7 @@ static int uielement_drawVisuals(lua_State* L)
     if (lua_isnumber(L, -1)) {
         globalId = lua_tounsigned(L, -1);
     }
-    
+      
     lua_pushstring(L, "UIVisualManager");
     lua_gettable(L, LUA_REGISTRYINDEX);
 
