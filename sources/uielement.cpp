@@ -70,7 +70,7 @@ struct uielement
     bool show(lua_State* L, bool forceReload);
     void hide(lua_State* L, bool noreload);
     void reload(lua_State* L);
-    void kill();
+    void kill(lua_State* L);
 
     void uiText(const char* str, uint32_t x, uint32_t y, Font font, UITextAlign hAlign, UITextAlign vAlign, int scale, Color col1, Color col2);
 
@@ -117,7 +117,7 @@ void uielement::updatePos(lua_State* L)
     }
     lua_pop(L, 2);
 }
-
+#include <iostream>
 void uielement::display(lua_State* L)
 {
     lua_pushlightuserdata(L, this);
@@ -125,7 +125,10 @@ void uielement::display(lua_State* L)
     lua_getfield(L, -1, "customDisplayBefore");
     if (lua_isfunction(L, -1)) {
         lua_call(L, 0, 0);
+    } else {
+        lua_pop(L, 1);
     }
+    lua_pop(L, 1);
     
     if (!customDisplayOnly) { 
         if (shapeType == SQUARE) {
@@ -161,9 +164,12 @@ void uielement::display(lua_State* L)
     lua_getfield(L, -1, "customDisplay");
     if (lua_isfunction(L, -1)) {
         lua_call(L, 0, 0);
+    } else {
+        lua_pop(L, 1);
     }
+    lua_pop(L, 1);
 }
-#include <iostream>
+
 bool uielement::show(lua_State* L, bool forceReload)
 {
     lua_pushlightuserdata(L, this);
@@ -255,8 +261,18 @@ void uielement::reload(lua_State* L)
     show(L, false);
 }
 
-void uielement::kill()
+void uielement::kill(lua_State* L)
 {
+    lua_pushlightuserdata(L, this);
+    lua_gettable(L, LUA_REGISTRYINDEX);
+    lua_getfield(L, -1, "child");
+    if (!lua_isnil(L, -1)) {
+        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+            lua_rawgeti(L, -1, i);
+	    lua_touielement(L, -1)->kill(L);
+        }
+    } 
+
     destroyed = true;
 }
 
@@ -468,6 +484,8 @@ uielement::uielement(lua_State* L)
     updatePos(L);
     
     displayed = true;
+    
+    ApiInstance->Log(TextFormat("uielement.new: %p", this));
 }
 
 uielement::~uielement()
@@ -524,32 +542,13 @@ static int uielement_reload(lua_State* L)
 
 static int uielement_kill(lua_State* L)
 {
-    uielement* ud = lua_touielement(L, 1);
-    
-    lua_pushlightuserdata(L, ud);
-    lua_gettable(L, LUA_REGISTRYINDEX);
-    lua_getfield(L, -1, "child");
-    if (!lua_isnil(L, -1)) {
-        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
-            lua_pushcfunction(L, uielement_kill, NULL);
-            lua_rawgeti(L, -2, i);
-            lua_call(L, 1, 0);
-        }
-    } 
-
-    ud->kill();
-    
+    lua_touielement(L, 1)->kill(L);
     return 0;
 }
 
 static int uielement_new(lua_State* L)
 {
-    Api* ApiInstance = static_cast<Api*>(lua_tolightuserdata(L, lua_upvalueindex(1)));
-
     uielement* elem = new (lua_newuielement(L)) uielement(L);
-
-    ApiInstance->Log(TextFormat("uielement.newi: %p", elem));
-
     return 1;
 }
 
@@ -564,9 +563,8 @@ static int uielement_drawVisuals(lua_State* L)
         lua_getfield(L, -1, "globalId");
 	if (lua_isnumber(L, -1)) {
 	    globalId = lua_tounsigned(L, -1);
-	    lua_pop(L, 1);
 	}
-	lua_pop(L, 1);
+	lua_pop(L, 2);
     }
     
     if (lua_isnumber(L, -1)) {
@@ -578,13 +576,14 @@ static int uielement_drawVisuals(lua_State* L)
 
     lua_pushunsigned(L, globalId);
     lua_gettable(L, -2);
-    if (!lua_istable(L, -1))
+    if (!lua_istable(L, -1)) {
         return 0;
+    }
     
     for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
-        lua_pushcfunction(L, uielement_display, NULL);
-        lua_rawgeti(L, -2, i);
-        lua_call(L, 1, 0);
+        lua_rawgeti(L, -1, i);
+	lua_touielement(L, -1)->display(L);
+        lua_pop(L, 1);
     }
     
     return 0;
@@ -609,7 +608,6 @@ static int uielement_handleMouseHover(lua_State* L)
     for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
         lua_rawgeti(L, -1, i);
 	uielement* elem = lua_touielement(L, -1);
-
 	if((x >= elem->rec.x && x <= (elem->rec.x + elem->rec.width)) &&
 	   (y >= elem->rec.y && y <= (elem->rec.y + elem->rec.height))) {
 	    elem->hoverState = true;
@@ -634,7 +632,6 @@ static int uielement_handleMouseButtonPressed(lua_State* L)
     for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
         lua_rawgeti(L, -1, i);
 	uielement* elem = lua_touielement(L, -1);
-	
         if (elem->hoverState) {
 	    elem->pressedState = true;
 
@@ -666,7 +663,6 @@ static int uielement_handleMouseButtonReleased(lua_State* L)
     for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
         lua_rawgeti(L, -1, i);
 	uielement* elem = lua_touielement(L, -1);
-	
         if (elem->hoverState) elem->pressedState = false;
 	lua_pop(L, 1);
     }
@@ -685,7 +681,6 @@ static int uielement_handleKeyPressed(lua_State* L)
     for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
         lua_rawgeti(L, -1, i);
 	uielement* elem = lua_touielement(L, -1);
-      
         lua_pushlightuserdata(L, elem);
         lua_gettable(L, LUA_REGISTRYINDEX);
             
@@ -722,7 +717,6 @@ static int uielement_handleKeyReleased(lua_State* L)
     for (int i = lua_objlen(L, -1); i > 0; i -= 1) {
         lua_rawgeti(L, -1, i);
 	uielement* elem = lua_touielement(L, -1);
-      
         lua_pushlightuserdata(L, elem);
         lua_gettable(L, LUA_REGISTRYINDEX);
 
@@ -829,7 +823,6 @@ static int uielement__index(lua_State* L)
 {
     const char*  k = lua_tostring(L, -1);
 
-    //luaL_getmetatable(L, "uielement");
     lua_getmetatable(L, 1);
     lua_getfield(L, -1, k);
     if (lua_isnil(L, -1)) {
@@ -902,7 +895,6 @@ static int uielement_get_MOUSE_Y(lua_State* L)
 static int uielement__newindex(lua_State* L)
 {
     const char*  k = lua_tostring(L, -2);
-    //luaL_getmetatable(L, "uielement");
     lua_getmetatable(L, 1);
     lua_getfield(L, -1, "set");
     lua_getfield(L, -1, k);
@@ -1039,7 +1031,7 @@ static int uielement_uiText(lua_State* L)
     Font font = GetFontDefault();
     
     if (lua_isnumber(L, 5)) {
-      //font = ud->font;
+        font = GetFontDefault();
     }
 
     UITextAlign hAlign = TEXT_ALIGN_CENTRE;

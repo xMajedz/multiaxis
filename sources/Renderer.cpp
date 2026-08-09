@@ -360,34 +360,36 @@ void Renderer::Render()
         };
     }
     
+    auto deltaT = GetFrameTime();
+    
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
         if (IsKeyDown(KEY_W))
-	    UpdateCameraCustom(&pass.camera, target, Vector3{-1 * DEG2RAD, 0.f, 0.f}, 0);
+	    UpdateCameraCustom(&pass.camera, target, Vector3{-100.f * deltaT * DEG2RAD, 0.f, 0.f}, 0);
 
         if (IsKeyDown(KEY_A))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f,  1.f * DEG2RAD}, 0);      
+            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f,  100.f * deltaT * DEG2RAD}, 0);      
 
         if (IsKeyDown(KEY_S))
-	    UpdateCameraCustom(&pass.camera, target, Vector3{1 * DEG2RAD, 0.f, 0.f}, 0);
+	    UpdateCameraCustom(&pass.camera, target, Vector3{100.f * deltaT * DEG2RAD, 0.f, 0.f}, 0);
 
         if (IsKeyDown(KEY_D))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -1.f * DEG2RAD}, 0);
+            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -100.f * deltaT * DEG2RAD}, 0);
     } else {
         if (IsKeyDown(KEY_W))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0}, -0.01);
+            UpdateCameraCustom(&pass.camera, target, Vector3{0}, -10.f * deltaT);
 
         if (IsKeyDown(KEY_A))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f,  5.f * DEG2RAD}, 0);      
+	    UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f,  500.f * deltaT * DEG2RAD}, 0);      
 
         if (IsKeyDown(KEY_S))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0}, 0.01);
+            UpdateCameraCustom(&pass.camera, target, Vector3{0}, 10.f * deltaT);
 
         if (IsKeyDown(KEY_D))
-            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -5.f * DEG2RAD}, 0);
+            UpdateCameraCustom(&pass.camera, target, Vector3{0.f, 0.f, -500.f * deltaT * DEG2RAD}, 0);
     }
 
     UpdateCameraCustom(&pass.camera, target, Vector3{0}, 0);
-
+    
     /* UpdateCameraPro is good for zoom and free cam movement */
 
     //if (ProcessMouseRay(pass.camera, body_position, body_sides))
