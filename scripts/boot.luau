@@ -138,6 +138,10 @@ function makeMenu()
         interactive = true,
     }
 
+    function scriptlistButton.mouseButtonPressed()
+         runscript("DrawText.luau")
+    end
+
     settingsButton:addAdaptedText("1")
 
     local closeButton = viewElement:addChild{

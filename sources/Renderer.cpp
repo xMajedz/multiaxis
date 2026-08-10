@@ -2,6 +2,9 @@
 
 #include <fstream>
 
+#include <cstring>
+#include <cstdio>
+
 static void UpdateCameraCustom(Camera* camera, Vector3 target, Vector3 rotation, float zoom)
 {
     static Vector3 offset {0.f, 6.f, 2.f};
@@ -31,7 +34,7 @@ void RenderWindow::GetSettings()
 {
     std::ifstream file("settings.txt");
 	
-    if (!file) return ;
+    if (!file) return;
 
     std::string line;
 
@@ -60,26 +63,56 @@ RenderPass::~RenderPass()
         UnloadShader(shader);
 }
 
-void RenderPass::Draw_(int shapeType, Vector3 size, Color color)
+static void DrawTextStyled(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color color)
 {
-    Vector4 normalizedColor = ColorNormalize(color);
-    Vector3 objectColor = { normalizedColor.x, normalizedColor.y, normalizedColor.z };
-    SetShaderValue(shaders[BASE_SHADER], GetShaderLocation(shaders[BASE_SHADER], "objectColor"), &objectColor, SHADER_UNIFORM_VEC3);
-    SetShaderValue(shaders[BASE_SHADER], GetShaderLocation(shaders[BASE_SHADER], "objectAlpha"), &normalizedColor.w, SHADER_UNIFORM_FLOAT);
+    if (font.texture.id == 0) font = GetFontDefault();
 
-    BeginShaderMode(shaders[BASE_SHADER]);
-    BeginMode3D(camera);
-    switch(shapeType)
-    {
-    case 0:
-        DrawCube(Vector3{0}, size.x, size.y, size.z, WHITE);
-	break;
-    case 1:
-        DrawSphere(Vector3{0}, size.x, WHITE);
-	break;
+    int textLen = TextLength(text);
+
+    Color col = color;
+
+    float textOffsetY = 0.0f;
+    float textOffsetX = 0.0f;
+    float textLineSpacing = 0.0f;
+    float scaleFactor = fontSize/font.baseSize;
+
+    for (int i = 0; i < textLen;) {
+        int codepointByteCount = 0;
+        int codepoint = GetCodepointNext(&text[i], &codepointByteCount);
+        
+	if (codepoint == '%') {
+            i += 1;	    
+	    if (text[i++] == '^') {
+		char hexbyte[3] {text[i++], text[i++]};
+	        uint8_t byte = strtol(hexbyte, NULL, 16);
+
+	        uint8_t r = (byte & 0xE0) >> 5;
+                uint8_t g = (byte & 0x1C) >> 2;
+      	        uint8_t b = (byte & 0x03);
+	    
+	        col.r = (r * 255) / 7;
+	        col.g = (g * 255) / 7;
+	        col.b = (b * 255) / 3;
+
+	        continue;
+	    }
+	}
+
+        int index = GetGlyphIndex(font, codepoint);
+        float increaseX = 0.0f;
+
+        if (font.glyphs[index].advanceX == 0)
+	    increaseX = ((float)font.recs[index].width * scaleFactor + spacing);
+        else
+	    increaseX += ((float)font.glyphs[index].advanceX * scaleFactor + spacing);
+
+	if ((codepoint != ' ') && (codepoint != '\t'))
+            DrawTextCodepoint(font, codepoint, (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, col);
+
+        textOffsetX += increaseX;
+        
+        i += codepointByteCount;
     }
-    EndMode3D();
-    EndShaderMode();
 }
 
 void RenderPass::Draw(int shape, Quaternion q, Vector3 p, Vector3 sides, Color color)
@@ -146,66 +179,15 @@ Renderer::~Renderer()
         UnloadRenderTexture(renderTexture);
 }
 
-#include <cstring>
-#include <cstdio>
-static void DrawTextStyled(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color color)
+void Renderer::DrawText(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color color)
 {
-    if (font.texture.id == 0) font = GetFontDefault();
-
-    int textLen = TextLength(text);
-
-    Color col = color;
-
-    float textOffsetY = 0.0f;
-    float textOffsetX = 0.0f;
-    float textLineSpacing = 0.0f;
-    float scaleFactor = fontSize/font.baseSize;
-
-    for (int i = 0; i < textLen;) {
-        int codepointByteCount = 0;
-        int codepoint = GetCodepointNext(&text[i], &codepointByteCount);
-        
-	if (codepoint == '%') {
-            i += 1;	    
-	    if (text[i++] == '^') {
-		char hexbyte[3] {text[i++], text[i++]};
-	        uint8_t byte = strtol(hexbyte, NULL, 16);
-
-	        uint8_t r = (byte & 0xE0) >> 5;
-                uint8_t g = (byte & 0x1C) >> 2;
-      	        uint8_t b = (byte & 0x03);
-	    
-	        col.r = (r * 255) / 7;
-	        col.g = (g * 255) / 7;
-	        col.b = (b * 255) / 3;
-
-	        continue;
-	    }
-	}
-
-        int index = GetGlyphIndex(font, codepoint);
-        float increaseX = 0.0f;
-
-        if (font.glyphs[index].advanceX == 0)
-	    increaseX = ((float)font.recs[index].width * scaleFactor + spacing);
-        else
-	    increaseX += ((float)font.glyphs[index].advanceX * scaleFactor + spacing);
-
-	if ((codepoint != ' ') && (codepoint != '\t'))
-            DrawTextCodepoint(font, codepoint, (Vector2){ position.x + textOffsetX, position.y + textOffsetY }, fontSize, col);
-
-        textOffsetX += increaseX;
-        
-        i += codepointByteCount;
-    }
+    DrawTextStyled(font, text, position, fontSize, spacing, color);
 }
 
 void Renderer::RenderGame()
 {
     ApiInstance_.RenderGame(&pass);
     
-    DrawTextStyled(GetFontDefault(), "Text, %^0FText, %^F2Text, %^22Text,", Vector2{200, 200}, 20, 1, WHITE);
-
     auto* frame = GameInstance_.GetFrameData();
 
     for (const auto& o : frame->transforms) {    

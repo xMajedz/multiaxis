@@ -35,8 +35,6 @@ struct RenderPass {
     RenderPass();
     ~RenderPass();
 
-    void Draw_(int shapeType, Vector3 size, Color color);
-
     void Draw(int shape, Quaternion q, Vector3 p, Vector3 sides, Color color);
 
     Camera camera;
@@ -49,6 +47,8 @@ public:
     Renderer(Api& ApiInstance, Game& GameInstance);
     ~Renderer();
 
+    void DrawText(Font font, const char *text, Vector2 position, float fontSize, float spacing, Color color);
+  
     void Render();
 
     void RenderGame();
