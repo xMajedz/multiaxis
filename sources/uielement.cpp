@@ -62,6 +62,8 @@ struct uielement
 
     bool __positionDirty = true;
 
+    bool __logging = false;
+    
     Api* ApiInstance;
 
     void updateChildPos(lua_State* L);
@@ -70,9 +72,11 @@ struct uielement
     bool show(lua_State* L, bool forceReload);
     void hide(lua_State* L, bool noreload);
     void reload(lua_State* L);
-    void kill(lua_State* L);
+    void kill(lua_State* L, bool childOnly);
 
     void uiText(const char* str, uint32_t x, uint32_t y, Font font, UITextAlign hAlign, UITextAlign vAlign, int scale, Color col1, Color col2);
+
+    void log(const char* message);
 
     uielement(lua_State* L);
     ~uielement();
@@ -81,6 +85,11 @@ struct uielement
 #define lua_newuielement(L) static_cast<uielement*>(lua_newuserdatataggedwithmetatable(L, sizeof(uielement), 1))
 #define lua_isuielement(L, idx) (lua_isuserdata(L, idx) && lua_userdatatag(L, idx) == 1)
 #define lua_touielement(L, idx) static_cast<uielement*>(lua_touserdatatagged(L, idx, 1))
+
+void uielement::log(const char* message)
+{
+    if(__logging) ApiInstance->Log(message);
+}
 
 void uielement::updateChildPos(lua_State* L)
 {
@@ -117,7 +126,7 @@ void uielement::updatePos(lua_State* L)
     }
     lua_pop(L, 2);
 }
-#include <iostream>
+
 void uielement::display(lua_State* L)
 {
     lua_pushlightuserdata(L, this);
@@ -209,23 +218,27 @@ bool uielement::show(lua_State* L, bool forceReload)
     
     return displayed;
 }
+#include <iostream>
 
 void uielement::hide(lua_State* L, bool noreload)
 {
+    //std::cout << "hide: " << lua_gettop(L) << std::endl;
     lua_pushlightuserdata(L, this);
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_getfield(L, -1, "child");
     if (!lua_isnil(L, -1)) {
         for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
-	    lua_rawgeti(L, -2, i);
+	    lua_rawgeti(L, -1, i);
 	    lua_touielement(L, -1)->hide(L, false);
 	    lua_pop(L, 1);
         }
-    }    
+    }
+    lua_pop(L, 2);
 
     noReload = noreload;
     
-    if (destroyed || !displayed) return;
+    if (destroyed || !displayed)
+        return;
     
     lua_pushstring(L, "UIVisualManager");
     lua_gettable(L, LUA_REGISTRYINDEX);
@@ -250,7 +263,10 @@ void uielement::hide(lua_State* L, bool noreload)
 	lua_pushvalue(L, -2);
 	
 	lua_settable(L, -5);
+        // TODO: make sense of this
+	lua_pop(L, 3);
     }
+    //lua_pop(L, 1);
     
     displayed = false;
 }
@@ -261,18 +277,69 @@ void uielement::reload(lua_State* L)
     show(L, false);
 }
 
-void uielement::kill(lua_State* L)
+void uielement::kill(lua_State* L, bool childOnly)
 {
+  //std::cout << "top: " << lua_gettop(L) << std::endl;
+  //std::cout << "kill: " << this << std::endl;
     lua_pushlightuserdata(L, this);
     lua_gettable(L, LUA_REGISTRYINDEX);
     lua_getfield(L, -1, "child");
     if (!lua_isnil(L, -1)) {
-        for (int i = 1; lua_objlen(L, -1) >= i; i += 1) {
+        int n = lua_objlen(L, -1);
+	std::cout << "n: " << n << std::endl;
+        for (int i = 1; n >= i; i += 1) {
+	    //std::cout << "i: " << i << std::endl;
             lua_rawgeti(L, -1, i);
-	    lua_touielement(L, -1)->kill(L);
+	    //std::cout << "1: " << lua_gettop(L) << std::endl;
+	    lua_touielement(L, -1)->kill(L, false);
+	    //std::cout << "2: " << lua_gettop(L) << std::endl;
+	    lua_pop(L, 1);
+	    //std::cout << "post: " << this << std::endl;
         }
-    } 
+    }
+    lua_pop(L, 2);
+    
+    if (childOnly) {
+        lua_pushlightuserdata(L, this);
+        lua_gettable(L, LUA_REGISTRYINDEX);
+	lua_newtable(L);
+        lua_setfield(L, -2, "child");
+	lua_pop(L, 1);
+        return;
+    }
 
+    if (destroyed)
+        return;
+    
+    hide(L, true);
+    
+    /*
+    lua_pushstring(L, "UIElementManager");
+    lua_gettable(L, LUA_REGISTRYINDEX);
+
+    if (lua_istable(L, -1)) {
+        lua_newtable(L);
+        int j = 1;
+	
+	for (int i = 1; i <= lua_objlen(L, -2); i += 1) { 
+             lua_rawgeti(L, -2, i);
+	     if (this != lua_touielement(L, -1)) {
+	         //lua_pushvalue(L, -2);
+	         //lua_pushvalue(L, -2);
+	         //lua_rawseti(L, -2, j);
+	         //lua_pop(L, 1);
+	         j += 1;
+	     }
+	     lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+	
+        //lua_pushstring(L, "UIElementManager");
+        //lua_pushvalue(L, -2);
+	//lua_settable(L, LUA_REGISTRYINDEX);
+    }
+    lua_pop(L, 1);
+    */
     destroyed = true;
 }
 
@@ -484,8 +551,8 @@ uielement::uielement(lua_State* L)
     updatePos(L);
     
     displayed = true;
-    
-    ApiInstance->Log(TextFormat("uielement.new: %p", this));
+
+    log(TextFormat("uielement.new: %p", this));
 }
 
 uielement::~uielement()
@@ -495,7 +562,7 @@ uielement::~uielement()
 	UnloadTexture(bgImageTexture);
     }
     
-    ApiInstance->Log(TextFormat("~uielement: %p", this));
+    log(TextFormat("~uielement: %p", this));
 }
 
 static void uielement_destructor(lua_State* L, void* ud)
@@ -530,7 +597,8 @@ static int uielement_show(lua_State* L)
 
 static int uielement_hide(lua_State* L)
 {
-    lua_touielement(L, 1)->hide(L, false);
+    bool noreload = lua_toboolean(L, 2);
+    lua_touielement(L, 1)->hide(L, noreload);
     return 0;
 }
 
@@ -542,7 +610,8 @@ static int uielement_reload(lua_State* L)
 
 static int uielement_kill(lua_State* L)
 {
-    lua_touielement(L, 1)->kill(L);
+    bool childOnly = lua_toboolean(L, 2);
+    lua_touielement(L, 1)->kill(L, childOnly);
     return 0;
 }
 

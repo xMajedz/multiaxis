@@ -8,14 +8,29 @@ ui.renderHooks()
 local ui3d = require "@uielement3d"
 ui3d.renderHooks()
 
-local obj0 = ui3d.new{size = {0.50, 0.50, 0.50}, bgColor = ui.UICOLORGREEN}
-local obj1 = ui3d.new{size = {5.00, 0.25, 0.25}, bgColor = ui.UICOLORGREEN}
-local obj2 = ui3d.new{size = {0.25, 5.00, 0.25}, bgColor = ui.UICOLORGREEN}
-local obj3 = ui3d.new{size = {0.25, 0.25, 5.00}, bgColor = ui.UICOLORGREEN}
+--local obj0 = ui3d.new{size = {0.50, 0.50, 0.50}, bgColor = ui.UICOLORGREEN}
+--local obj1 = ui3d.new{size = {5.00, 0.25, 0.25}, bgColor = ui.UICOLORGREEN}
+--local obj2 = ui3d.new{size = {0.25, 5.00, 0.25}, bgColor = ui.UICOLORGREEN}
+--local obj3 = ui3d.new{size = {0.25, 0.25, 5.00}, bgColor = ui.UICOLORGREEN}
 
 --local Console = require "Ui/Console" -- load console first so i can get errors logged
 --runscript("redpixel.luau")
 --runscript("von.luau")
+
+function showMessages(viewElement, messages)
+    local maxMessages = 40
+    local max = ((#messages > maxMessages) and maxMessages) or #messages
+    local d = ((#messages > maxMessages) and (#messages - maxMessages)) or 0
+    
+    for i = 1, #messages - d do
+        local elem = viewElement:addChild{
+	    rec = {0, -20 * (max - i + 1), ui.WIN_W - 20, 20},
+	    bgColor = ui.UICOLORBLANK,
+        }
+       
+        elem:addAdaptedText(messages[i + d], 5, 0, 0, 0)
+    end
+end
 
 function makeTextfield(textfieldString)
     local textfieldBuffer = buffer.create(256)
@@ -38,8 +53,22 @@ function makeTextfield(textfieldString)
 	
 	keyboard = true,
     }
+
+    local messages = {}
     
-    viewElement:hide()  
+    local messageHolder = ui.new{
+        rec = {10, 70, ui.WIN_W - 20, 20 * 40},
+        bgColor = ui.UICOLORBLANK,
+	--borderColor = ui.UICOLORWHITE,
+    }
+
+    function Api.Console.Console(message)
+        messageHolder:kill(true)
+        table.insert(messages, message)
+	showMessages(messageHolder, messages)
+    end
+
+    viewElement:hide()
 
     function viewElement.customDisplay()
         local color = (viewElement.hoverState and ui.UICOLORBLUE) or ui.UICOLORWHITE
@@ -48,15 +77,19 @@ function makeTextfield(textfieldString)
     end
     
     function viewElement.enterAction()
+        messageHolder:kill(true)	    
         if viewElement.displayed then
 	    if textfieldIndex > 0 then
-	      log(buffer.readstring(textfieldBuffer, 0, textfieldIndex))
-	      textfieldIndex = 0
+	       local text = buffer.readstring(textfieldBuffer, 0, textfieldIndex)
+	       textfieldIndex = 0
+	       table.insert(messages, text)
+	       showMessages(messageHolder, messages)
 	    end
 	    viewElement:hide()
 	else
+	    showMessages(messageHolder, messages)
 	    viewElement:show()
-	end
+       	end
     end
     
     function viewElement.keyPressed(key, keyCode)
@@ -144,6 +177,10 @@ function makeMenu()
 
     settingsButton:addAdaptedText("1")
 
+    function settingsButton.mouseButtonPressed()
+        log("2")
+    end
+    
     local closeButton = viewElement:addChild{
         rec = {-25, 0, 25, 25},
         bgColor = ui.UICOLORRED,
