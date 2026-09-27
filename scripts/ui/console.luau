@@ -3,7 +3,7 @@ local ui = require "@uielement"
 local console = {}
 
 local function showMessages(viewElement, messages)
-    local maxMessages = 40
+    local maxMessages = (ui.WIN_H)/20
     local max = ((#messages > maxMessages) and maxMessages) or #messages
     local d = ((#messages > maxMessages) and (#messages - maxMessages)) or 0
     
@@ -20,7 +20,13 @@ end
 function console.makeTextfield(textfieldString)
     local textfieldBuffer = buffer.create(256)
 
-    local textfieldIndex = #textfieldString
+    local textfieldIndex = 0
+
+    if textfieldString == nil then
+       textfieldString = ""
+    else
+       textfieldIndex = #textfieldString
+    end
 
     buffer.writestring(textfieldBuffer, 0, textfieldString)
 
@@ -50,7 +56,7 @@ function console.makeTextfield(textfieldString)
     }
     
     function messageHolder.customDisplay()
-        local maxMessages = 40
+        local maxMessages = (ui.WIN_H)/20 - 5
         local max = ((#messages > maxMessages) and maxMessages) or #messages
         local d = ((#messages > maxMessages) and (#messages - maxMessages)) or 0
         for i = 1, #messages - d do
@@ -60,9 +66,9 @@ function console.makeTextfield(textfieldString)
 
     function Api.Console.Console(message)
         --messageHolder:kill(true)
+	--showMessages(messageHolder, messages)
         table.insert(messages, message)
         messageHolder:show()
-	--showMessages(messageHolder, messages)
     end
 
     viewElement:hide()

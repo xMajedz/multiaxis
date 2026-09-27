@@ -18,7 +18,7 @@ ui3d.renderHooks()
 
 local console = require "ui.console"
 
-local consoleObject = console.makeTextfield("textfield")
+local consoleObject = console.makeTextfield()
 
 for i, message in require("intro") do
     log(`{message.lable}: {message.content}`)
