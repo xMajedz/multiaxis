@@ -6,8 +6,12 @@
 * Raylib ([raysan5/raylib](https://github.com/raysan5/raylib))
 * Box3d ([erincatto/box3d](https://github.com/erincatto/box3d))
 
+# Update Submodules
+```
+git submodule update --init --recursive
+```
+
 # Building
 ```
-cmake -B build
-cmake --build build
+cmake -B build && cmake --build build
 ```
