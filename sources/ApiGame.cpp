@@ -44,5 +44,9 @@ static const luaL_Reg ApiGame[] = {
 int luaopenGame(lua_State* L)
 {
     luaL_registerwithclosure(L, "Game", ApiGame, 1);
+
+    lua_pushstring(L, GAME_VERSION);
+    lua_setfield(L, -2, "Version");
+   	
     return 1;
 }
