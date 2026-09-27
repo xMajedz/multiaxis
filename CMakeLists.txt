@@ -18,7 +18,7 @@ sources/uielement.cpp
 sources/uielement3d.cpp
 sources/multiaxis.cpp)
 
-target_compile_definitions(multiaxis PUBLIC GAME_VERSION=${GAME_VERSION})
+target_compile_definitions(multiaxis PUBLIC GAME_VERSION=\"${GAME_VERSION}\")
 
 target_include_directories(multiaxis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/raygui/src)
 
