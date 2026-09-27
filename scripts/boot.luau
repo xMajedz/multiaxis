@@ -16,21 +16,14 @@ ui3d.renderHooks()
 --runscript("redpixel.luau")
 --runscript("von.luau")
 
-local console = require "ui/console"
+local console = require "ui.console"
 
 local consoleObject = console.makeTextfield("textfield")
 
-local menu = require "ui/menu"
-
-local menuObject = menu.makeMenu()
-
---[[
-for i, message in require("intro") do -- insert the intro message into the chat
-   Console.InsertMessage(`{message.lable}: {message.content}`)
+for i, message in require("intro") do
+    log(`{message.lable}: {message.content}`)
 end
 
-Console.ShowMessages()
+local menu = require "ui.menu"
 
-Console.Menu = require "Ui/Menu" -- load the menu
-Console.Menu.Console = Console
-]]
+local menuObject = menu.makeMenu()
