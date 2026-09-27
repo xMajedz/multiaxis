@@ -10,7 +10,7 @@
 #include <array>
 
 #ifndef GAME_VERSION
-#define GAME_VERSION "git-box3d"
+#define GAME_VERSION "git-main"
 #endif
 
 struct env_obj {
