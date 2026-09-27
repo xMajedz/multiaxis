@@ -18,6 +18,8 @@ sources/uielement.cpp
 sources/uielement3d.cpp
 sources/multiaxis.cpp)
 
+target_compile_definitions(multiaxis PUBLIC GAME_VERSION=${GAME_VERSION})
+
 target_include_directories(multiaxis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/vendor/raygui/src)
 
 target_link_libraries(multiaxis PRIVATE Luau.Compiler Luau.VM raylib box3d::box3d)
