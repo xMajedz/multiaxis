@@ -184,8 +184,17 @@ void Renderer::DrawText(Font font, const char *text, Vector2 position, float fon
     DrawTextStyled(font, text, position, fontSize, spacing, color);
 }
 
+static float elapsedTime = 0;
+
 void Renderer::RenderGame()
 {
+    elapsedTime += GetFrameTime();
+
+    if (elapsedTime >= 1.0 / 60.0) {
+        GameInstance_.Update();
+	elapsedTime = 0;
+    }
+    
     ApiInstance_.RenderGame(&pass);
     
     auto* frame = GameInstance_.GetFrameData();

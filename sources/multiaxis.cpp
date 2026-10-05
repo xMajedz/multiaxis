@@ -46,7 +46,7 @@ int main(int argc, char* argv[])
     bool running = true;
     
     while (running) {
-	GameInstance.Update();
+      //GameInstance.Update();
 	RendererInstance.Render();		
 	running = !WindowShouldClose() && !GameInstance.ShouldQuit();
     }
